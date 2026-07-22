@@ -7,3 +7,7 @@
 - **Ground truth** — knowing which transactions are actually criminal. Real banks don't have it; simulators do. Ours lives in `scheme_labels`.
 - **Placement → layering → integration** — the three classic stages of money laundering: get dirty cash into the system, hide its trail, make it look legitimate.
 - **KYC** — Know Your Customer: identity checks when an account is opened; depth recorded as `kyc_level`.
+- **VPA** — Virtual Payment Address, the UPI ID (`asha.rao@okhdfc`) that stands in for an account number.
+- **NACH** — National Automated Clearing House: the auto-debit rail that pulls EMIs and SIPs on a fixed day each month.
+- **Peer group** — the crowd an account is compared against ("students", "kirana stores"). Suspicion = deviation from *your* peer group, not from everyone.
+- **Two-leg posting** — one internal payment writes two statement rows: payer's DR and payee's CR. If only one leg exists, a statement is lying.

@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS transactions (
     ts                TIMESTAMP NOT NULL,
     account_id        VARCHAR NOT NULL REFERENCES accounts(account_id),
     direction         VARCHAR NOT NULL CHECK (direction IN ('DR','CR')),
-    channel           VARCHAR NOT NULL CHECK (channel IN ('UPI','NEFT','IMPS','RTGS','ATM','POS','CASH','CHQ','INT')),
+    channel           VARCHAR NOT NULL CHECK (channel IN ('UPI','NEFT','IMPS','RTGS','NACH','ATM','POS','CASH','CHQ','INT')),
     amount            DECIMAL(15,2) NOT NULL CHECK (amount > 0),
     counterparty_name VARCHAR,
     counterparty_ref  VARCHAR,
