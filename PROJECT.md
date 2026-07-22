@@ -1,7 +1,13 @@
 # LaunderLab — project operating doc
 
 Read this file + the last Field Notes entry at "start day".
-Full 16-week plan: `../LAUNDERLAB-PLAN.md` (CareerForge root).
+Full 18-week plan: `../LAUNDERLAB-PLAN.md` (CareerForge root).
+
+## Research thesis — three unsolved problems we attack
+
+1. **Detection decay** — how fast does a detection stack rot against an adapting adversary? (Phase 8 benchmark; exists nowhere today)
+2. **False-positive economics** — cost-per-true-alert measured for every detection config, not guessed (Phases 3–6)
+3. **The cross-bank blind spot** — quantify what single banks can't see in multi-bank mule chains, then measure the lift from privacy-preserving co-operation (Phase 8.5; BIS Project Aurora does this privately — no open version exists)
 
 ## Quality bar (non-negotiable)
 
@@ -23,8 +29,9 @@ Full 16-week plan: `../LAUNDERLAB-PLAN.md` (CareerForge root).
 - [ ] **Phase 5** (wks 7–8) — Graph analytics: mule-ring detection
 - [ ] **Phase 6** (wks 8–9) — ML scorer with SHAP explanations
 - [ ] **Phase 7** (wks 10–12) — Investigator workbench (FastAPI + React)
-- [ ] **Phase 8** (wks 12–14) — Red team co-evolution engine
-- [ ] **Phase 9** (wks 15–16) — Story Mode + whitepaper + demo video + launch
+- [ ] **Phase 8** (wks 12–14) — Red team co-evolution engine → detection-decay benchmark
+- [ ] **Phase 8.5** (wks 15–16) — Multi-bank experiment: quantify the cross-bank blind spot, prototype privacy-preserving sharing, measure lift
+- [ ] **Phase 9** (wks 17–18) — Story Mode + whitepaper + demo video + launch
 
 ## Slice log
 
