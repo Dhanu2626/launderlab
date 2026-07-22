@@ -27,7 +27,7 @@ Full 18-week plan: `../LAUNDERLAB-PLAN.md` (CareerForge root).
 - [ ] **Phase 3** (wks 4–5) — Rules engine: scenario DSL, alerts, tuning workflow
 - [ ] **Phase 4** (wk 6) — Screening: sanctions/PEP fuzzy matching
 - [ ] **Phase 5** (wks 7–8) — Graph analytics: mule-ring detection
-- [ ] **Phase 6** (wks 8–9) — ML scorer with SHAP explanations
+- [ ] **Phase 6** (wks 8–10) — ML tournament: 6 algorithm families (gradient boosting, isolation forest, one-class SVM, autoencoder, LSTM, GraphSAGE GNN) on one leaderboard, all with explainability; later scored on decay vs the red team
 - [ ] **Phase 7** (wks 10–12) — Investigator workbench (FastAPI + React)
 - [ ] **Phase 8** (wks 12–14) — Red team co-evolution engine → detection-decay benchmark
 - [ ] **Phase 8.5** (wks 15–16) — Multi-bank experiment: quantify the cross-bank blind spot, prototype privacy-preserving sharing, measure lift
