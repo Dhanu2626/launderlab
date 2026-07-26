@@ -110,3 +110,27 @@ real accounts from my own synthetic bank as the worked examples, not textbook ab
 **Phase 0 is complete.** Ledger schema, seeded 25-customer world, statement generator, and
 the FCC vocabulary are all live and tested. Phase 1 (World Engine at 10k-customer scale)
 starts next.
+
+---
+
+## Day 5 — 2026-07-26 · slice 1.1 (population generator, Phase 1 begins)
+
+🏦 **FCC:** Real banks calibrate "normal" from income distributions that are right-skewed —
+most customers cluster near the median, a long thin tail runs to very high earners. That
+shape matters for AML: a threshold rule tuned on a *symmetric* assumption over-flags the
+honest high earners in the tail and under-flags structuring hidden in the crowded middle.
+Our generator uses a lognormal distribution specifically to get this shape right — median
+salaried income landed at ₹54,000 with a long tail to ₹2 lakh, out of the box.
+
+🔧 **Engineering:** Chose not to add the `Faker` library for realistic names — two plain
+lists (40 first names, 24 surnames) combined at random give thousands of plausible unique
+combinations for free, no new dependency, and the names stay recognizably Indian instead of
+whatever Faker's patchy India locale produces. Ladder rung 3 in practice: stdlib random
+already solves this; a dependency would have been unearned complexity. Also deliberately
+scoped today to *profiles only*, not transactions — verifying the crowd looks realistic
+before building behavior on top of it beats debugging both at once.
+
+🎯 **Interview line:** "I generated a 10,000-customer synthetic population from calibrated
+distributions instead of a fixed dataset — lognormal income, weighted city and segment
+mix — and verified the output against my target distribution before building any
+transaction logic on top of it, so a realism bug couldn't hide inside a detection bug."

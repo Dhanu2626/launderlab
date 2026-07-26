@@ -26,6 +26,8 @@ Simulate (phases 0–2). Track B — Detect (phases 3–6). Track C — Investig
 - [x] **0.2** — seed loader: 25-customer cast (salaried/business/student/NRI/merchant) + one believable week of life, balance-reconciled, deterministic *(2026-07-22)*
 - [x] **0.3** — statement generator v0: any account renders as an HTML bank statement, opening balance derived, `python -m launderlab statement <id>` opens it in browser *(2026-07-23)*
 - [x] **0.4** — FCC primer doc: placement → layering → integration mapped to subsystems, grounded in the seeded cast *(2026-07-26)*
+- [x] **1.1** — population generator: 10k customer profiles from distributions (not hand-typed), deterministic, segment mix within 0.5pt of target *(2026-07-26)*
+- [ ] **1.2** — transaction generator at scale: reuse/generalize seed.py's behavior patterns to post a month of life for the generated population
 - [ ] **Phase 1** (wks 1–2) — World Engine: 10k customers, behavior profiles, clean-traffic realism + histogram visual
 - [ ] **Phase 2** (wks 3–4) — Typology Injector: structuring, mule chain, shell layering (YAML-driven)
 - [ ] **Phase 3** (wks 4–5) — Rules engine: scenario DSL, alerts, tuning workflow
@@ -46,6 +48,7 @@ Simulate (phases 0–2). Track B — Detect (phases 3–6). Track C — Investig
 | 2026-07-23 | 0.3 | statement generator v0 (`statement.py`): HTML statement per account, derived opening balance, CLI `statement <id>` opens in browser; sped up test suite 330s→130s by sharing seeded fixtures instead of reseeding per test; 4 new tests |
 | 2026-07-26 | fix | CI broke on ruff 0.16.0's wider default rule set (unrelated to any diff); pinned `[tool.ruff.lint] select` explicitly, verified against 0.16.0 locally |
 | 2026-07-26 | 0.4 | `ledger/FCC-PRIMER.md`: placement/layering/integration mapped to subsystems and phases, examples grounded in the seeded cast — Phase 0 complete |
+| 2026-07-26 | 1.1 | `world/population.py`: procedural generator for 10k customer profiles (5 segments, lognormal income, weighted cities, deterministic RNG), 6 new tests; verified against a real 10k run (segment mix within 0.5pt of target, median salaried income ₹54,000) |
 
 ## Rituals
 
