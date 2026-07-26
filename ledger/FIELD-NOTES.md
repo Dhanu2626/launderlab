@@ -192,3 +192,32 @@ generalized the fix into a reusable bulk_update helper instead of patching it lo
 went back and found the same slow pattern sitting untouched in code I'd written days earlier.
 Cut my test suite runtime by 5x as a side effect of fixing a correctness path, not a
 performance path."
+
+---
+
+## Day 8 — 2026-07-26 · slice 2.2 (mule networks — the trail gets buried)
+
+🏦 **FCC:** Structuring is a *one-account* crime; layering is fundamentally a *pattern
+across accounts* — no single row, and no single account's history, looks wrong. Today's
+real chain: Karthik Kumar received ₹10 lakh from a shell company, forwarded 92.5% to Manoj,
+who forwarded 93.5% to Praveen, who forwarded 94% to Lakshmi — all inside 27 hours. A rule
+watching any *one* of those four accounts sees one ordinary transfer. The crime only exists
+in the edges connecting them, which is exactly why Phase 5 (graph analytics) has to exist —
+per-account rules are structurally blind to it, a fact FCC-PRIMER.md called out on Day 4 and
+today made concrete with real data instead of a claim.
+
+🔧 **Engineering:** Structuring only ever touched one account, so its balance-recompute
+logic was written as a single-account function. Layering fundamentally can't work that
+way — money crosses multiple accounts, so *every* account in the chain needs its own
+history replayed and rewritten. Extracting `recompute_account_balances()` out of
+structuring.py into `ledger.py` before writing the new typology meant the multi-account
+version was just "call it once per account in the chain" — no new balance logic to get
+wrong. Second reuse win: DuckDB doesn't persist a UPI-ID (VPA) column anywhere — it only
+ever existed as an in-memory field during generation — so realistic counterparty narrations
+for newly-injected transactions have to be synthesized from the account's stored name at
+injection time, the same pattern population.py already used to build them the first time.
+
+🎯 **Interview line:** "My first typology only ever touched one account, so I wrote its
+balance-recompute logic as single-account by default. Before writing the second typology —
+which by definition crosses multiple accounts — I extracted that logic into a shared
+function first, so the harder multi-account version was composition, not new code to debug."

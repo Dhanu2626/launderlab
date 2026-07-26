@@ -12,7 +12,7 @@ from datetime import date, datetime, time, timedelta
 
 import duckdb
 
-from launderlab.db.ledger import account_opening_balance, bulk_update
+from launderlab.db.ledger import account_opening_balance, recompute_account_balances
 
 
 def inject(conn: duckdb.DuckDBPyConnection, scheme_id: str, account_id: str,
@@ -50,7 +50,7 @@ def inject(conn: duckdb.DuckDBPyConnection, scheme_id: str, account_id: str,
         " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
         new_rows,
     )
-    _recompute_balances(conn, account_id, opening)
+    recompute_account_balances(conn, account_id, opening)
 
     new_ids = conn.execute(
         "SELECT txn_id FROM transactions WHERE txn_id > ? AND account_id = ?",
@@ -77,19 +77,3 @@ def _split_amounts(rng: random.Random, total: int, ceiling: int) -> list[int]:
     if remaining > 0:
         amounts.append(remaining)
     return amounts
-
-
-def _recompute_balances(conn: duckdb.DuckDBPyConnection, account_id: str, opening) -> None:
-    """Replay this account's full history (old + newly injected) in time order and
-    rewrite every balance_after from the true opening balance forward."""
-    rows = conn.execute(
-        "SELECT txn_id, direction, amount FROM transactions"
-        " WHERE account_id = ? ORDER BY ts, txn_id",
-        [account_id],
-    ).fetchall()
-    balance = opening
-    updates = []
-    for txn_id, direction, amount in rows:
-        balance += amount if direction == "CR" else -amount
-        updates.append((float(balance), txn_id))
-    bulk_update(conn, "transactions", "txn_id", "balance_after", updates)

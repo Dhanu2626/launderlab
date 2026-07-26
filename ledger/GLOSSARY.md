@@ -15,3 +15,5 @@
 - **Bulk load (COPY)** — loading many database rows via a file + the database's native bulk loader, instead of one SQL statement per row. Orders of magnitude faster because it skips per-statement parsing/transaction overhead.
 - **Ground truth** (revisited) — `scheme_labels` now actually holds real rows: which transactions belong to which injected scheme, and what role each played (e.g. `placement`). This is what makes precision/recall/false-positive scoring possible once detection exists.
 - **Placement** — the first stage of laundering (getting dirty cash into a bank); structuring is the classic placement technique — see `ledger/FCC-PRIMER.md`.
+- **Layering** — the second stage: moving money through many accounts fast to bury its trail. No single hop looks criminal; the crime is only visible in the pattern across hops.
+- **Mule / mule network** — a person (recruited or unwitting) whose account is used to pass laundered money along for a small cut, one hop in a layering chain. Source = where the chain starts, sink = where it ends.

@@ -93,6 +93,24 @@ def bulk_update(conn: duckdb.DuckDBPyConnection, table: str, key_col: str, set_c
     )
 
 
+def recompute_account_balances(conn: duckdb.DuckDBPyConnection, account_id: str, opening) -> None:
+    """Replay an account's full transaction history (old + any newly injected rows) in
+    time order and rewrite every balance_after from `opening` forward. Call this after
+    inserting a transaction into the middle of an already-generated history — every row
+    after the insertion point needs its running balance recalculated."""
+    rows = conn.execute(
+        "SELECT txn_id, direction, amount FROM transactions"
+        " WHERE account_id = ? ORDER BY ts, txn_id",
+        [account_id],
+    ).fetchall()
+    balance = opening
+    updates = []
+    for txn_id, direction, amount in rows:
+        balance += amount if direction == "CR" else -amount
+        updates.append((float(balance), txn_id))
+    bulk_update(conn, "transactions", "txn_id", "balance_after", updates)
+
+
 def table_counts(conn: duckdb.DuckDBPyConnection) -> dict[str, int]:
     """Row counts for each core table — the heartbeat of the bank."""
     tables = ["customers", "accounts", "transactions", "scheme_labels"]
