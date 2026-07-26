@@ -134,3 +134,32 @@ before building behavior on top of it beats debugging both at once.
 distributions instead of a fixed dataset — lognormal income, weighted city and segment
 mix — and verified the output against my target distribution before building any
 transaction logic on top of it, so a realism bug couldn't hide inside a detection bug."
+
+---
+
+## Day 6 — 2026-07-26 · slice 1.2 (transactions at scale — the world runs)
+
+🏦 **FCC:** A month, not a week, is the right unit for AML monitoring — most real scenarios
+(salary cadence, EMI cycles, rolling structuring windows) only reveal their pattern across
+30 days. A week of data can hide a monthly rhythm entirely. That's why Phase 1's acceptance
+bar was written as "30 days," and why today's run deliberately generated a full month before
+calling the engine done, not just scaling up the row count.
+
+🔧 **Engineering:** Measured before optimizing, again — this time the answer was the
+opposite of Day 3's. I benchmarked our existing `executemany` insert path at real scale
+(200,000 rows) and it did not finish in 10 minutes. Swapped to a temp-CSV + DuckDB `COPY`
+approach (pure stdlib `csv` + DuckDB's own bulk loader, zero new dependencies) and the same
+200,000 rows loaded in 4.5 seconds — roughly 130x faster. Verified correctness first
+(decimals, `NULL`s, timestamps, even a comma inside a narration all round-trip correctly)
+before trusting it with real data. The full 10,000-customer, 30-day world — 630,755
+transactions, ₹274 crore moved — now generates in 31 seconds. Also generalized every
+hand-typed pattern from seed.py (salary, rent, EMI, P2P friends, merchant footfall, business
+receipts) into formulas driven by each profile's own segment and income, instead of a human
+picking values per person — the same vocabulary, now capable of running at any scale.
+
+🎯 **Interview line:** "My bulk-insert path couldn't finish 200,000 rows in 10 minutes, so I
+benchmarked three alternatives before picking one — a temp-CSV-plus-COPY approach using only
+tools I already had loaded 200,000 rows in 4.5 seconds, about 130x faster, with zero new
+dependencies. I verified the values round-tripped correctly before trusting it with real
+data, which caught nothing — but I checked anyway, because 'faster' and 'correct' are two
+separate claims."

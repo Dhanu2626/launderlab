@@ -27,8 +27,9 @@ Simulate (phases 0–2). Track B — Detect (phases 3–6). Track C — Investig
 - [x] **0.3** — statement generator v0: any account renders as an HTML bank statement, opening balance derived, `python -m launderlab statement <id>` opens it in browser *(2026-07-23)*
 - [x] **0.4** — FCC primer doc: placement → layering → integration mapped to subsystems, grounded in the seeded cast *(2026-07-26)*
 - [x] **1.1** — population generator: 10k customer profiles from distributions (not hand-typed), deterministic, segment mix within 0.5pt of target *(2026-07-26)*
-- [ ] **1.2** — transaction generator at scale: reuse/generalize seed.py's behavior patterns to post a month of life for the generated population
-- [ ] **Phase 1** (wks 1–2) — World Engine: 10k customers, behavior profiles, clean-traffic realism + histogram visual
+- [x] **1.2** — transaction generator at scale: generalized seed.py's patterns over any population, bulk CSV+COPY loader (needed — executemany didn't finish 200k rows in 10 min, COPY does it in 4.5s); real 10k-customer/30-day run: 630,755 transactions in 31.3s, all balances reconciled, all 10,000 accounts active *(2026-07-26)*
+- [ ] **1.3** — Phase 1 acceptance pass: weekday/weekend variation, holiday effects, more merchant/city diversity, then a real "can a human tell this is synthetic" check against the acceptance bar below
+- [ ] **Phase 1** (wks 1–2) — World Engine: 10k customers, behavior profiles, clean-traffic realism + histogram visual — engine proven at scale (1.2); realism acceptance bar not yet formally checked (1.3)
 - [ ] **Phase 2** (wks 3–4) — Typology Injector: structuring, mule chain, shell layering (YAML-driven)
 - [ ] **Phase 3** (wks 4–5) — Rules engine: scenario DSL, alerts, tuning workflow
 - [ ] **Phase 4** (wk 6) — Screening: sanctions/PEP fuzzy matching + high-risk geography + adverse media simulation
@@ -49,6 +50,7 @@ Simulate (phases 0–2). Track B — Detect (phases 3–6). Track C — Investig
 | 2026-07-26 | fix | CI broke on ruff 0.16.0's wider default rule set (unrelated to any diff); pinned `[tool.ruff.lint] select` explicitly, verified against 0.16.0 locally |
 | 2026-07-26 | 0.4 | `ledger/FCC-PRIMER.md`: placement/layering/integration mapped to subsystems and phases, examples grounded in the seeded cast — Phase 0 complete |
 | 2026-07-26 | 1.1 | `world/population.py`: procedural generator for 10k customer profiles (5 segments, lognormal income, weighted cities, deterministic RNG), 6 new tests; verified against a real 10k run (segment mix within 0.5pt of target, median salaried income ₹54,000) |
+| 2026-07-26 | 1.2 | `world/generate.py`: generalized seed.py's event patterns (salary/rent/EMI/P2P/merchant/business) over any population; added `ledger.bulk_insert()` (temp CSV + DuckDB COPY, no new dependency) after measuring executemany couldn't finish 200k rows in 10 minutes while COPY does it in 4.5s; 8 new tests; real 10k-customer/30-day run: 630,755 transactions in 31.3s, ₹274cr moved, 0 negative balances, all 10,000 accounts active, channel mix 89% UPI |
 
 ## Rituals
 

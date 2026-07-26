@@ -12,3 +12,4 @@
 - **Peer group** — the crowd an account is compared against ("students", "kirana stores"). Suspicion = deviation from *your* peer group, not from everyone.
 - **Two-leg posting** — one internal payment writes two statement rows: payer's DR and payee's CR. If only one leg exists, a statement is lying.
 - **Opening balance** — the balance before a statement's first row; derived by reversing the first transaction, not stored — same trick real core-banking systems use.
+- **Bulk load (COPY)** — loading many database rows via a file + the database's native bulk loader, instead of one SQL statement per row. Orders of magnitude faster because it skips per-statement parsing/transaction overhead.

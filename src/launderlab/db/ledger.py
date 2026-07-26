@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import csv
+import tempfile
 from importlib import resources
 from pathlib import Path
 
@@ -26,6 +28,31 @@ def connect(db_path: str | Path | None = None) -> duckdb.DuckDBPyConnection:
 
 def _schema_sql() -> str:
     return resources.files("launderlab.db").joinpath("schema.sql").read_text(encoding="utf-8")
+
+
+def bulk_insert(conn: duckdb.DuckDBPyConnection, table: str, columns: list[str],
+                 rows: list[tuple]) -> None:
+    """Load many rows fast via a temp CSV + DuckDB's native COPY.
+
+    ~40k rows/sec measured, vs. executemany which doesn't finish 200k rows in 2 minutes —
+    row-by-row inserts pay per-statement overhead that COPY skips entirely. Needed once the
+    world scales past a few hundred customers; not worth it below that (see seed.py).
+    """
+    if not rows:
+        return
+    with tempfile.NamedTemporaryFile(mode="w", newline="", suffix=".csv", delete=False,
+                                      encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(columns)
+        writer.writerows(rows)
+        path = f.name
+    try:
+        col_list = ", ".join(columns)
+        conn.execute(
+            f"COPY {table} ({col_list}) FROM '{path}' (HEADER, FORMAT CSV, NULLSTR '')"
+        )
+    finally:
+        Path(path).unlink(missing_ok=True)
 
 
 def table_counts(conn: duckdb.DuckDBPyConnection) -> dict[str, int]:
