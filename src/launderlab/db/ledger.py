@@ -93,6 +93,32 @@ def bulk_update(conn: duckdb.DuckDBPyConnection, table: str, key_col: str, set_c
     )
 
 
+def account_true_minimum(conn: duckdb.DuckDBPyConnection, account_id: str):
+    """The lowest balance an account has EVER been at — including the point *before*
+    its first transaction (the opening balance), not just min(balance_after), which
+    only covers points *after* a transaction. A debit landing earlier in time than
+    every existing row gets computed against the opening balance directly, so a
+    safety margin that ignores it can pass review and still overdraw in practice
+    (see FIELD-NOTES Day 10 for the bug this fixed). Returns None if the account has
+    no transactions.
+    """
+    opening = account_opening_balance(conn, account_id)
+    if opening is None:
+        return None
+    existing_min = conn.execute(
+        "SELECT min(balance_after) FROM transactions WHERE account_id = ?", [account_id]
+    ).fetchone()[0]
+    return min(float(opening), float(existing_min))
+
+
+def safe_debit_ceiling(min_balance, margin: float = 0.6) -> int:
+    """A debit amount up to this ceiling can never overdraw the account, no matter
+    which point in its timeline it lands on — `min_balance` (from
+    account_true_minimum) is a lower bound on the balance at every point, so staying
+    under `margin` of it leaves headroom everywhere."""
+    return int(float(min_balance) * margin)
+
+
 def recompute_account_balances(conn: duckdb.DuckDBPyConnection, account_id: str, opening) -> None:
     """Replay an account's full transaction history (old + any newly injected rows) in
     time order and rewrite every balance_after from `opening` forward. Call this after

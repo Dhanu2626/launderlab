@@ -311,3 +311,47 @@ person can hold in their head.
 was 'can I design the transaction order so the question never comes up.' Structuring credit
 before debit turned an entire class of overdraft bugs from something I had to prove into
 something that couldn't happen."
+
+---
+
+## Day 12 — 2026-07-26 · slice 2.6 (high-risk geography — Phase 2 complete)
+
+🏦 **FCC:** This is the odd one out among all seven typologies: the "tell" isn't a pattern
+across many transactions, it's purely **which country** the counterparty sits in. A single,
+completely ordinary-looking wire transfer becomes notable only because of a geography tag —
+which is exactly why real screening systems (Phase 4) keep a sanctions/high-risk-country list
+as a separate check layered on top of behavioral rules, not folded into them. Same amount,
+same channel, same everything else — the only difference between "unremarkable" and
+"file a SAR" is a lookup against a list that has nothing to do with the transaction itself.
+
+🔧 **Engineering — a bug my own stress test almost let through:** I built a stress test on
+Day 10 and reused the same pattern here: many accounts, many seeds, check the minimum
+balance never goes negative. It passed — but only because I'd narrowed the test to business
+accounts, matching the OTHER typologies' pattern. The real proof run (which targets business
+*and* NRI accounts, since NRI accounts genuinely receive international remittances) found a
+negative balance immediately. The actual bug: this typology can inject up to 3 transactions
+per call, some fraction randomly outbound. I capped each outbound leg independently at the
+same safety ceiling — but if two or three land as outbound in one call, each draws
+*independently* from the same margin instead of *sharing* it, so their combined effect can
+sail straight past the limit that was supposed to hold for all of them together. Fixed by
+spending down one shared budget across the whole call instead of resetting it per row —
+then rewrote the stress test to force the worst case (3 transactions, every call, NRI
+accounts included) instead of hoping default randomness would find it. The uncomfortable
+lesson: a stress test that passes only proves what it happened to try. Today's real proof
+run — which exists purely to generate a demo number — caught a bug 67 passing tests missed,
+because it was the first thing that actually matched production usage (mixed segments,
+default parameters) instead of the narrower shape my unit tests assumed.
+
+🎯 **Interview line:** "My unit test suite had 67 passing tests, including a dedicated
+overdraft stress test, and none of them caught a real bug — because the stress test only
+covered business accounts, matching every other typology's pattern, and the actual bug
+needed NRI accounts plus multiple debit legs in one call to surface. It was my own
+'real-world proof run,' not the test suite, that caught it. Now I treat the proof run as a
+test in its own right, not just a demo number — and I made the unit test match what broke
+it, not just what I originally guessed would."
+
+**Phase 2 is complete.** All 7 typologies — structuring, mule networks/layering, shell
+companies, round-tripping, dormant-account reactivation, and high-risk geography — are
+built, tested, and proven at 10k-customer scale, each writing real ground truth to
+`scheme_labels`. Three real bugs were found and fixed along the way (Days 9, 10, 12), all
+via the same discipline: prove it, then try to break the proof with real conditions.

@@ -8,9 +8,9 @@ recorded in scheme_labels — detection code (Phase 3+) must never read that tab
 
 Unlike the other typologies, the departure leg is a debit against money the account
 *already has* (not freshly injected), so it must never overdraw an existing balance
-trajectory. Safety: the departure amount is capped at a fraction of the account's
-lowest historical balance, which guarantees no overdraft regardless of exactly when
-in the timeline the departure lands (see `_safe_departure_amount`).
+trajectory. Safety: the departure amount is capped via `ledger.safe_debit_ceiling()`,
+a fraction of the account's true historical minimum balance (see FIELD-NOTES Day 10
+for the overdraft bug that made this a shared, tested utility rather than a local one).
 """
 
 from __future__ import annotations
@@ -20,7 +20,12 @@ from datetime import date, datetime, time, timedelta
 
 import duckdb
 
-from launderlab.db.ledger import account_opening_balance, recompute_account_balances
+from launderlab.db.ledger import (
+    account_opening_balance,
+    account_true_minimum,
+    recompute_account_balances,
+    safe_debit_ceiling,
+)
 from launderlab.typology.mule_network import SHELL_NAMES
 
 
@@ -33,12 +38,16 @@ def inject(conn: duckdb.DuckDBPyConnection, scheme_id: str, account_id: str,
     `inflation_pct`. Best used on business accounts — realistic scale depends on
     the account already holding a substantial balance. Returns rows injected (2).
     """
-    opening = _account_min_and_opening(conn, account_id)
-    if opening is None:
+    opening_balance = account_opening_balance(conn, account_id)
+    if opening_balance is None:
         raise ValueError(f"account {account_id} has no transactions to inject into")
-    min_balance, opening_balance = opening
+    min_balance = account_true_minimum(conn, account_id)
 
-    departure_amount = _safe_departure_amount(rng, min_balance, amount)
+    safe_ceiling = safe_debit_ceiling(min_balance)
+    if amount is None:
+        departure_amount = max(int(safe_ceiling * rng.uniform(0.4, 1.0)), 1)
+    else:
+        departure_amount = min(amount, safe_ceiling) if safe_ceiling > 0 else 1
 
     max_hop = int(hop_days[1]) + 1
     departure_day = rng.randrange(0, max(window_days - max_hop, 1))
@@ -77,36 +86,3 @@ def inject(conn: duckdb.DuckDBPyConnection, scheme_id: str, account_id: str,
         [(txn_id, scheme_id, roles[d]) for txn_id, d in new_ids],
     )
     return len(new_ids)
-
-
-def _account_min_and_opening(conn: duckdb.DuckDBPyConnection, account_id: str):
-    """Returns (lowest balance the account has EVER been at, true opening balance)
-    for the account, or None if it has no transactions.
-
-    The lowest point isn't just min(balance_after) — that only covers balances
-    *after* existing transactions. The balance *before* the first transaction (the
-    opening balance itself) is a real point in the timeline too, and if a newly
-    injected departure lands earlier than every existing row, it becomes the new
-    first transaction and is computed straight against that opening balance. A
-    safety cap that ignores this can pass on a bank with the minimum truly at the
-    end of the month and still overdraw a departure landing on day zero.
-    """
-    opening = account_opening_balance(conn, account_id)
-    if opening is None:
-        return None
-    existing_min = conn.execute(
-        "SELECT min(balance_after) FROM transactions WHERE account_id = ?", [account_id]
-    ).fetchone()[0]
-    true_min = min(float(opening), float(existing_min))
-    return true_min, opening
-
-
-def _safe_departure_amount(rng: random.Random, min_balance, requested: int | None) -> int:
-    """Cap the departure amount at a fraction of the account's historical minimum
-    balance — since that minimum is a lower bound on the balance at ANY point in the
-    account's timeline, staying under it (times a safety margin) guarantees the
-    injected debit can never overdraw, no matter which day it lands on."""
-    safe_ceiling = int(float(min_balance) * 0.6)
-    if requested is None:
-        return max(int(safe_ceiling * rng.uniform(0.4, 1.0)), 1)
-    return min(requested, safe_ceiling) if safe_ceiling > 0 else 1

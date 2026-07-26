@@ -21,3 +21,4 @@
 - **Counterparty concentration** — what share of an account's money comes from one single counterparty. A red flag when unusually high, since real customers/revenue are normally diversified.
 - **Round-tripping** — money that leaves an account and returns to the SAME account later, usually inflated slightly. Used to obscure origin and to inflate a business's apparent turnover without any real economic activity.
 - **Behavioral deviation** — a red flag based not on the raw size of a transaction, but on how far it departs from that specific account's own established pattern. A dormant account suddenly moving money is the classic example — the amount alone might be unremarkable for a business, but is glaring for that particular account's history.
+- **High-risk geography** — a screening signal based purely on which country a counterparty is in (FATF blacklist/greylist), independent of the transaction's amount or pattern. See `ledger/FCC-PRIMER.md` and Phase 4.
