@@ -24,3 +24,7 @@ testpaths = ["tests"]
 [tool.ruff]
 line-length = 100
 src = ["src", "tests"]
+
+[tool.ruff.lint]
+# pinned explicitly so a ruff upgrade can't silently widen CI's lint scope
+select = ["E4", "E7", "E9", "F"]

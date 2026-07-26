@@ -63,3 +63,25 @@ innocent; the test setup was guilty.
 🎯 **Interview line:** "When my test suite hit 5 minutes, I didn't rewrite the database
 layer — I found that 9 tests were redundantly reseeding the same data and fixed the test
 fixtures instead, cutting runtime by 60% with a one-line change. Profile before you optimize."
+
+---
+
+## Day 3 (cont'd) — CI went red on its own, days later
+
+🏦 **FCC:** Not a crime lesson, but the same instinct applies: don't trust that something
+still works just because it worked before — verify against current reality. That's why
+banks re-screen customers periodically instead of trusting KYC done once at onboarding.
+
+🔧 **Engineering:** Pushed slice 0.3, CI failed — but nothing in the diff was wrong.
+`pyproject.toml` pinned `ruff>=0.5` (open-ended), and between my last local check and this
+push, ruff shipped 0.16.0 with a wider default lint scope, catching 8 "naive datetime"
+uses in existing test code that had been fine on 0.15.22. Fixed by pinning
+`[tool.ruff.lint] select = [...]` explicitly instead of trusting ruff's defaults to stay
+stable — verified by installing 0.16.0 locally and re-running. Lesson: any unpinned
+"defaults" (linter rules, dependency majors) are a future CI break waiting to happen; pin
+the *behavior* you rely on, not just the package.
+
+🎯 **Interview line:** "My CI failed on a diff I hadn't touched — a linter upgrade had
+silently widened its default rule set. Instead of chasing the new violations one by one,
+I pinned the lint rule selection explicitly in config, so the build's behavior no longer
+depends on whatever a dependency decides is 'default' next."
