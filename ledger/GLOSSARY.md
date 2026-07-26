@@ -13,3 +13,5 @@
 - **Two-leg posting** — one internal payment writes two statement rows: payer's DR and payee's CR. If only one leg exists, a statement is lying.
 - **Opening balance** — the balance before a statement's first row; derived by reversing the first transaction, not stored — same trick real core-banking systems use.
 - **Bulk load (COPY)** — loading many database rows via a file + the database's native bulk loader, instead of one SQL statement per row. Orders of magnitude faster because it skips per-statement parsing/transaction overhead.
+- **Ground truth** (revisited) — `scheme_labels` now actually holds real rows: which transactions belong to which injected scheme, and what role each played (e.g. `placement`). This is what makes precision/recall/false-positive scoring possible once detection exists.
+- **Placement** — the first stage of laundering (getting dirty cash into a bank); structuring is the classic placement technique — see `ledger/FCC-PRIMER.md`.

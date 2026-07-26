@@ -147,9 +147,9 @@ calling the engine done, not just scaling up the row count.
 
 🔧 **Engineering:** Measured before optimizing, again — this time the answer was the
 opposite of Day 3's. I benchmarked our existing `executemany` insert path at real scale
-(200,000 rows) and it did not finish in 10 minutes. Swapped to a temp-CSV + DuckDB `COPY`
+(200,000 rows) and it took 8,224 seconds (2.3 hours) to finish — confirmed after the fact, it hadn't hung. Swapped to a temp-CSV + DuckDB `COPY`
 approach (pure stdlib `csv` + DuckDB's own bulk loader, zero new dependencies) and the same
-200,000 rows loaded in 4.5 seconds — roughly 130x faster. Verified correctness first
+200,000 rows loaded in 4.5 seconds — **1,900x faster** (24 rows/sec vs ~44,700 rows/sec). Verified correctness first
 (decimals, `NULL`s, timestamps, even a comma inside a narration all round-trip correctly)
 before trusting it with real data. The full 10,000-customer, 30-day world — 630,755
 transactions, ₹274 crore moved — now generates in 31 seconds. Also generalized every
@@ -157,9 +157,38 @@ hand-typed pattern from seed.py (salary, rent, EMI, P2P friends, merchant footfa
 receipts) into formulas driven by each profile's own segment and income, instead of a human
 picking values per person — the same vocabulary, now capable of running at any scale.
 
-🎯 **Interview line:** "My bulk-insert path couldn't finish 200,000 rows in 10 minutes, so I
-benchmarked three alternatives before picking one — a temp-CSV-plus-COPY approach using only
-tools I already had loaded 200,000 rows in 4.5 seconds, about 130x faster, with zero new
-dependencies. I verified the values round-tripped correctly before trusting it with real
-data, which caught nothing — but I checked anyway, because 'faster' and 'correct' are two
-separate claims."
+🎯 **Interview line:** "My row-by-row insert took 2.3 hours for 200,000 rows. I benchmarked a
+temp-CSV-plus-COPY approach using tools I already had — same data, 4.5 seconds, 1,900x
+faster, zero new dependencies. I verified the values round-tripped correctly before trusting
+it with real data, which caught nothing — but I checked anyway, because 'faster' and
+'correct' are two separate claims."
+
+---
+
+## Day 7 — 2026-07-26 · slice 2.1 (typology injector — the crime begins)
+
+🏦 **FCC:** Structuring only works as camouflage if it hides among *genuine* cash activity —
+that's why the injector targets business/merchant accounts specifically, the same insight
+FCC-PRIMER.md flagged on Day 4 ("high genuine cash turnover is the perfect camouflage").
+Today's worked example, MEHTA TRADERS: 34 real business receipts already in its history,
+19 structuring deposits added among them — 36% of its rows are now dirty, and nothing about
+any single row gives it away. That's the actual difficulty of AML monitoring in one account.
+
+🔧 **Engineering:** Injecting a scheme into an *already-generated* ledger is harder than
+generating one from scratch — every transaction on the target account that comes after the
+injection point needs its running balance recalculated, and I initially rewrote those
+balances with the same row-by-row `executemany` pattern Day 6 had just proven was slow.
+It showed: 2.64s for just 60 rows (~24 rows/sec — the exact same ceiling, on UPDATE this
+time, not INSERT). Built `bulk_update()` — load the new values into a temp table via the
+existing `bulk_insert`, then one set-based `UPDATE ... FROM` join — and the same call
+dropped to 0.9s. While fixing it, I noticed `seed.py` never got the Day 6 fix since it
+wasn't the bottleneck back then — retrofitting it cut the *entire test suite* from ~150s to
+29s. Same lesson as Day 3, opposite direction: once you've found a real bottleneck pattern,
+check every place it might be hiding, not just the one that paged you.
+
+🎯 **Interview line:** "Rewriting a ledger's running balances after a mid-history insert hit
+the exact same row-by-row UPDATE bottleneck I'd just fixed for INSERT the day before — so I
+generalized the fix into a reusable bulk_update helper instead of patching it locally, then
+went back and found the same slow pattern sitting untouched in code I'd written days earlier.
+Cut my test suite runtime by 5x as a side effect of fixing a correctness path, not a
+performance path."

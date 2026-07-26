@@ -14,6 +14,8 @@ from datetime import date, datetime, time, timedelta
 
 import duckdb
 
+from launderlab.db.ledger import bulk_insert
+
 WEEK_START = date(2026, 7, 1)
 IFSC = "LLAB0000001"
 
@@ -130,8 +132,12 @@ def _insert_people(conn: duckdb.DuckDBPyConnection) -> None:
                           base + timedelta(days=i * 17)))
         acct_rows.append((account_id(p.customer_id), p.customer_id, p.account_type, IFSC,
                           "active", base + timedelta(days=i * 17 + 1)))
-    conn.executemany("INSERT INTO customers VALUES (?, ?, ?, ?, ?, ?, ?, ?)", cust_rows)
-    conn.executemany("INSERT INTO accounts VALUES (?, ?, ?, ?, ?, ?)", acct_rows)
+    bulk_insert(conn, "customers",
+                ["customer_id", "full_name", "dob", "segment", "city", "kyc_level",
+                 "risk_rating", "created_at"], cust_rows)
+    bulk_insert(conn, "accounts",
+                ["account_id", "customer_id", "account_type", "ifsc", "status", "opened_at"],
+                acct_rows)
 
 
 def _week_of_life(rng: random.Random, week_start: date) -> list:
@@ -254,10 +260,7 @@ def _post_all(conn: duckdb.DuckDBPyConnection, events: list) -> int:
             balances[acct] += amount if direction == "CR" else -amount
             rows.append((ts, acct, direction, channel, amount, cp_name, cp_ref, narration,
                          balances[acct]))
-    conn.executemany(
-        "INSERT INTO transactions (ts, account_id, direction, channel, amount,"
-        " counterparty_name, counterparty_ref, narration, balance_after)"
-        " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        rows,
-    )
+    bulk_insert(conn, "transactions",
+                ["ts", "account_id", "direction", "channel", "amount", "counterparty_name",
+                 "counterparty_ref", "narration", "balance_after"], rows)
     return len(rows)

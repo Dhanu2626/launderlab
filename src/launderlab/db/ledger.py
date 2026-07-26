@@ -55,6 +55,44 @@ def bulk_insert(conn: duckdb.DuckDBPyConnection, table: str, columns: list[str],
         Path(path).unlink(missing_ok=True)
 
 
+def reverse_opening(direction: str, amount, balance_after):
+    """Derive the balance *before* one transaction from its direction/amount/balance_after —
+    the same trick a statement's "Opening balance" row uses (see FIELD-NOTES Day 3)."""
+    return balance_after - amount if direction == "CR" else balance_after + amount
+
+
+def account_opening_balance(conn: duckdb.DuckDBPyConnection, account_id: str):
+    """The balance an account started with, derived from its earliest transaction.
+    Returns None if the account has no transactions."""
+    row = conn.execute(
+        "SELECT direction, amount, balance_after FROM transactions"
+        " WHERE account_id = ? ORDER BY ts, txn_id LIMIT 1",
+        [account_id],
+    ).fetchone()
+    return reverse_opening(*row) if row else None
+
+
+def bulk_update(conn: duckdb.DuckDBPyConnection, table: str, key_col: str, set_col: str,
+                 updates: list[tuple]) -> None:
+    """Apply many (new_value, key) updates in one set-based statement instead of one
+    UPDATE per row — the UPDATE equivalent of bulk_insert's COPY trick. Row-by-row
+    UPDATE inherits the same executemany overhead measured for INSERT on Day 6
+    (~24 rows/sec); this stays fast because DuckDB does the join, not Python.
+
+    Scoped to BIGINT keys + numeric values — every current use case (rewriting
+    balance_after by txn_id) — not a fully general multi-type helper.
+    """
+    if not updates:
+        return
+    conn.execute("CREATE TEMP TABLE IF NOT EXISTS _bulk_update_src (bkey BIGINT, bval DOUBLE)")
+    conn.execute("DELETE FROM _bulk_update_src")
+    bulk_insert(conn, "_bulk_update_src", ["bkey", "bval"], [(k, v) for v, k in updates])
+    conn.execute(
+        f"UPDATE {table} SET {set_col} = src.bval FROM _bulk_update_src src"
+        f" WHERE {table}.{key_col} = src.bkey"
+    )
+
+
 def table_counts(conn: duckdb.DuckDBPyConnection) -> dict[str, int]:
     """Row counts for each core table — the heartbeat of the bank."""
     tables = ["customers", "accounts", "transactions", "scheme_labels"]

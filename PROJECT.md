@@ -28,9 +28,10 @@ Simulate (phases 0–2). Track B — Detect (phases 3–6). Track C — Investig
 - [x] **0.4** — FCC primer doc: placement → layering → integration mapped to subsystems, grounded in the seeded cast *(2026-07-26)*
 - [x] **1.1** — population generator: 10k customer profiles from distributions (not hand-typed), deterministic, segment mix within 0.5pt of target *(2026-07-26)*
 - [x] **1.2** — transaction generator at scale: generalized seed.py's patterns over any population, bulk CSV+COPY loader (needed — executemany didn't finish 200k rows in 10 min, COPY does it in 4.5s); real 10k-customer/30-day run: 630,755 transactions in 31.3s, all balances reconciled, all 10,000 accounts active *(2026-07-26)*
-- [ ] **1.3** — Phase 1 acceptance pass: weekday/weekend variation, holiday effects, more merchant/city diversity, then a real "can a human tell this is synthetic" check against the acceptance bar below
-- [ ] **Phase 1** (wks 1–2) — World Engine: 10k customers, behavior profiles, clean-traffic realism + histogram visual — engine proven at scale (1.2); realism acceptance bar not yet formally checked (1.3)
-- [ ] **Phase 2** (wks 3–4) — Typology Injector: structuring, mule chain, shell layering (YAML-driven)
+- [ ] **1.3** — realism polish backlog (weekday/weekend variation, holidays, more diversity) — parallel/non-blocking, per Dhanush 2026-07-26
+- [ ] **Phase 1** (wks 1–2) — World Engine: 10k customers, behavior profiles, clean-traffic realism + histogram visual — engine proven at scale (1.2); polish (1.3) demoted to backlog, not blocking Phase 2
+- [x] **2.1** — typology injection engine + structuring: injects into an already-generated account's history, rewrites balance_after globally correct, writes ground truth to `scheme_labels`; proof run — 20 schemes into the 10k-customer world, ₹2.55cr placed, 397 labels, full ledger reconciliation verified *(2026-07-26)*
+- [ ] **Phase 2** (wks 3–4) — Typology Injector, 7 typologies (expanded scope): structuring, layering, mule networks, shell companies, round-tripping, dormant-account activation, high-risk geography — each labels ground truth for later precision/recall/false-positive scoring
 - [ ] **Phase 3** (wks 4–5) — Rules engine: scenario DSL, alerts, tuning workflow
 - [ ] **Phase 4** (wk 6) — Screening: sanctions/PEP fuzzy matching + high-risk geography + adverse media simulation
 - [ ] **Phase 5** (wks 7–8) — Graph analytics: mule-ring detection
@@ -50,7 +51,8 @@ Simulate (phases 0–2). Track B — Detect (phases 3–6). Track C — Investig
 | 2026-07-26 | fix | CI broke on ruff 0.16.0's wider default rule set (unrelated to any diff); pinned `[tool.ruff.lint] select` explicitly, verified against 0.16.0 locally |
 | 2026-07-26 | 0.4 | `ledger/FCC-PRIMER.md`: placement/layering/integration mapped to subsystems and phases, examples grounded in the seeded cast — Phase 0 complete |
 | 2026-07-26 | 1.1 | `world/population.py`: procedural generator for 10k customer profiles (5 segments, lognormal income, weighted cities, deterministic RNG), 6 new tests; verified against a real 10k run (segment mix within 0.5pt of target, median salaried income ₹54,000) |
-| 2026-07-26 | 1.2 | `world/generate.py`: generalized seed.py's event patterns (salary/rent/EMI/P2P/merchant/business) over any population; added `ledger.bulk_insert()` (temp CSV + DuckDB COPY, no new dependency) after measuring executemany couldn't finish 200k rows in 10 minutes while COPY does it in 4.5s; 8 new tests; real 10k-customer/30-day run: 630,755 transactions in 31.3s, ₹274cr moved, 0 negative balances, all 10,000 accounts active, channel mix 89% UPI |
+| 2026-07-26 | 1.2 | `world/generate.py`: generalized seed.py's event patterns (salary/rent/EMI/P2P/merchant/business) over any population; added `ledger.bulk_insert()` (temp CSV + DuckDB COPY, no new dependency) after measuring executemany took 8,224s (2.3h) for 200k rows while COPY does it in 4.5s (1,900x); 8 new tests; real 10k-customer/30-day run: 630,755 transactions in 31.3s, ₹274cr moved, 0 negative balances, all 10,000 accounts active, channel mix 89% UPI |
+| 2026-07-26 | 2.1 | `typology/structuring.py`: injects a structuring scheme into an existing account's history, rewriting balance_after via a new `ledger.bulk_update()` (set-based UPDATE...FROM — the UPDATE-side fix for the same executemany overhead) and labeling ground truth in `scheme_labels`; retrofitted `seed.py` onto `bulk_insert` too, cutting the full test suite from ~150s to 29s; 12 new tests (36 total); real proof: 20 schemes injected into the 10k-customer world, ₹2.55cr placed, 397 ground-truth labels, full-ledger reconciliation verified after injection |
 
 ## Rituals
 

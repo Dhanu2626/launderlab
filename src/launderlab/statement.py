@@ -6,6 +6,8 @@ from pathlib import Path
 
 import duckdb
 
+from launderlab.db.ledger import reverse_opening
+
 _ROW = """<tr><td>{date}</td><td class="narr">{narration}</td>
 <td class="amt debit">{debit}</td><td class="amt credit">{credit}</td>
 <td class="amt bal">{balance}</td></tr>"""
@@ -55,8 +57,8 @@ def render(conn: duckdb.DuckDBPyConnection, account_id: str) -> str:
     opening_row = ""
     period = "no transactions"
     if txns:
-        first_ts, _n, first_dir, first_amt, first_bal = txns[0]
-        opening = first_bal - first_amt if first_dir == "CR" else first_bal + first_amt
+        _ts0, _n, first_dir, first_amt, first_bal = txns[0]
+        opening = reverse_opening(first_dir, first_amt, first_bal)
         opening_row = _ROW.format(date="", narration="Opening balance", debit="", credit="",
                                    balance=_money(opening))
         period = f"{txns[0][0]:%d %b %Y} to {txns[-1][0]:%d %b %Y}"
