@@ -9,6 +9,9 @@ Full 18-week plan: `../LAUNDERLAB-PLAN.md` (CareerForge root).
 2. **False-positive economics** — cost-per-true-alert measured for every detection config, not guessed (Phases 3–6)
 3. **The cross-bank blind spot** — quantify what single banks can't see in multi-bank mule chains, then measure the lift from privacy-preserving co-operation (Phase 8.5; BIS Project Aurora does this privately — no open version exists)
 
+**Three tracks:** an analyst doesn't just generate data, they investigate it. Track A —
+Simulate (phases 0–2). Track B — Detect (phases 3–6). Track C — Investigate (phase 7).
+
 ## Quality bar (non-negotiable)
 
 - `main` never breaks: every slice runs end-to-end before commit
@@ -25,10 +28,10 @@ Full 18-week plan: `../LAUNDERLAB-PLAN.md` (CareerForge root).
 - [ ] **Phase 1** (wks 1–2) — World Engine: 10k customers, behavior profiles, clean-traffic realism + histogram visual
 - [ ] **Phase 2** (wks 3–4) — Typology Injector: structuring, mule chain, shell layering (YAML-driven)
 - [ ] **Phase 3** (wks 4–5) — Rules engine: scenario DSL, alerts, tuning workflow
-- [ ] **Phase 4** (wk 6) — Screening: sanctions/PEP fuzzy matching
+- [ ] **Phase 4** (wk 6) — Screening: sanctions/PEP fuzzy matching + high-risk geography + adverse media simulation
 - [ ] **Phase 5** (wks 7–8) — Graph analytics: mule-ring detection
 - [ ] **Phase 6** (wks 8–10) — ML tournament: 6 algorithm families (gradient boosting, isolation forest, one-class SVM, autoencoder, LSTM, GraphSAGE GNN) on one leaderboard, all with explainability; later scored on decay vs the red team
-- [ ] **Phase 7** (wks 10–12) — Investigator workbench (FastAPI + React)
+- [ ] **Phase 7** (wks 10–12) — Investigator workbench (FastAPI + React): alert cards with risk score, "why" bullets, AI-generated case summary
 - [ ] **Phase 8** (wks 12–14) — Red team co-evolution engine → detection-decay benchmark
 - [ ] **Phase 8.5** (wks 15–16) — Multi-bank experiment: quantify the cross-bank blind spot, prototype privacy-preserving sharing, measure lift
 - [ ] **Phase 9** (wks 17–18) — Story Mode + whitepaper + demo video + launch
