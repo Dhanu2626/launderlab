@@ -1,3 +1,5 @@
+import pytest
+
 from launderlab.db.ledger import connect
 from launderlab.world.seed import CAST, account_id, load
 
@@ -8,16 +10,20 @@ def _fresh(tmp_path, name="seed.duckdb"):
     return conn
 
 
-def test_cast_loaded(tmp_path):
-    conn = _fresh(tmp_path)
+@pytest.fixture(scope="module")
+def conn(tmp_path_factory):
+    # module-scoped: these tests only read the seeded world, so one load suffices
+    return _fresh(tmp_path_factory.mktemp("seed"))
+
+
+def test_cast_loaded(conn):
     assert conn.execute("SELECT count(*) FROM customers").fetchone()[0] == 25
     assert conn.execute("SELECT count(*) FROM accounts").fetchone()[0] == 25
     n = conn.execute("SELECT count(*) FROM transactions").fetchone()[0]
     assert 400 <= n <= 1500
 
 
-def test_balances_reconcile(tmp_path):
-    conn = _fresh(tmp_path)
+def test_balances_reconcile(conn):
     running = {account_id(p.customer_id): p.opening for p in CAST}
     rows = conn.execute(
         "SELECT account_id, direction, amount, balance_after FROM transactions"
@@ -28,13 +34,11 @@ def test_balances_reconcile(tmp_path):
         assert running[acct] == balance_after
 
 
-def test_no_negative_balances(tmp_path):
-    conn = _fresh(tmp_path)
+def test_no_negative_balances(conn):
     assert conn.execute("SELECT min(balance_after) FROM transactions").fetchone()[0] >= 0
 
 
-def test_every_account_has_activity(tmp_path):
-    conn = _fresh(tmp_path)
+def test_every_account_has_activity(conn):
     active = conn.execute("SELECT count(DISTINCT account_id) FROM transactions").fetchone()[0]
     assert active == 25
 

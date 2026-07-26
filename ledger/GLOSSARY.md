@@ -11,3 +11,4 @@
 - **NACH** — National Automated Clearing House: the auto-debit rail that pulls EMIs and SIPs on a fixed day each month.
 - **Peer group** — the crowd an account is compared against ("students", "kirana stores"). Suspicion = deviation from *your* peer group, not from everyone.
 - **Two-leg posting** — one internal payment writes two statement rows: payer's DR and payee's CR. If only one leg exists, a statement is lying.
+- **Opening balance** — the balance before a statement's first row; derived by reversing the first transaction, not stored — same trick real core-banking systems use.

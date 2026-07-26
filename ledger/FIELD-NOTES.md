@@ -41,3 +41,25 @@ or one statement lies.
 salaries at 6:30 AM on the 1st, rent on the 2nd, NACH EMIs, UPI P2P, merchant footfall,
 GST payments — realistic enough that UPI came out at 80% of transactions by count, matching
 real Indian payment mix, without my tuning for it."
+
+---
+
+## Day 3 — 2026-07-23 · slice 0.3 (statement generator)
+
+🏦 **FCC:** A statement's "Opening balance" row is usually never stored anywhere — it's
+*derived* by walking backward from the first transaction's balance. Real core-banking
+systems do the same trick: balance is a running total, not a stored fact per day. This is
+also why investigators trust statements over verbal claims — every number is mechanically
+re-derivable from the transaction log, not just asserted.
+
+🔧 **Engineering:** Chased yesterday's flagged slowness and found the real cause: it wasn't
+the insert code, it was the *tests* — 9 separate tests each reseeding 508 rows from scratch
+(330s total). Only one test (`test_deterministic`) actually needs two independent seed
+loads; the rest only read. Sharing one seeded fixture across read-only tests cut the suite
+to 130s — a 2.5x win from a one-line fixture-scope change, zero production code touched.
+Lesson: profile before optimizing the thing you assume is slow — the insert loop was
+innocent; the test setup was guilty.
+
+🎯 **Interview line:** "When my test suite hit 5 minutes, I didn't rewrite the database
+layer — I found that 9 tests were redundantly reseeding the same data and fixed the test
+fixtures instead, cutting runtime by 60% with a one-line change. Profile before you optimize."
