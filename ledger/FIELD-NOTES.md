@@ -250,3 +250,35 @@ in front of someone months later.
 shipped — a subtracted-remainder approach that could go negative under unlucky random
 draws — and replaced it with a proportional weighted split that's negative-proof by
 construction, then proved it with a 1,400-case stress test instead of trusting the math."
+
+---
+
+## Day 10 — 2026-07-26 · slice 2.4 (round-tripping — a genuine bug, caught and fixed)
+
+🏦 **FCC:** Round-tripping is the odd one out among the four typologies built this batch:
+its whole signature is money that *leaves and comes back*, usually slightly inflated. Real
+investigators use it to catch businesses inflating apparent turnover — the money never did
+any real economic work, it just went on a round trip through a shell entity and returned a
+few percent heavier, making the books look like the business is growing when it isn't.
+
+🔧 **Engineering — today's real bug:** Every other typology so far only ever *adds* credit
+before debiting it (mule hops: CR always precedes DR; structuring: pure credits), so an
+overdraft was structurally impossible. Round-tripping is different — its first leg debits
+money the account *already has*, so I had to actively prove it could never overdraw. I wrote
+a safety cap (departure ≤ 60% of the account's historical minimum balance) with a clean
+mathematical proof, then ran a 50-injection stress test to check it — and it failed on the
+third injection into one account with a genuine negative balance. The bug: my "historical
+minimum" only scanned `min(balance_after)` — every balance *after* a transaction — but never
+considered the balance *before* the account's very first transaction (the opening balance
+itself). A newly injected departure landing earlier in time than every existing row becomes
+the new first transaction, computed straight against that opening balance — which my safety
+margin had never checked. Fixed by folding the opening balance into the minimum. The lesson
+that matters isn't the bug — proofs have edge cases — it's that I wrote the proof *and*
+tested it against real conditions instead of trusting either one alone. The proof told me
+the shape of the fix; the stress test told me the proof was incomplete.
+
+🎯 **Interview line:** "I wrote a mathematical safety proof for a debit that could never
+overdraw an account, then stress-tested it anyway with 50 injections across 10 accounts —
+and it failed. The bug: my 'historical minimum' calculation only checked balances *after*
+transactions, missing the balance *before* the very first one. A proof and a test that only
+agree with each other prove nothing; they have to agree with reality."

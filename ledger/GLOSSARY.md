@@ -19,3 +19,4 @@
 - **Mule / mule network** — a person (recruited or unwitting) whose account is used to pass laundered money along for a small cut, one hop in a layering chain. Source = where the chain starts, sink = where it ends.
 - **Integration** — the third stage of laundering: making dirty money look like ordinary legitimate income (e.g. business revenue).
 - **Counterparty concentration** — what share of an account's money comes from one single counterparty. A red flag when unusually high, since real customers/revenue are normally diversified.
+- **Round-tripping** — money that leaves an account and returns to the SAME account later, usually inflated slightly. Used to obscure origin and to inflate a business's apparent turnover without any real economic activity.
