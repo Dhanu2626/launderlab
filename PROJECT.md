@@ -40,6 +40,7 @@ Full 18-week plan: `../LAUNDERLAB-PLAN.md` (CareerForge root).
 | 2026-07-22 | 0.1 | ledger schema (customers, accounts, transactions, scheme_labels), 5 passing tests, CI, `python -m launderlab` demo |
 | 2026-07-22 | 0.2 | world seed: 25-person cast, one week of life (~salaries, rent, EMIs via NACH, UPI P2P, merchant footfall, business receipts, GST), two-leg internal payments, no-overdraft rule, 5 new tests |
 | 2026-07-23 | 0.3 | statement generator v0 (`statement.py`): HTML statement per account, derived opening balance, CLI `statement <id>` opens in browser; sped up test suite 330s→130s by sharing seeded fixtures instead of reseeding per test; 4 new tests |
+| 2026-07-26 | fix | CI broke on ruff 0.16.0's wider default rule set (unrelated to any diff); pinned `[tool.ruff.lint] select` explicitly, verified against 0.16.0 locally |
 
 ## Rituals
 
