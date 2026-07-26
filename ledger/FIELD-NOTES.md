@@ -355,3 +355,44 @@ companies, round-tripping, dormant-account reactivation, and high-risk geography
 built, tested, and proven at 10k-customer scale, each writing real ground truth to
 `scheme_labels`. Three real bugs were found and fixed along the way (Days 9, 10, 12), all
 via the same discipline: prove it, then try to break the proof with real conditions.
+
+---
+
+## Day 13 — 2026-07-26 · Phase 2 capstone (proving composability, not just correctness)
+
+🏦 **FCC:** Real financial crime rarely uses one typology in isolation — a business
+laundering money might structure cash deposits, receive shell-company invoices, AND
+round-trip funds, all in the same month, on the same account. Today's capstone deliberately
+recreated that: the same 5 business accounts got structuring, shell-company payments, and
+round-tripping injected simultaneously. One account (real example: MEHTA TRADERS, already
+familiar from Day 7) ended up with 34 genuine transactions plus 20 injected across 3
+different crime types — 54 rows total, every balance still exactly correct. That's a far
+more realistic "suspicious account" than any single typology alone could produce, and it's
+exactly the shape of case Phase 7's investigator workbench will eventually have to untangle.
+
+🔧 **Engineering:** Every typology this batch was tested *alone* — thoroughly, with stress
+tests that twice caught real bugs (Days 10 and 12). But "each typology works in isolation"
+and "all typologies work together" are different claims, and nothing before today actually
+tested the second one. Today's capstone does: inject all six onto deliberately overlapping
+accounts, then re-verify the *entire* ledger — not just the accounts touched by any one
+typology — reconciles. It passed cleanly, which is itself informative: the safety
+guarantees built typology-by-typology (credit-before-debit ordering, the shared
+`account_true_minimum` proof) turned out to compose correctly without needing any
+typology to know about the others. Good isolation in the design paid for itself here. I
+also committed this capstone as a permanent test, not just a one-off proof script — it's
+exactly the kind of check that would have caught this batch's Day-12 bug immediately if it
+had existed first, so it stays as a standing regression guard against that whole class of
+interaction bug for every typology built from here on.
+
+🎯 **Interview line:** "Every typology I built passed its own tests in isolation. Before
+calling the phase done, I ran a capstone that deliberately overlapped all six on the same
+accounts and re-verified the entire ledger, not just the parts each typology touched. It
+passed — which told me the safety properties I'd designed typology-by-typology actually
+composed, instead of just assuming they would. Then I kept that capstone as a permanent
+test, since 'works alone' and 'works together' are genuinely different claims that need
+separate proof."
+
+**Five-day batch summary (Days 9–13): six new typologies, three real bugs found and fixed,
+one shared safety-utility library extracted (`account_true_minimum`, `safe_debit_ceiling`,
+`recompute_account_balances`, `split_uneven`), 72 tests (up from 36), and a capstone proving
+the whole system composes. Phase 2 — the entire crime-injection engine — is done.**
