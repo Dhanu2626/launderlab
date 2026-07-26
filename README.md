@@ -17,8 +17,10 @@ RED TEAM ──launders through──► SYNTHETIC BANK ──transactions──
 
 ## Status
 
-🚧 **Phase 0 — foundations.** The core banking ledger is live. Next: the world engine
-that fills it with 10,000 believable customers.
+✅ **Phase 0 — foundations complete.** Core ledger, a 25-customer seeded world with one
+believable week of life, and a bank-statement generator are live. See
+[`ledger/FCC-PRIMER.md`](ledger/FCC-PRIMER.md) for the money-laundering concepts every
+later phase builds against. Next: **Phase 1**, the world engine at 10,000-customer scale.
 
 ## Quickstart (Windows)
 
@@ -26,7 +28,8 @@ that fills it with 10,000 believable customers.
 python -m venv .venv
 .venv\Scripts\python -m pip install -e ".[dev]"
 .venv\Scripts\python -m pytest -q
-.venv\Scripts\python -m launderlab
+.venv\Scripts\python -m launderlab seed
+.venv\Scripts\python -m launderlab statement A001
 ```
 
 ## What gets built

@@ -2,6 +2,7 @@
 
 Read this file + the last Field Notes entry at "start day".
 Full 18-week plan: `../LAUNDERLAB-PLAN.md` (CareerForge root).
+FCC concepts: `ledger/FCC-PRIMER.md` — the three laundering stages mapped to subsystems.
 
 ## Research thesis — three unsolved problems we attack
 
@@ -24,7 +25,7 @@ Simulate (phases 0–2). Track B — Detect (phases 3–6). Track C — Investig
 - [x] **0.1** — repo scaffold, DuckDB ledger schema (4 tables + ground-truth labels), 5 tests, CI, demo command *(2026-07-22)*
 - [x] **0.2** — seed loader: 25-customer cast (salaried/business/student/NRI/merchant) + one believable week of life, balance-reconciled, deterministic *(2026-07-22)*
 - [x] **0.3** — statement generator v0: any account renders as an HTML bank statement, opening balance derived, `python -m launderlab statement <id>` opens it in browser *(2026-07-23)*
-- [ ] **0.4** — FCC primer doc: placement → layering → integration mapped to subsystems
+- [x] **0.4** — FCC primer doc: placement → layering → integration mapped to subsystems, grounded in the seeded cast *(2026-07-26)*
 - [ ] **Phase 1** (wks 1–2) — World Engine: 10k customers, behavior profiles, clean-traffic realism + histogram visual
 - [ ] **Phase 2** (wks 3–4) — Typology Injector: structuring, mule chain, shell layering (YAML-driven)
 - [ ] **Phase 3** (wks 4–5) — Rules engine: scenario DSL, alerts, tuning workflow
@@ -44,6 +45,7 @@ Simulate (phases 0–2). Track B — Detect (phases 3–6). Track C — Investig
 | 2026-07-22 | 0.2 | world seed: 25-person cast, one week of life (~salaries, rent, EMIs via NACH, UPI P2P, merchant footfall, business receipts, GST), two-leg internal payments, no-overdraft rule, 5 new tests |
 | 2026-07-23 | 0.3 | statement generator v0 (`statement.py`): HTML statement per account, derived opening balance, CLI `statement <id>` opens in browser; sped up test suite 330s→130s by sharing seeded fixtures instead of reseeding per test; 4 new tests |
 | 2026-07-26 | fix | CI broke on ruff 0.16.0's wider default rule set (unrelated to any diff); pinned `[tool.ruff.lint] select` explicitly, verified against 0.16.0 locally |
+| 2026-07-26 | 0.4 | `ledger/FCC-PRIMER.md`: placement/layering/integration mapped to subsystems and phases, examples grounded in the seeded cast — Phase 0 complete |
 
 ## Rituals
 

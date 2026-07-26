@@ -85,3 +85,28 @@ the *behavior* you rely on, not just the package.
 silently widened its default rule set. Instead of chasing the new violations one by one,
 I pinned the lint rule selection explicitly in config, so the build's behavior no longer
 depends on whatever a dependency decides is 'default' next."
+
+---
+
+## Day 4 — 2026-07-26 · slice 0.4 (FCC primer doc) — Phase 0 complete
+
+🏦 **FCC:** The three stages aren't equally risky for a criminal — placement is where
+amateurs get caught (cash is the most traceable form money ever takes), which is why
+professional laundering operations spend the least time in placement and the most in
+layering. Layering is also where LaunderLab's "no single bank sees the whole picture"
+research thesis lives: a rule or graph confined to one bank is structurally blind to a
+chain that hops across banks, no matter how good the model is.
+
+🔧 **Engineering:** Deliberately wrote the primer against our *own* seeded characters
+(Suresh Gupta's business account, the DMart/kirana merchants) instead of generic textbook
+examples — grounding a concept doc in real rows from `data/launderlab.duckdb` means it'll
+stay accurate as the world changes, and it doubles as a sanity check that our cast actually
+covers every laundering stage's "camouflage."
+
+🎯 **Interview line:** "I mapped the three classic laundering stages — placement, layering,
+integration — directly onto which of my six detection subsystems catches each one, using
+real accounts from my own synthetic bank as the worked examples, not textbook abstractions."
+
+**Phase 0 is complete.** Ledger schema, seeded 25-customer world, statement generator, and
+the FCC vocabulary are all live and tested. Phase 1 (World Engine at 10k-customer scale)
+starts next.
