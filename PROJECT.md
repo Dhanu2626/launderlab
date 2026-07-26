@@ -42,7 +42,8 @@ Simulate (phases 0–2). Track B — Detect (phases 3–6). Track C — Investig
 - [ ] **Phase 4** (wk 6) — Screening: sanctions/PEP fuzzy matching + high-risk geography + adverse media simulation
 - [ ] **Phase 5** (wks 7–8) — Graph analytics: mule-ring detection
 - [ ] **Phase 6** (wks 8–10) — ML tournament: 6 algorithm families (gradient boosting, isolation forest, one-class SVM, autoencoder, LSTM, GraphSAGE GNN) on one leaderboard, all with explainability; later scored on decay vs the red team
-- [ ] **Phase 7** (wks 10–12) — Investigator workbench (FastAPI + React): alert cards with risk score, "why" bullets, AI-generated case summary
+- [ ] **7.1 — risk aggregation (build FIRST, before any workbench UI)** — combine Phase 3's rule alerts + Phase 4's screening scores + Phase 5's graph flags + Phase 6's 6 ML model scores into one risk number per account, traceable back to which signals fed it. Deliberately deferred until now: the right approach (weighted sum vs. small meta-model vs. max-signal) depends on real score distributions Phases 3–6 haven't produced yet. This is the one point in the project where combining signals is actually necessary — nothing before Phase 7 needs one ranked number.
+- [ ] **Phase 7** (wks 10–12) — Investigator workbench (FastAPI + React): alert cards with risk score (from 7.1), "why" bullets, AI-generated case summary
 - [ ] **Phase 8** (wks 12–14) — Red team co-evolution engine → detection-decay benchmark
 - [ ] **Phase 8.5** (wks 15–16) — Multi-bank experiment: quantify the cross-bank blind spot, prototype privacy-preserving sharing, measure lift
 - [ ] **Phase 9** (wks 17–18) — Story Mode + whitepaper + demo video + launch
