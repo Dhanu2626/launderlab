@@ -282,3 +282,32 @@ overdraw an account, then stress-tested it anyway with 50 injections across 10 a
 and it failed. The bug: my 'historical minimum' calculation only checked balances *after*
 transactions, missing the balance *before* the very first one. A proof and a test that only
 agree with each other prove nothing; they have to agree with reality."
+
+---
+
+## Day 11 — 2026-07-26 · slice 2.5 (dormant-account reactivation)
+
+🏦 **FCC:** The red flag here isn't the transaction amount in isolation — ₹15 lakh moving
+through a business account is unremarkable. It's the amount **relative to that specific
+account's own established baseline**. A student who's moved ₹4,000-8,000 a week for a
+month, then suddenly receives ₹2 lakh and cashes out 95% of it within hours, is the same
+signal a bank's fraud team calls "behavioral deviation" — and it's exactly the kind of
+pattern a rules engine checking fixed thresholds misses (₹2 lakh isn't huge for a business)
+but a model trained on each account's own history catches immediately. That per-account
+baseline framing is precisely what Phase 6's ML tournament exists to formalize.
+
+🔧 **Engineering:** Two small, honest wins today rather than a big new lesson. First:
+this typology's credit-then-debit ordering makes it safe by construction the same way
+mule_network is — no need for round_tripping's harder historical-minimum proof, because the
+debits only ever spend money that was *just* credited, never pre-existing balance. Picking
+the right *shape* of typology (credit precedes debit vs. debit against existing funds)
+matters more than being clever about safety margins after the fact. Second: `shell_company`'s
+private split helper got used by a second typology today, so I promoted it to a shared,
+public function instead of leaving two typologies quietly depending on "internal" code —
+a small refactor, but the kind that keeps a codebase honest as it grows past what any one
+person can hold in their head.
+
+🎯 **Interview line:** "The right question wasn't 'how do I prove this debit is safe' — it
+was 'can I design the transaction order so the question never comes up.' Structuring credit
+before debit turned an entire class of overdraft bugs from something I had to prove into
+something that couldn't happen."

@@ -39,7 +39,7 @@ def inject(conn: duckdb.DuckDBPyConnection, scheme_id: str, account_id: str,
         raise ValueError(f"account {account_id} has no transactions to inject into")
 
     shell = rng.choice(SHELL_NAMES)
-    amounts = _split_uneven(rng, target_total, n_invoices)
+    amounts = split_uneven(rng, target_total, n_invoices)
 
     new_rows = []
     for invoice_no, amt in enumerate(amounts, start=1001):
@@ -71,7 +71,7 @@ def inject(conn: duckdb.DuckDBPyConnection, scheme_id: str, account_id: str,
     return len(new_ids)
 
 
-def _split_uneven(rng: random.Random, total: int, n: int) -> list[int]:
+def split_uneven(rng: random.Random, total: int, n: int) -> list[int]:
     """Split `total` into `n` large, unevenly-sized pieces — a handful of big
     invoices, not a suspiciously round even split. Uses proportional weights (not a
     subtracted remainder) so the last piece can never go negative: each of the first

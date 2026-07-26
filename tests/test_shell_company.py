@@ -5,7 +5,7 @@ import pytest
 
 from launderlab.db.ledger import connect
 from launderlab.typology import shell_company
-from launderlab.typology.shell_company import _split_uneven
+from launderlab.typology.shell_company import split_uneven
 from launderlab.world.generate import load
 
 
@@ -28,7 +28,7 @@ def test_split_uneven_always_positive_and_exact():
         rng = random.Random(seed)
         for n in range(2, 9):
             total = rng.randrange(100000, 5000000)
-            pieces = _split_uneven(rng, total, n)
+            pieces = split_uneven(rng, total, n)
             assert len(pieces) == n
             assert all(p > 0 for p in pieces), (seed, n, total, pieces)
             assert sum(pieces) == total
