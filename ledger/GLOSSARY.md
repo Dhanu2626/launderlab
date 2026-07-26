@@ -17,3 +17,5 @@
 - **Placement** — the first stage of laundering (getting dirty cash into a bank); structuring is the classic placement technique — see `ledger/FCC-PRIMER.md`.
 - **Layering** — the second stage: moving money through many accounts fast to bury its trail. No single hop looks criminal; the crime is only visible in the pattern across hops.
 - **Mule / mule network** — a person (recruited or unwitting) whose account is used to pass laundered money along for a small cut, one hop in a layering chain. Source = where the chain starts, sink = where it ends.
+- **Integration** — the third stage of laundering: making dirty money look like ordinary legitimate income (e.g. business revenue).
+- **Counterparty concentration** — what share of an account's money comes from one single counterparty. A red flag when unusually high, since real customers/revenue are normally diversified.

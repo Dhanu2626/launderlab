@@ -221,3 +221,32 @@ injection time, the same pattern population.py already used to build them the fi
 balance-recompute logic as single-account by default. Before writing the second typology —
 which by definition crosses multiple accounts — I extracted that logic into a shared
 function first, so the harder multi-account version was composition, not new code to debug."
+
+---
+
+## Day 9 — 2026-07-26 · slice 2.3 (shell companies — integration)
+
+🏦 **FCC:** Structuring's tell is *many small* amounts; a shell company's tell is the exact
+opposite — *few large* amounts, all from one counterparty a business has never dealt with
+before, often with suspiciously sequential invoice numbers. Real investigators watch
+**counterparty concentration**: what share of a business's revenue comes from its single
+biggest customer this month? A legitimate business is diversified; a shell-fed one isn't.
+This typology exists specifically to make that concentration signal show up in real data
+Phase 6's ML tournament can later learn to detect.
+
+🔧 **Engineering:** Caught a real bug in code review before it ever ran: my first version
+split a total into pieces by drawing n-1 random amounts and computing the last piece as
+"whatever's left" — total minus the sum of the others. For a *few large* pieces (as few as
+3, up to 8), enough of those random draws landing near their upper bound could push the
+subtracted remainder negative, which the database would then reject outright (amounts must
+be positive). Rewrote it as a proportional weighted split instead — every piece is a
+fraction of a shared weight pool that always sums to less than the total by construction,
+so the last piece can never go negative, no matter how unlucky the random draws get. Proved
+it with a 1,400-case stress test (200 seeds × 7 group sizes) rather than trusting the math
+by eye — this is exactly the kind of edge case that passes 99% of test runs and then fails
+in front of someone months later.
+
+🎯 **Interview line:** "I found a rare-but-real bug in my own split algorithm before it ever
+shipped — a subtracted-remainder approach that could go negative under unlucky random
+draws — and replaced it with a proportional weighted split that's negative-proof by
+construction, then proved it with a 1,400-case stress test instead of trusting the math."
