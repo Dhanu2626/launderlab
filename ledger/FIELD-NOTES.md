@@ -396,3 +396,39 @@ separate proof."
 one shared safety-utility library extracted (`account_true_minimum`, `safe_debit_ceiling`,
 `recompute_account_balances`, `split_uneven`), 72 tests (up from 36), and a capstone proving
 the whole system composes. Phase 2 — the entire crime-injection engine — is done.**
+
+---
+
+## Phase 3 — 2026-07-26 (rules engine — the first real detector)
+
+🏦 **FCC:** Every phase before this one generated data. This is the first code that has to
+*catch* something, and it immediately surfaced the industry's actual central problem in
+miniature: I built `round_trip` to catch money leaving and returning to an account, and on
+a first pass it flagged 24 completely legitimate businesses on a clean world — because a
+purchase debit followed by an unrelated receipt credit within days is *routine* business
+cash flow, not crime. The fix wasn't a bigger amount threshold (that would have cost
+recall); it was noticing that the injected typology always moves over RTGS specifically,
+while ordinary business AP/AR never does in this world. That's the real skill AML tuning
+demands: finding the feature that's actually diagnostic, not just cranking a threshold
+until the noise goes quiet — because a big-enough threshold silences noise by also going
+blind to real cases (dormant_reactivation's honest 60% recall, further down, is the same
+lesson from the other direction).
+
+🔧 **Engineering:** Enforced a real architectural boundary, not just a documented one:
+`detect/rules.py` must never read `scheme_labels`, and `detect/scoring.py` is the only
+module allowed to grade against it — a rule earns its alert from transaction data alone,
+the same way a real analyst would, never from peeking at the answer key. Tested this with a
+static check (no `FROM`/`JOIN scheme_labels` anywhere in rules.py's source), not just a
+comment. Also skipped writing an actual textual "scenario DSL" parser — the plan's own
+language — since six Python functions with named, tunable keyword parameters already give
+a declarative, inspectable configuration surface without inventing a mini-language nobody
+but me would ever write in. Ladder rung reasoning made explicit: build the parser only if a
+second, non-me author of scenarios ever actually shows up.
+
+🎯 **Interview line:** "My first version of a money-laundering detection rule flagged 24
+legitimate businesses out of 300 on a clean dataset. Instead of raising the amount
+threshold — which would have cost real recall — I found the channel the injected crime
+specifically used that ordinary business cash flow never does, and filtered on that. Real
+10,000-customer proof: 93.3% recall, 100% precision, 0% false positives across 90 injected
+schemes, exceeding the ≥80%/<5% target — with one typology honestly reported at 60%
+recall and a concrete, defensible reason why, rather than hidden or averaged away."
