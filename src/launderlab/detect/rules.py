@@ -34,9 +34,23 @@ class Alert:
 
 
 def structuring_burst(conn: duckdb.DuckDBPyConnection, ceiling: int = 100000,
-                       min_count: int = 5, min_total: int = 500000) -> list[Alert]:
+                       min_count: int = 24, min_total: int = 1_400_000) -> list[Alert]:
     """Many CASH deposits, each under `ceiling`, summing past `min_total` — the
-    classic structuring/smurfing signature."""
+    classic structuring/smurfing signature.
+
+    RE-TUNED IN PHASE 6, and the reason matters. The original thresholds (5
+    deposits, Rs 500k) scored 100% precision — but only because the world had no
+    legitimate cash banking at all, so *any* cash deposit was crime. Once
+    businesses and merchants started banking real takings, those thresholds
+    produced 24 false positives on a completely clean world.
+
+    Measured against real distributions afterwards: legitimate cash-banking
+    accounts top out around 21 deposits and Rs 1.31M a month, while structuring
+    schemes run 27-47 deposits and Rs 1.8M+. The thresholds sit in that gap.
+    The honest cost is recall on *small* structuring schemes, which now look
+    exactly like an ordinary shop banking its takings — which is precisely why
+    real structuring works.
+    """
     rows = conn.execute(
         "SELECT account_id, count(*), sum(amount)::DOUBLE, max(ts) FROM transactions"
         " WHERE direction = 'CR' AND channel = 'CASH' AND amount < ?"

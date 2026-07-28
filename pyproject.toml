@@ -3,7 +3,7 @@ name = "launderlab"
 version = "0.1.0"
 description = "An open adversarial simulation range for AML detection — synthetic bank, typology injector, detection stack, and a co-evolving red team."
 requires-python = ">=3.12"
-dependencies = ["duckdb>=1.0", "jellyfish>=1.0", "networkx>=3.0"]
+dependencies = ["duckdb>=1.0", "jellyfish>=1.0", "networkx>=3.0", "scikit-learn>=1.4"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.5"]

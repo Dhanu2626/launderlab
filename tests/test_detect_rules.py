@@ -58,11 +58,29 @@ def injected_world(tmp_path):
     return conn
 
 
-def test_structuring_rule_catches_its_own_typology(injected_world):
+def test_structuring_rule_catches_a_substantial_scheme(injected_world):
     acct = _accounts(injected_world, "business", 1)[0]
-    structuring.inject(injected_world, "T1", acct, date(2026, 7, 3), random.Random(1))
+    structuring.inject(injected_world, "T1", acct, date(2026, 7, 3), random.Random(1),
+                       target_total=2_500_000)
     caught = {a.account_id for a in rules.structuring_burst(injected_world)}
     assert acct in caught
+
+
+def test_small_structuring_hides_inside_legitimate_cash_banking(injected_world):
+    """A documented blind spot, not an oversight.
+
+    Once businesses bank real cash takings, a small structuring scheme is
+    genuinely indistinguishable from an ordinary shop's month: both are a couple
+    of dozen sub-threshold deposits. The thresholds that keep false positives at
+    zero on a clean world necessarily miss schemes this size — which is exactly
+    why structuring works in reality, and why Phase 6's ML layer and Phase 8's
+    adaptive red team exist.
+    """
+    acct = _accounts(injected_world, "business", 2)[1]
+    structuring.inject(injected_world, "T-SMALL", acct, date(2026, 7, 3), random.Random(2),
+                       target_total=600_000)
+    caught = {a.account_id for a in rules.structuring_burst(injected_world)}
+    assert acct not in caught
 
 
 def test_rapid_pass_through_catches_mule_hops(injected_world):

@@ -548,3 +548,44 @@ typologies were invisible to it, because their counterparties banked elsewhere a
 edge to analyse. Graph analytics only sees the fraction of a network that sits inside your
 own institution. I also deleted the fan-in detector I'd just written, because when I measured
 it, every hit was a legitimate shop."
+
+---
+
+## Phase 6, slice 6.1 — 2026-07-29 (the ML tournament, and what it actually measured)
+
+🏦 **FCC:** The leaderboard's headline is not which model won — it is that **they fail
+differently**. Isolation forest caught every shell-company account (8/8) and every
+structuring account (5/5), but only 7 of 18 layering accounts. One-class SVM caught 18/18
+layering. An institution running one model is blind wherever that model happens to be weak,
+and nothing in its own metrics would reveal the gap — you only see it when ground truth
+lets you break recall down by crime type, which no real bank can do. That is the entire
+argument for a tournament rather than a champion, and it is the argument this project can
+make and a real FIU cannot.
+
+The second lesson is harsher. Making the world *more realistic* made detection *worse* —
+correctly. Giving businesses legitimate cash banking took Phase 3's structuring rule from
+zero false positives to twenty-four, which means its perfect precision had never been a
+property of the rule at all; it was a property of a world where nobody legitimately banked
+cash. Structuring is hard in reality precisely because honest shops deposit sub-threshold
+cash all day. After re-tuning, small structuring schemes are now genuinely undetectable by
+that rule — recorded as a test, not hidden.
+
+🔧 **Engineering:** Gradient boosting scored a perfect AP of 1.000, which is a red flag,
+not a triumph. Perfect ranking almost always means a feature encodes the label. It did: the
+legitimate world emitted **no CASH and no INT transactions whatsoever**, so both channels
+existed only inside injected crime, and the model had learned "channel = CASH" rather than
+anything about laundering. Two world fixes later (remittances retagged INT; merchants and
+businesses banking real cash), a feature-importance audit still shows three features
+carrying 98.6% of the signal — `std_amount` alone at 67.8% — meaning the model is largely
+detecting "this account moved unusually large money for this world". So the supervised
+number is still not a credible AML result, and I have written that next to it rather than
+publishing 1.000 unqualified. The judgement call that follows: **do not add LSTM and
+GraphSAGE yet.** Adding two more models to a benchmark that is measuring an artefact just
+produces two more inflated numbers. Fix the world's amount realism first.
+
+🎯 **Interview line:** "My supervised model hit a perfect average precision, so I went
+looking for the bug instead of celebrating. The synthetic world had never generated a
+legitimate cash or international transaction, so the model had learned 'cash equals crime'.
+I fixed the data — and that immediately broke my earlier rules engine, taking it from zero
+false positives to twenty-four, which told me its perfect precision had been an artefact
+too. I'd rather have a benchmark I can defend than a leaderboard that flatters me."

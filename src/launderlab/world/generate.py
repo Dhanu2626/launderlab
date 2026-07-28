@@ -111,8 +111,12 @@ def life_events(rng: random.Random, profiles: list[Profile], start: date, days: 
                      f"ATM-CASH/DR/{p.city[:3].upper()}-{rng.randrange(10, 99)}")]))
 
         if p.remittance:
+            # INT, not RTGS: an inward remittance IS an international transaction.
+            # Tagging it RTGS left the INT channel completely unused by legitimate
+            # traffic, which made "channel = INT" a perfect crime label for any ML
+            # model (see FIELD-NOTES Phase 6).
             r = ref()
-            ev.append((at(rng.randrange(0, 4), 11), [(acct, "CR", "RTGS", p.remittance,
+            ev.append((at(rng.randrange(0, 4), 11), [(acct, "CR", "INT", p.remittance,
                        p.remit_from, r, f"INW-RMT/CR/{r}/{p.remit_from}")]))
 
         if p.pocket_money:
@@ -168,6 +172,18 @@ def life_events(rng: random.Random, profiles: list[Profile], start: date, days: 
             r = ref()
             ev.append((at(w * 7 + 5, 17), [(acct, "DR", "NEFT", rng.randrange(8, 31) * 1000,
                                             "GSTN", r, f"GST/DR/{r}/EPAYMENT")]))
+        # Trading businesses bank cash too, in the SAME size band structuring
+        # uses (~30k-95k). Giving cash only to merchants left business accounts —
+        # exactly the segment structuring targets — with zero legitimate cash, so
+        # "a business that deposited cash" stayed a perfect crime label even after
+        # merchants got theirs. Structuring is only hard when it has somewhere to
+        # hide (see FIELD-NOTES Phase 6).
+        for d in range(days):
+            if rng.random() < 0.35:
+                r = ref()
+                ev.append((at(d, rng.randrange(10, 18)), [
+                    (acct, "CR", "CASH", rng.randrange(30, 96) * 1000, None, None,
+                     f"CASH DEP/CR/{r}/BR-{rng.randrange(10, 99)}")]))
 
     for m in merchants:
         acct = account_id(m.customer_id)
@@ -184,6 +200,18 @@ def life_events(rng: random.Random, profiles: list[Profile], start: date, days: 
             restock = int(m.opening_balance * rng.randrange(30, 61) / 100)
             ev.append((at(w * 7 + 5, 9), [(acct, "DR", "NEFT", restock, "DISTRIBUTOR", r,
                                            f"NEFT/DR/{r}/STOCK PURCHASE")]))
+        # Shops bank their cash takings. Without this the CASH channel was used
+        # ONLY by injected structuring, so "this account ever deposited cash" was
+        # a perfect crime label — a detector could score 100% while learning
+        # nothing about laundering (see FIELD-NOTES Phase 6). Real structuring has
+        # to hide among real cash banking, which is what makes it hard.
+        for d in range(days):
+            if rng.random() < 0.45:
+                takings = rng.randrange(int(lo * 6), int(hi * 12))
+                r = ref()
+                ev.append((at(d, rng.randrange(9, 19)), [
+                    (acct, "CR", "CASH", takings, None, None,
+                     f"CASH DEP/CR/{r}/BR-{rng.randrange(10, 99)}")]))
 
     return ev
 
