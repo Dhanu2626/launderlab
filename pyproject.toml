@@ -8,6 +8,11 @@ dependencies = ["duckdb>=1.0", "jellyfish>=1.0", "networkx>=3.0", "scikit-learn>
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.5"]
 mcp = ["mcp>=1.28"]
+# Only the LSTM and GraphSAGE families need this. Install the CPU build --
+# pip install torch --index-url https://download.pytorch.org/whl/cpu -- which is
+# ~200MB against ~2.5GB for the CUDA one, and these models are far too small to
+# benefit from a GPU. Tests skip cleanly when it is absent.
+deep = ["torch>=2.0"]
 
 [build-system]
 requires = ["setuptools>=68"]

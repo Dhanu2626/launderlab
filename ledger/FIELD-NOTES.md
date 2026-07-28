@@ -589,3 +589,44 @@ legitimate cash or international transaction, so the model had learned 'cash equ
 I fixed the data — and that immediately broke my earlier rules engine, taking it from zero
 false positives to twenty-four, which told me its perfect precision had been an artefact
 too. I'd rather have a benchmark I can defend than a leaderboard that flatters me."
+
+---
+
+## Phase 6, slices 6.2 + 6.3 — 2026-07-29 (fixing the benchmark, then finishing the tournament)
+
+🏦 **FCC:** Making the world honest made every detector worse, and that is the finding.
+Giving the bank legitimate large payments — property purchases, loan disbursals, one-client
+suppliers, NRI property remittances — collapsed the unsupervised models: one-class SVM fell
+from 0.910 to 0.219, isolation forest from 0.395 to 0.155. They had been riding a single
+assumption, that *anomalous* means *large*, and it held only while the honest population had
+no upper tail. Real banking has an enormous one. This is why unsupervised anomaly detection
+disappoints in production AML: when normal is genuinely heterogeneous, "unusual" stops
+meaning "criminal". Supervised learning held up far better (0.925) because it learns what
+distinguishes crime, not merely what is rare.
+
+The harder lesson was `counterparty_concentration`. Measured against the realistic world,
+shell-company schemes sit at 6 payments and 50% concentration — *inside* the legitimate
+range, where real businesses with one dominant client run 5-9 payments at 51-63%. There is
+no threshold that separates them, and there should not be: "most of my revenue comes from
+one customer" describes an honest supplier and a shell-fed front identically. That rule is
+now documented as producing genuine false positives, with the clean-world test asserting a
+bounded, triageable alert load instead of silence. Some things are not tunable.
+
+🔧 **Engineering:** Two design choices worth keeping. First, personal big-ticket spending is
+modelled as a funding credit followed days later by the purchase — not a bare debit. A bare
+debit of 3-22x salary would simply have been refused by the no-overdraft rule and never
+appeared in the data at all, so the "fix" would have silently done nothing; and the funding
+credit is itself the thing that stops large incoming payments from being an automatic crime
+signal. The 3-10 day gap is deliberate too, sitting outside the 48h rapid-pass-through
+window so buying a flat does not look like moving money onward. Second, GraphSAGE is ~15
+lines of plain PyTorch rather than a torch-geometric dependency: aggregate neighbours,
+concatenate with self, transform. Writing the layer is more transparent than importing it,
+avoids a large fragile dependency for one idea, and CPU-only torch is ~200MB against ~2.5GB
+for the CUDA build — these models are far too small to want a GPU.
+
+🎯 **Interview line:** "I fixed my synthetic data and watched three of my four models get
+dramatically worse — one-class SVM fell from 0.91 to 0.22. That was the point: they had
+learned that anomalous means large, which only worked while my honest population had no big
+legitimate transactions. Real banks have an enormous upper tail, which is exactly why
+unsupervised anomaly detection underdelivers in production AML. I'd rather have models that
+score lower against realistic data than models that score well against data I made easy."

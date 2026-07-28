@@ -99,3 +99,47 @@ def run(train: Dataset, test: Dataset, models: list[Model] | None = None,
     models = models if models is not None else default_zoo()
     results = [evaluate(m, train, test, budget, typologies) for m in models]
     return sorted(results, key=lambda r: r.average_precision, reverse=True)
+
+
+def evaluate_prepared(model: Model, X_train, y_train, X_test, test: Dataset,
+                      budget: int = DEFAULT_BUDGET,
+                      typologies: dict[str, set[str]] | None = None) -> Result:
+    """Score a model whose inputs are already shaped for it.
+
+    The LSTM takes a 3-D sequence tensor and GraphSAGE needs its adjacency set
+    beforehand, so neither can go through `evaluate()`'s flat-matrix path. The
+    measurement afterwards is identical, which is what keeps the leaderboard
+    comparable across all six families.
+    """
+    started = time.perf_counter()
+    model.fit(X_train, y_train)
+    fit_seconds = time.perf_counter() - started
+
+    scores = np.asarray(model.score(X_test), dtype=float)
+    y_test = np.asarray(test.y, dtype=int)
+    caught, top_idx = _at_budget(scores, y_test, budget)
+    total_positive = int(y_test.sum())
+
+    by_typology: dict[str, tuple[int, int]] = {}
+    if typologies:
+        flagged = {test.account_ids[i] for i in top_idx}
+        totals: dict[str, int] = {}
+        hits: dict[str, int] = {}
+        for account_id, label in zip(test.account_ids, y_test):
+            if not label:
+                continue
+            for typology in typologies.get(account_id, set()):
+                totals[typology] = totals.get(typology, 0) + 1
+                if account_id in flagged:
+                    hits[typology] = hits.get(typology, 0) + 1
+        by_typology = {t: (hits.get(t, 0), n) for t, n in sorted(totals.items())}
+
+    return Result(
+        model=model.name, paradigm=model.paradigm,
+        average_precision=float(average_precision_score(y_test, scores)),
+        roc_auc=float(roc_auc_score(y_test, scores)),
+        precision_at_budget=caught / min(budget, len(scores)),
+        recall_at_budget=caught / total_positive if total_positive else 0.0,
+        true_positives_at_budget=caught, budget=min(budget, len(scores)),
+        fit_seconds=fit_seconds, by_typology=by_typology,
+    )

@@ -121,9 +121,23 @@ def round_trip(conn: duckdb.DuckDBPyConnection, min_amount: int = 1000,
 
 
 def counterparty_concentration(conn: duckdb.DuckDBPyConnection, min_total: int = 1000000,
-                                min_concentration: float = 0.5, min_count: int = 2) -> list[Alert]:
+                                min_concentration: float = 0.5, min_count: int = 4) -> list[Alert]:
     """One counterparty accounts for most of an account's credited money — a
-    business fed almost entirely by one newly-seen "customer."""
+    business fed almost entirely by one newly-seen "customer.
+
+    DEGRADED HONESTLY IN PHASE 6.2. Once the world gained legitimate large
+    payments, measurement showed shell-company schemes (6 payments, 50%
+    concentration) sitting *inside* the legitimate range — real businesses with
+    one dominant client hit 5-9 payments at 51-63%. No threshold separates them,
+    because in reality there is no difference: "most of my revenue comes from one
+    customer" describes an honest supplier and a shell-fed front equally well.
+
+    `min_count` was raised 2 -> 4, which removes the single-payment false
+    positives (an annual bonus is 93% of a salaried account's credits) but cannot
+    fix the overlap. This rule now genuinely produces false positives and small
+    shell schemes escape it. Separating these needs invoice-level analysis or the
+    ML layer; concentration alone is no longer sufficient.
+    """
     rows = conn.execute(
         """
         WITH per_cp AS (

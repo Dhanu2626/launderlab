@@ -21,6 +21,26 @@ from launderlab.world.seed import FIRMS, IFSC, account_id
 LENDERS = ["HDFC HOME LOAN", "SBI CAR LOAN", "BAJAJ FIN EMI", "ICICI PERSONAL LOAN",
            "AXIS CONSUMER DURABLE LOAN"]
 
+# Legitimate reasons ordinary people and firms move large sums. Without these the
+# world's honest traffic topped out around Rs 4 lakh while injected crime routinely
+# moved Rs 5-15 lakh, so `std_amount` alone separated the two and a classifier
+# scored a perfect AP by learning "big money = crime" (see FIELD-NOTES Phase 6).
+# Laundering is only hard to spot when large legitimate payments exist to hide among.
+BIG_TICKET_PERSONAL = [
+    ("PROPERTY", "REG/DR/{ref}/SUB REGISTRAR OFFICE"),
+    ("VEHICLE", "NEFT/DR/{ref}/AUTOMOTIVE DEALER"),
+    ("INVESTMENT", "NEFT/DR/{ref}/MUTUAL FUND FOLIO"),
+    ("FD", "INT-TFR/DR/{ref}/FIXED DEPOSIT BOOKING"),
+    ("WEDDING", "NEFT/DR/{ref}/BANQUET AND CATERING"),
+    ("MEDICAL", "NEFT/DR/{ref}/HOSPITAL SETTLEMENT"),
+]
+BIG_TICKET_BUSINESS = [
+    ("SETTLEMENT", "RTGS/{dir}/{ref}/{firm} SETTLEMENT"),
+    ("MACHINERY", "RTGS/DR/{ref}/CAPITAL EQUIPMENT"),
+    ("LOAN_DISBURSAL", "NEFT/CR/{ref}/WORKING CAPITAL LOAN"),
+    ("LOAN_REPAY", "NACH/DR/{ref}/WORKING CAPITAL EMI"),
+]
+
 _TXN_COLUMNS = ["ts", "account_id", "direction", "channel", "amount",
                 "counterparty_name", "counterparty_ref", "narration", "balance_after"]
 
@@ -118,6 +138,36 @@ def life_events(rng: random.Random, profiles: list[Profile], start: date, days: 
             r = ref()
             ev.append((at(rng.randrange(0, 4), 11), [(acct, "CR", "INT", p.remittance,
                        p.remit_from, r, f"INW-RMT/CR/{r}/{p.remit_from}")]))
+            # NRIs also send money home for property and family obligations, which
+            # is where the genuinely large international transfers live.
+            if rng.random() < 0.35:
+                r = ref()
+                ev.append((at(rng.randrange(0, days), 12), [
+                    (acct, "CR", "INT", rng.randrange(500, 3001) * 1000, p.remit_from, r,
+                     f"INW-RMT/CR/{r}/{p.remit_from} PROPERTY")]))
+
+        # Big-ticket personal events: property, vehicles, investments, weddings.
+        # Modelled as a large CREDIT (loan disbursal, FD maturity, sale proceeds)
+        # followed days later by the large DEBIT it funds — which is how people
+        # actually buy a flat, and which matters twice over: a lump-sum debit on
+        # its own would simply be refused by the no-overdraft rule and never
+        # appear, and the funding credit is what stops "a large incoming payment"
+        # from being an automatic crime signal.
+        if p.salary and rng.random() < 0.30:
+            _kind, template = rng.choice(BIG_TICKET_PERSONAL)
+            amount = min(int(p.salary * rng.uniform(3, 22)), 2_000_000)
+            funding_day = rng.randrange(0, max(days - 12, 1))
+            r_in = ref()
+            source = rng.choice(["FD MATURITY", "HOME LOAN DISBURSAL",
+                                  "ANNUAL BONUS", "PROPERTY SALE PROCEEDS"])
+            ev.append((at(funding_day, rng.randrange(10, 16)), [
+                (acct, "CR", "NEFT", amount, source, r_in, f"NEFT/CR/{r_in}/{source}")]))
+            # 3-10 days later, well outside the 48h rapid-pass-through window, so a
+            # legitimate purchase does not look like money being moved straight on
+            r_out = ref()
+            ev.append((at(funding_day + rng.randrange(3, 11), rng.randrange(10, 18)), [
+                (acct, "DR", "NEFT", int(amount * rng.uniform(0.85, 0.99)), None, r_out,
+                 template.format(ref=r_out))]))
 
         if p.pocket_money:
             parent = f"{rng.choice('SMRKVA')} {p.full_name.split()[-1].upper()}"
@@ -184,6 +234,18 @@ def life_events(rng: random.Random, profiles: list[Profile], start: date, days: 
                 ev.append((at(d, rng.randrange(10, 18)), [
                     (acct, "CR", "CASH", rng.randrange(30, 96) * 1000, None, None,
                      f"CASH DEP/CR/{r}/BR-{rng.randrange(10, 99)}")]))
+        # Large legitimate settlements — the upper tail crime used to have to itself.
+        for _ in range(rng.randrange(1, 4)):
+            kind, template = rng.choice(BIG_TICKET_BUSINESS)
+            amount = rng.randrange(200, 2501) * 1000
+            direction = "CR" if kind == "LOAN_DISBURSAL" else "DR"
+            if kind == "SETTLEMENT":
+                direction = rng.choice(["CR", "DR"])
+            r, firm = ref(), rng.choice(FIRMS)
+            narration = template.format(ref=r, firm=firm, dir=direction)
+            ev.append((at(rng.randrange(0, days), rng.randrange(10, 18)), [
+                (acct, direction, "RTGS" if "RTGS" in narration else "NEFT",
+                 amount, firm, r, narration)]))
 
     for m in merchants:
         acct = account_id(m.customer_id)

@@ -45,10 +45,24 @@ def test_rules_never_reference_scheme_labels():
     assert not re.search(r"\b(FROM|JOIN)\s+scheme_labels\b", source, re.IGNORECASE)
 
 
-def test_clean_world_has_almost_no_false_positives(clean_world):
+def test_clean_world_false_positives_stay_bounded(clean_world):
+    """A budget, not a zero.
+
+    This test asserted <=2 while the world had no legitimate large payments. Once
+    Phase 6.2 gave it property purchases, loan disbursals and one-client
+    businesses, `counterparty_concentration` started firing on honest accounts —
+    and measurement showed it cannot be tuned away, because a business earning
+    most of its revenue from one customer is indistinguishable from a shell-fed
+    one. The realistic bar is a small, bounded alert load an analyst could
+    actually triage, not silence.
+    """
     alerts = rules.run_all(clean_world)
-    # 300 entirely legitimate customers; a well-tuned rules engine should stay quiet
-    assert len(alerts) <= 2
+    per_account = {a.account_id for a in alerts}
+    assert len(per_account) <= 12, f"alert load too high: {sorted(per_account)}"
+    # and the noise must be confined to the rule we know overlaps -- if a
+    # different rule starts firing on clean data, that is a real regression
+    noisy = {a.rule for a in alerts}
+    assert noisy <= {"counterparty_concentration"}, f"unexpected rules firing: {noisy}"
 
 
 @pytest.fixture()
@@ -93,9 +107,12 @@ def test_rapid_pass_through_catches_mule_hops(injected_world):
     assert chain[1] in caught
 
 
-def test_counterparty_concentration_catches_shell_company(injected_world):
+def test_counterparty_concentration_catches_a_multi_invoice_shell(injected_world):
+    # n_invoices pinned above min_count: a 3-invoice scheme is now genuinely
+    # below the threshold that keeps honest one-client businesses out
     acct = _accounts(injected_world, "business", 1)[0]
-    shell_company.inject(injected_world, "T3", acct, date(2026, 7, 3), random.Random(3))
+    shell_company.inject(injected_world, "T3", acct, date(2026, 7, 3), random.Random(3),
+                          target_total=4_000_000, n_invoices=6)
     caught = {a.account_id for a in rules.counterparty_concentration(injected_world)}
     assert acct in caught
 
