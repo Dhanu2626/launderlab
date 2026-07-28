@@ -432,3 +432,45 @@ specifically used that ordinary business cash flow never does, and filtered on t
 10,000-customer proof: 93.3% recall, 100% precision, 0% false positives across 90 injected
 schemes, exceeding the ≥80%/<5% target — with one typology honestly reported at 60%
 recall and a concrete, defensible reason why, rather than hidden or averaged away."
+
+---
+
+## Phase 4 — 2026-07-28 (screening — where the false-positive crisis becomes a number)
+
+🏦 **FCC:** Phase 3's rules engine scored 100% precision, which quietly flattered the whole
+project. Phase 4 is where the industry's actual, famous problem shows up and refuses to be
+tuned away: **29.4% precision on sanctions/PEP screening, and 3.7% on adverse media.** Both
+legs found 100% of what was planted — recall was never the issue. The issue is that names
+are not identifiers. Six customers in the world are genuinely called "Suresh Gupta", which
+is also a listed PEP; thirty more are called "Farhan Ali", a transliteration-equivalent of
+sanctioned "Farhaan Ali". No matching algorithm can separate those people, because *there
+is nothing in a name to separate them by*. That is precisely why real banks screen against
+date of birth and nationality, not names alone, and why the alert-triage floor of a real
+FIU is full of humans reading passports. The 95%-false-positive statistic in this project's
+own research thesis stopped being a citation this phase and became a measurement.
+
+🔧 **Engineering:** Three findings, each from measuring rather than assuming. First, I very
+nearly shipped a matcher that used whole-string Jaro-Winkler — it scored "Suresh Kumar" vs
+"Suresh Gupta" at 0.900, above any workable threshold, because Jaro-Winkler weights a shared
+prefix heavily and both share a first name. Dropping whole-string comparison for pure
+token alignment fixed it (0.73) without touching real transliterations (0.95+) — the rare
+change that is simultaneously less code and more accurate. Second, the requested
+Double Metaphone **does not exist in jellyfish** (it ships `metaphone`, `soundex`, `nysiis`,
+`match_rating_codex`), and when I benchmarked all of them, the `nguyen/nuyen` case the
+original `ponytail:` comment specifically named was missed by *every* phonetic algorithm and
+caught cleanly by Jaro-Winkler at 0.950 — so the honest architecture is JW primary, Metaphone
+corroborating, rather than adding a second phonetics library to satisfy the letter of the
+note. Third, and most important: before reporting 29.4% precision as an industry insight, I
+checked whether it was my own bug — and found every false positive scored ≥0.986, meaning
+zero were sloppy matches. But I also found the world generates only 1,049 distinct names for
+10,000 customers, so collision density is exaggerated. Both facts are now in PROJECT.md,
+because a number this quotable is exactly the kind that deserves its caveat attached.
+
+🎯 **Interview line:** "My name-screening engine hit 100% recall and 29% precision — and
+before I reported that as evidence of the industry's false-positive problem, I checked
+whether it was just my bug. Every false positive scored above 0.98, so none were sloppy
+matches; they were six customers genuinely sharing a listed PEP's name and thirty sharing a
+sanctioned person's transliteration. No algorithm separates those — that's what date of
+birth and nationality are for. I also found my own world generator over-concentrated names,
+which inflates the effect, and wrote that caveat next to the number rather than letting the
+better-sounding version stand."

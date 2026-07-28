@@ -3,10 +3,11 @@ name = "launderlab"
 version = "0.1.0"
 description = "An open adversarial simulation range for AML detection — synthetic bank, typology injector, detection stack, and a co-evolving red team."
 requires-python = ">=3.12"
-dependencies = ["duckdb>=1.0"]
+dependencies = ["duckdb>=1.0", "jellyfish>=1.0"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.5"]
+mcp = ["mcp>=1.28"]
 
 [build-system]
 requires = ["setuptools>=68"]
@@ -16,7 +17,7 @@ build-backend = "setuptools.build_meta"
 where = ["src"]
 
 [tool.setuptools.package-data]
-"launderlab.db" = ["*.sql"]
+"launderlab.db" = ["*.sql", "*.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -1,0 +1,20 @@
+[
+  {"name": "SYNTHETIC WATCHLIST - NOT REAL SANCTIONS DATA", "type": "notice", "program": "none", "country": "none", "source": "SYNTHETIC", "note": "Replace with OFAC SDN / UN Consolidated / EU CFSP data before any real use. Set LAUNDERLAB_WATCHLIST to point at your own file."},
+
+  {"name": "Farhaan Ali", "type": "sanctions", "program": "SDGT", "country": "Syria", "source": "SYNTHETIC"},
+  {"name": "Imraan Shaikh", "type": "sanctions", "program": "NPWMD", "country": "Iran", "source": "SYNTHETIC"},
+  {"name": "Suresh Gupta", "type": "pep", "program": "Domestic PEP - state minister", "country": "India", "source": "SYNTHETIC"},
+
+  {"name": "Viktor Anatolyevich Petrov", "type": "sanctions", "program": "RUSSIA-EO14024", "country": "Russia", "source": "SYNTHETIC"},
+  {"name": "Kim Yong Nam", "type": "sanctions", "program": "DPRK", "country": "North Korea", "source": "SYNTHETIC"},
+  {"name": "Aung Myat Thu", "type": "sanctions", "program": "BURMA-EO14014", "country": "Myanmar", "source": "SYNTHETIC"},
+  {"name": "Chukwuemeka Obi Nwosu", "type": "pep", "program": "Foreign PEP - central bank official", "country": "Nigeria", "source": "SYNTHETIC"},
+  {"name": "Maria Elena Rodriguez Cruz", "type": "sanctions", "program": "SDNTK", "country": "Colombia", "source": "SYNTHETIC"},
+  {"name": "Hassan Abdullah Al-Amri", "type": "sanctions", "program": "SDGT", "country": "Yemen", "source": "SYNTHETIC"},
+  {"name": "Riyad Mahmoud Haddad", "type": "sanctions", "program": "SYRIA", "country": "Syria", "source": "SYNTHETIC"},
+  {"name": "Grigore Ionescu", "type": "pep", "program": "Foreign PEP - procurement", "country": "Moldova", "source": "SYNTHETIC"},
+  {"name": "Zhang Wei Ming", "type": "sanctions", "program": "CMIC", "country": "China", "source": "SYNTHETIC"},
+  {"name": "Ferdinand Marcos Santos", "type": "pep", "program": "Foreign PEP - customs", "country": "Philippines", "source": "SYNTHETIC"},
+  {"name": "Osman Kaya Demir", "type": "sanctions", "program": "SDGT", "country": "Turkey", "source": "SYNTHETIC"},
+  {"name": "Salva Kiir Deng", "type": "pep", "program": "Foreign PEP - defence", "country": "South Sudan", "source": "SYNTHETIC"}
+]

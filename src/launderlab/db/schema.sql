@@ -45,5 +45,43 @@ CREATE TABLE IF NOT EXISTS scheme_labels (
     PRIMARY KEY (txn_id, scheme_id)
 );
 
+-- Ground truth: which customers genuinely ARE a watchlist entity.
+-- Screening asks a different question from transaction monitoring ("is this the
+-- listed person?" not "is this transaction crime?"), so it needs its own answer
+-- key. Customers NOT in here whose names merely resemble a listed name are the
+-- false-positive traps -- and the population generator produces those naturally,
+-- since it draws from a small name pool. Same rule as scheme_labels: the
+-- screening engine must NEVER read this; only the scorer may.
+CREATE TABLE IF NOT EXISTS entity_labels (
+    customer_id  VARCHAR NOT NULL REFERENCES customers(customer_id),
+    list_name    VARCHAR NOT NULL,
+    list_type    VARCHAR NOT NULL CHECK (list_type IN ('sanctions','pep')),
+    match_kind   VARCHAR NOT NULL CHECK (match_kind IN ('exact','transliteration','initials','reordered')),
+    PRIMARY KEY (customer_id, list_name)
+);
+
+CREATE SEQUENCE IF NOT EXISTS article_seq;
+
+-- Synthetic adverse media: the unstructured signal screening has to reason about.
+-- Some articles are genuinely about a listed entity, some name an unrelated person
+-- who happens to share a customer's name, some are benign business news.
+CREATE TABLE IF NOT EXISTS adverse_media (
+    article_id      BIGINT PRIMARY KEY DEFAULT nextval('article_seq'),
+    ts              TIMESTAMP NOT NULL,
+    headline        VARCHAR NOT NULL,
+    body            VARCHAR NOT NULL,
+    mentioned_name  VARCHAR NOT NULL,
+    category        VARCHAR NOT NULL
+);
+
+-- Ground truth: which article is genuinely about which customer. An article whose
+-- mentioned_name matches a customer NOT linked here is a real-world false positive
+-- (same name, different human). Scorer-only, like the tables above.
+CREATE TABLE IF NOT EXISTS media_labels (
+    article_id   BIGINT NOT NULL REFERENCES adverse_media(article_id),
+    customer_id  VARCHAR NOT NULL REFERENCES customers(customer_id),
+    PRIMARY KEY (article_id, customer_id)
+);
+
 CREATE INDEX IF NOT EXISTS idx_txn_account_ts ON transactions(account_id, ts);
 CREATE INDEX IF NOT EXISTS idx_txn_ts ON transactions(ts);

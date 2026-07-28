@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "launderlab-aml": {
+      "command": ".venv/Scripts/python.exe",
+      "args": ["-m", "launderlab.mcp_server"],
+      "env": {
+        "LAUNDERLAB_DB": "data/launderlab.duckdb"
+      }
+    }
+  }
+}
