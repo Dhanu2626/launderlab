@@ -34,17 +34,58 @@ CITIES = ["Hyderabad", "Bengaluru", "Mumbai", "Pune", "Delhi", "Chennai", "Kolka
           "Kochi", "Ahmedabad"]
 CITY_WEIGHTS = [0.25, 0.15, 0.15, 0.10, 0.10, 0.08, 0.07, 0.05, 0.05]
 
+# The first 40 first names and first 25 surnames are the original pool. Everything
+# after them was added in Phase 4 after measuring that 1,000 combinations across
+# 10,000 customers put ~10 people on every name -- dense enough to distort the
+# screening false-positive rate. Keeping the originals at the front lets a
+# controlled before/after comparison slice the lists rather than compare two
+# unrelated worlds (see the Phase 4 name-collision experiment in PROJECT.md).
 FIRST_NAMES = [
     "Asha", "Vikram", "Meera", "Rohit", "Farhan", "Divya", "Arjun", "Kavya", "Suresh",
     "Lakshmi", "Imran", "Nilesh", "Rahul", "Sneha", "Aditya", "Priya", "Anand", "Ritu",
     "Karthik", "Pooja", "Sanjay", "Anjali", "Manoj", "Neha", "Ravi", "Deepa", "Sameer",
     "Swathi", "Vishal", "Anita", "Naveen", "Shreya", "Gopal", "Rekha", "Ajay", "Nandini",
     "Praveen", "Madhuri", "Kiran", "Bhavana",
+    # --- Phase 4 additions ---
+    "Aakash", "Abhishek", "Aman", "Amit", "Aniket", "Ankit", "Ashok", "Balaji", "Bharat",
+    "Chetan", "Darshan", "Deepak", "Dinesh", "Gaurav", "Girish", "Harish", "Hemant",
+    "Jagdish", "Jatin", "Kailash", "Kamal", "Kunal", "Lokesh", "Madhav", "Mahesh",
+    "Mukesh", "Nikhil", "Nitin", "Omkar", "Pankaj", "Parth", "Prakash", "Pramod",
+    "Rajesh", "Rakesh", "Ramesh", "Rohan", "Sachin", "Sandeep", "Sunil", "Tarun",
+    "Uday", "Varun", "Vinay", "Vivek", "Yash",
+    "Aarti", "Aditi", "Alka", "Amrita", "Ananya", "Archana", "Aruna", "Bhavya", "Chitra",
+    "Gayatri", "Geeta", "Harini", "Indira", "Ishita", "Jyoti", "Kalpana", "Kavita",
+    "Komal", "Lata", "Manisha", "Meenakshi", "Mitali", "Namrata", "Nisha", "Padma",
+    "Pallavi", "Payal", "Preeti", "Radha", "Ramya", "Rashmi", "Renuka", "Roopa",
+    "Sarika", "Savita", "Shalini", "Shilpa", "Shobha", "Sindhu", "Smita", "Sonal",
+    "Sudha", "Sunita", "Supriya", "Tanvi", "Trisha", "Usha", "Vandana", "Vidya", "Yamini",
+    "Aamir", "Adnan", "Afzal", "Ahmed", "Akram", "Arif", "Asif", "Fatima", "Firoz",
+    "Habib", "Haider", "Iqbal", "Irfan", "Javed", "Kabir", "Khalid", "Mohsin", "Nadia",
+    "Nasir", "Nazia", "Rashid", "Rehana", "Rizwan", "Sadia", "Salim", "Shabnam",
+    "Shahid", "Sohail", "Tabassum", "Wasim", "Yusuf", "Zaheer", "Zainab", "Zoya",
+    "Amrit", "Baljit", "Gurpreet", "Harjeet", "Inderjit", "Jaspreet", "Manpreet",
+    "Navjot", "Rajinder", "Simran", "Sukhwinder",
+    "Alphonse", "Benny", "Clara", "Denzil", "Elias", "Grace", "Jerome", "Joyce",
+    "Lawrence", "Nelson", "Rosy", "Stanley",
 ]
 SURNAMES = [
     "Rao", "Iyer", "Pillai", "Sharma", "Ali", "Nair", "Reddy", "Krishnan", "Gupta",
     "Devi", "Sheikh", "Patel", "Verma", "Kulkarni", "Singh", "Menon", "Malhotra",
     "Naidu", "Chowdhury", "Bose", "Mehta", "Joshi", "Desai", "Kumar", "Pandey",
+    # --- Phase 4 additions ---
+    "Agarwal", "Ahluwalia", "Ahuja", "Arora", "Bajaj", "Balan", "Banerjee", "Bansal",
+    "Basu", "Bhat", "Bhatia", "Bhattacharya", "Biswas", "Chakraborty", "Chandra",
+    "Chatterjee", "Chauhan", "Chopra", "Dalvi", "Das", "Dasgupta", "Datta", "Dhawan",
+    "Dubey", "Dutta", "Fernandes", "Gandhi", "Ganguly", "Ghosh", "Gill", "Goel",
+    "Gowda", "Grewal", "Hegde", "Jain", "Jayaraman", "Kamath", "Kapoor", "Kaur",
+    "Khanna", "Khatri", "Kohli", "Lal", "Madan", "Mahajan", "Maheshwari", "Majumdar",
+    "Malik", "Mandal", "Mishra", "Mohan", "Mukherjee", "Murthy", "Nadar", "Nagarajan",
+    "Nanda", "Narayanan", "Nath", "Oberoi", "Pai", "Panicker", "Parekh", "Pathak",
+    "Prasad", "Puri", "Raghavan", "Rajan", "Ramakrishnan", "Rana", "Ranganathan",
+    "Sahu", "Saini", "Sandhu", "Sarkar", "Sastry", "Saxena", "Sen", "Sengupta", "Seth",
+    "Shah", "Shetty", "Shukla", "Sinha", "Sivaraman", "Srinivasan", "Subramanian",
+    "Sundaram", "Swamy", "Tandon", "Thakur", "Trivedi", "Varma", "Venkatesan", "Vora",
+    "Yadav",
 ]
 EMPLOYERS = [
     "TECHNOVA SOLUTIONS", "QUANTEDGE ANALYTICS", "BRIGHTPATH EDUTECH", "APEXCORE SYSTEMS",

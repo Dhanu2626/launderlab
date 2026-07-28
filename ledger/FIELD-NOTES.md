@@ -474,3 +474,35 @@ sanctioned person's transliteration. No algorithm separates those — that's wha
 birth and nationality are for. I also found my own world generator over-concentrated names,
 which inflates the effect, and wrote that caveat next to the number rather than letting the
 better-sounding version stand."
+
+---
+
+## Phase 4, slice 4.2 — 2026-07-28 (turning a caveat into a measurement)
+
+🏦 **FCC:** Phase 4 reported 29.4% screening precision and called it the false-positive
+crisis made real. It was half true, and the half that wasn't is the more useful lesson.
+Widening the world's name pool from 1,000 to 23,160 combinations — nothing else changed,
+same seeds, same planted entities — moved precision to **75.0%** and dropped exact-same-name
+false positives from six to **zero**. So **86% of that dramatic number was an artefact of my
+own data**, and only **14% was the real phenomenon. The real phenomenon is still there** —
+five transliteration-equivalent names survive, and no algorithm separates those from the
+genuine entity. But the honest headline is much narrower than the first one, and the
+narrower version is the one that would survive an interviewer pushing back.
+
+🔧 **Engineering:** The design decision that made this possible was small and worth
+repeating: when widening the lists, I appended the new names *after* the originals rather
+than replacing or reshuffling them. That meant the narrow arm could be reproduced exactly by
+slicing `FIRST_NAMES[:40]` and `SURNAMES[:25]`, so the two arms were a genuine controlled
+comparison rather than two unrelated worlds that happened to differ in several ways at once.
+It cost nothing at the time and turned an unanswerable "how much of this is my fault?" into
+a two-line experiment. Also worth recording: I predicted 60–80% entity precision (actual
+75.0% — fine) and 30–40% media precision (actual 15.8% — I was too optimistic, because each
+trap article still name-matches about four customers even in the wide pool). Writing the
+prediction down before running it is what made the miss visible instead of invisible.
+
+🎯 **Interview line:** "I published a 29% precision figure as evidence of AML's
+false-positive problem, then went back and tested whether my own synthetic data had
+manufactured it. Widening the name pool — one variable, same seeds — moved precision to 75%
+and took exact-name collisions to zero. So I could say precisely that 86% of my headline
+number was an artefact and 14% was the real effect. I'd rather own a smaller number I can
+defend than a dramatic one I can't."

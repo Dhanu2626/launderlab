@@ -83,19 +83,32 @@ On a 10,000-customer world with 15 watchlist entities and 49 news articles plant
 
 | Leg | Recall | Precision |
 |---|---|---|
-| Sanctions / PEP screening | 100% | 29.4% |
-| Adverse media | 100% | 3.7% |
+| Sanctions / PEP screening | 100% | 75.0% |
+| Adverse media | 100% | 15.8% |
 
-The low precision is the finding, not a defect. Every false positive scored **≥0.986** —
-none were sloppy matches. Six were customers *genuinely named* the same as a listed PEP, and
-thirty were transliteration-equivalents of a sanctioned name. Nothing in a name separates
-those people, which is exactly why real banks screen on date of birth and nationality too,
-and why alert triage is where AML teams spend their hours. This is the project's
-"false-positive crisis" research thesis reproduced as a measurement rather than a citation.
+Recall is perfect and precision is not, which is the point — but the interesting part is
+*why*, and that was measured rather than asserted.
 
-Caveat kept next to the number: this world generates only 1,049 distinct names across
-10,000 customers, so name collisions are denser here than in a real bank. Widening the name
-pool is tracked in `PROJECT.md`.
+### How much of a false-positive rate is real?
+
+The first run of this scored **29.4%** precision. Before publishing that as evidence of the
+industry's false-positive problem, it was worth asking whether it was really a finding or
+just an artefact of a synthetic world — so the name pool became a controlled experiment.
+Same world seed, same injections, only name diversity varying:
+
+| | Names per customer | Entity precision | Media precision | False positives |
+|---|---|---|---|---|
+| Narrow pool (40×25) | 9.41 share a name | 29.4% | 3.7% | 36 (6 exact-name) |
+| Realistic pool (193×120) | 1.49 share a name | **75.0%** | **15.8%** | 5 (**0** exact-name) |
+
+**86.1% of the false positives were collision density in the generated data. 13.9% is
+irreducible name ambiguity** — transliteration-equivalents that no matching algorithm can
+separate, only a secondary identifier like date of birth can. Recall stayed at 100% in both
+arms, so the diversity fix cost nothing.
+
+That decomposition is the actual result. A raw false-positive rate from a synthetic world
+proves very little on its own; knowing which fraction of it survives a realistic name
+distribution is what makes it worth quoting.
 
 ## What gets built
 
