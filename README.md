@@ -110,6 +110,47 @@ That decomposition is the actual result. A raw false-positive rate from a synthe
 proves very little on its own; knowing which fraction of it survives a realistic name
 distribution is what makes it worth quoting.
 
+## Graph analytics (Phase 5) — and the blind spot it measures
+
+`launderlab.graph` rebuilds the internal transfer graph from the ledger (pairing the two
+legs of each payment by the reference they share) and walks it forward through time to find
+**pass-through chains**: money arriving and leaving again within hours, slightly smaller,
+repeatedly down a path. That shape does not exist in any single account's history — only in
+the edges between accounts — which is exactly what a per-account rule cannot see.
+
+On the same 10,000-customer world, with 15 of each typology injected:
+
+| | Result |
+|---|---|
+| Mule networks reconstructed | **15 / 15** |
+| Chains reported | 15 (0 false positives) |
+| Precision / recall | **100% / 100%** |
+| Graph size | 8,538 nodes, 173,525 edges — built in 1.8s |
+
+Phase 3's `rapid_pass_through` rule had already flagged 47 of the 62 accounts involved. But
+62 flagged accounts is 62 separate alerts to triage; *"money moved A→B→C→D over 27 hours,
+losing 6% a hop"* is one case with a narrative. Turning the former into the latter is the
+whole point of the graph layer.
+
+### The number worth leading with
+
+Of six injected typologies, **only one is visible to a graph at all**:
+
+| Typology | Schemes with internal edges |
+|---|---|
+| Layering (mule networks) | 15 / 15 |
+| Structuring | 0 / 15 |
+| Shell company | 0 / 15 |
+| Round-tripping | 0 / 15 |
+| Dormant reactivation | 0 / 15 |
+| High-risk geography | 0 / 15 |
+
+Not a detection failure. Cash deposits, offshore invoices and inbound remittances have
+counterparties that bank *somewhere else*, so they leave a single leg in this ledger and no
+edge to analyse. A bank's graph can only contain the fraction of a network that happens to
+sit inside it — the cross-bank blind spot from the research thesis, measured as 1-in-6, and
+the reason Phase 8.5 exists.
+
 ## What gets built
 
 | Subsystem | Purpose |

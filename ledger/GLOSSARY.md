@@ -31,3 +31,7 @@
 - **Metaphone / Soundex / NYSIIS** — phonetic algorithms that encode how a word *sounds*, so different spellings of the same sound collide. Catches Sheikh/Shaikh; misses Nguyen/Nuyen.
 - **Adverse media screening** — searching news for negative coverage of a customer. Notoriously low-precision, because "same name, different human" is extremely common.
 - **Secondary identifier** — date of birth, nationality, passport number. What real banks use to separate two people with the same name, which name matching alone provably cannot do.
+- **Transaction graph** — accounts as nodes, transfers as directed edges. Turns "which accounts look odd?" into "how does money actually move between them?"
+- **Flow motif** — a recognisable shape in the money-flow graph: a chain (A→B→C), fan-in (many→one), fan-out (one→many), or a cycle. Different laundering typologies leave different shapes.
+- **Pass-through chain** — money arriving at an account and leaving again quickly, slightly smaller, repeatedly down a path. The signature of a mule network, and invisible to any rule that looks at one account at a time.
+- **Cross-bank blind spot** — a bank's graph only contains transfers where *both* parties bank there. Anything crossing to another institution leaves a single leg and no edge, so the network is structurally unseeable from inside one bank.

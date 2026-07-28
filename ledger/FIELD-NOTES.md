@@ -506,3 +506,45 @@ manufactured it. Widening the name pool — one variable, same seeds — moved p
 and took exact-name collisions to zero. So I could say precisely that 86% of my headline
 number was an artefact and 14% was the real effect. I'd rather own a smaller number I can
 defend than a dramatic one I can't."
+
+---
+
+## Phase 5 — 2026-07-28 (graph analytics — and the blind spot it measures)
+
+🏦 **FCC:** The graph did what it was built to do: 15 of 15 mule networks reconstructed as
+complete paths, no false positives. Phase 3's per-account rule had already flagged 47 of the
+62 accounts involved — but flagging accounts is not the same as knowing they form a chain.
+"Account A looks odd" is 62 separate alerts an analyst triages one by one; "money moved
+A→B→C→D over 27 hours, losing 6% a hop" is one case with a narrative. That difference is the
+entire argument for graph analytics, and it is now measured rather than asserted.
+
+The more important number is the one the graph *couldn't* see. Of the six injected
+typologies, **only layering produced any internal edges at all** — structuring, shell
+companies, round-tripping, dormant reactivation and high-risk geography all scored 0 of 15
+visible. Not because the algorithm failed, but because their counterparties bank somewhere
+else: a cash deposit, an offshore invoice or an inbound remittance leaves one leg in this
+ledger and nothing to connect it to. A bank's graph can only ever see the part of a network
+that happens to sit inside it. That is the cross-bank blind spot from this project's research
+thesis, no longer a paragraph in a plan but a measured 1-in-6, and it is precisely what
+Phase 8.5's multi-bank experiment exists to quantify further.
+
+🔧 **Engineering:** Two corrections found by looking at output rather than trusting design.
+First, edge reconstruction: pairing DR and CR legs on (timestamp, amount) seemed obviously
+right and produced obviously wrong edges, because unrelated payments that coincide get
+cross-joined. Both legs of a real payment share a reference number in the narration — that
+is the only field that identifies *one* payment, and switching to it fixed the graph. Second,
+5 planted chains were reported as 13: growing paths from every edge rediscovers a long chain
+starting from its 2nd account, its 3rd, and so on. Collapsing chains that are contiguous
+fragments of longer ones took it back to exactly 5. Neither bug would have failed a naive
+test — both were only visible by reading the actual output and asking whether the number made
+sense. Also removed the fan-in/fan-out detectors I had just written: measured, they fired
+zero times at usable thresholds and, loosened until they fired, returned 72 merchants out of
+76 hits. A detector that has never detected anything is decoration; it can come back when
+a fan-shaped typology exists to justify it.
+
+🎯 **Interview line:** "My graph layer reconstructed all 15 mule networks with no false
+positives — but the number I'd actually lead with is that five of my six laundering
+typologies were invisible to it, because their counterparties banked elsewhere and left no
+edge to analyse. Graph analytics only sees the fraction of a network that sits inside your
+own institution. I also deleted the fan-in detector I'd just written, because when I measured
+it, every hit was a legitimate shop."
