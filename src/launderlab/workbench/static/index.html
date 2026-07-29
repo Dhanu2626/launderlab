@@ -297,6 +297,12 @@ async function openCase(caseId) {
   const panel = document.getElementById("d-entity");
   panel.innerHTML = `<h3>Customer</h3><div class="empty">Loading customer 360…</div>`;
   if (!dialog.open) dialog.showModal();
+  // Back to the top for each case. Working the queue means open, scroll into the
+  // statement, close, open the next — and without this the next customer opens
+  // mid-statement, below their own evidence and profile. This has to come AFTER
+  // showModal(): a closed dialog is not rendered, and scrollTop on an unrendered
+  // element is silently a no-op.
+  dialog.querySelector(".dbody").scrollTop = 0;
 
   try {
     // Ask for the API's maximum window, not its default. A structuring alert on
