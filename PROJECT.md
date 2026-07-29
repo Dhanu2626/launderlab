@@ -1,5 +1,8 @@
 # LaunderLab — project operating doc
 
+**New session with no prior context? Read `HANDOFF.md` first** — it carries the full project
+state, every decision and the exact next steps.
+
 Read this file + the last Field Notes entry at "start day".
 Full 18-week plan: `../LAUNDERLAB-PLAN.md` (CareerForge root).
 FCC concepts: `ledger/FCC-PRIMER.md` — the three laundering stages mapped to subsystems.
