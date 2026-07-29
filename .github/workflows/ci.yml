@@ -13,6 +13,33 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: python -m pip install -e ".[dev]"
+
+      # EVERY extra, deliberately. This installed only ".[dev]" until 2026-07-30,
+      # and because the optional-dependency test modules guard themselves with
+      # `pytest.importorskip` at module level, pytest reported "178 passed, 3
+      # skipped" while 226 tests existed. A skipped MODULE counts as ONE skip, so
+      # 48 tests were silently absent -- including the whole investigator
+      # workbench, the whole MCP server, and TWO OF THE SEVEN source-level tests
+      # that enforce the project's boundary rule (blue-team code must never read
+      # ground truth). Green CI was not saying what it appeared to say.
+      - run: python -m pip install -e ".[dev,api,mcp]"
+      # CPU build: ~200MB against ~2.5GB for CUDA, and the LSTM/GraphSAGE models
+      # here are far too small to want a GPU.
+      - run: python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+
       - run: ruff check .
-      - run: python -m pytest -q
+
+      # Fail on skips rather than trusting a green tick. With every extra
+      # installed there is no legitimate reason for a test to skip, so a skip now
+      # means a dependency silently stopped resolving -- exactly the failure this
+      # job was blind to before. pipefail so pytest's own exit code still counts.
+      - name: tests (no skips allowed)
+        shell: bash
+        run: |
+          set -o pipefail
+          python -m pytest -q -rs | tee pytest-out.txt
+          if grep -qE "[0-9]+ skipped" pytest-out.txt; then
+            echo "::error::tests were SKIPPED in CI - an optional dependency is missing"
+            grep -E "^SKIPPED|[0-9]+ skipped" pytest-out.txt
+            exit 1
+          fi

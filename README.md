@@ -52,6 +52,13 @@ plus watchlist entities and adverse media, runs the whole detection stack and op
 an analyst would find waiting — 50 of 92 eligible accounts, in about 20 seconds. It reports what
 it had to cut, and why. Then open <http://127.0.0.1:8787/>.
 
+Redraw the measured results as charts (recall by typology, the graph blind spot, what
+actually reaches an analyst):
+
+```
+.venv\Scripts\python -m launderlab charts
+```
+
 Smaller pieces:
 
 ```

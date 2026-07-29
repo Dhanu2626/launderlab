@@ -37,9 +37,9 @@ valuable thing here — preserve it. Details in §7.
 |---|---|
 | Latest commit | `549d750` — "Phase 7.10: the workbench was combining two of its four layers" |
 | Working tree | clean, in sync with `origin/main` |
-| Tests | **226 passing** (~3-9 min) |
+| Tests | **233 passing**, zero skips (~3-9 min) |
 | Lint | `ruff` clean |
-| CI | GitHub Actions green on every push |
+| CI | GitHub Actions green on every push — **and since 2026-07-30 it actually runs everything**: installs `[dev,api,mcp]` + CPU torch and **fails if any test skips**. Before that it installed only `[dev]` and ran 178 of 226 tests |
 | Phases complete | 0, 2, 3, 4, 5, 6, **7** fully; 1 core (polish deferred) |
 
 **Phase status at a glance**
@@ -85,7 +85,9 @@ valuable thing here — preserve it. Details in §7.
 .venv/Scripts/python -m launderlab seed                # 25-customer demo world
 .venv/Scripts/python -m launderlab statement A001      # render a bank statement
 .venv/Scripts/python -m launderlab demo-world          # 1200 accounts + all 6 typologies
-                                                       # + detection + 50 open cases (~52s)
+                                                       # + entities/media + detection
+                                                       # + 50 open cases (~21s)
+.venv/Scripts/python -m launderlab charts              # redraw the measured-results charts
 LAUNDERLAB_DB=data/demo.duckdb .venv/Scripts/python -m uvicorn \
     launderlab.workbench.api:app --port 8787           # workbench UI on that world
 LAUNDERLAB_DB=<path> ... # point any of the above at a specific world
@@ -144,6 +146,7 @@ src/launderlab/
   workbench/static/index.html   the whole UI: tiered queue (7.4), entity 360 (7.5),
                         link-graph SVG (7.6), disposition workflow (7.7), SAR draft (7.8)
   demo.py               `python -m launderlab demo-world` — world + crime + cases (7.9)
+  viz.py                `python -m launderlab charts` — SVG charts from the SCORERS (7.11)
 
   mcp_server.py         AML MCP server — 6 read-only tools, every call audited
 ```
@@ -339,7 +342,9 @@ where that model is weak, and only ground-truth-by-crime-type reveals it.
 | Only graph can cite its own rows | Rules emit a reason string, screening answers an identity question, ML emits a score — none records *which* transactions made it fire, so the SAR annex is ranked by value and says so. Making rules record their triggering txn ids would upgrade every narrative |
 | **The model tier cannot fill** | By arithmetic, and deliberately: the ml weight is 0.15, so a model-only case tops out at 15.0 and the opening threshold sits above it, because an alert with no explainable reason should not open a case. The UI says this in the empty tier rather than looking quiet. **Letting it fill is a re-weighting decision — and it is the tier that matters most against a red team that has learned to evade the named scenarios, so Phase 8 will have to face it.** |
 | **Sanctions lose the shared alert budget** | Screening-only hits score 17.6-19.7, the lowest of any control, so under one budget every behavioural case outranks them — 42 of 92 eligible accounts did not fit. Real banks queue screening separately under its own obligation clock; a per-tier budget in `open_from_queue` would model that |
-| Adverse media leg unscored in the demo | `demo-world` plants adverse media, but `risk.collect` only consumes the entity-screening leg. The media hits exist and nothing reads them |
+| Adverse media leg unscored | `demo-world` plants adverse media and the MCP `adverse_media_check` tool reads it, but `risk.collect` only consumes the entity-screening leg, so media hits never reach a case. Deliberately left: Phase 4 measured media precision at 15.8%, so wiring it in without measuring its effect on the queue would be the un-measured change this project avoids |
+| **1.3 world realism** | Weekday/weekend variation, holidays. Open since 2026-07-26, non-blocking, and has blocked nothing across five phases. The only reason Phase 1's roadmap box is unchecked |
+| **4.1 secondary identifiers** | DOB/nationality disambiguation. Re-scoped by 4.2 to a realism item rather than a precision fix |
 | **1.3** | World realism polish — weekday/weekend, holidays. Non-blocking |
 | **4.1** | Secondary-identifier (DOB/nationality) disambiguation. **Re-scoped by 4.2** — exact-name FPs went to 0 on their own, so this is realism, not a precision fix |
 | ~~UI is not React~~ | **Settled 2026-07-30: Dhanush chose the single page. Do not reopen this.** One self-contained HTML file, no bundler, no `node_modules`, no extra CI stage. The API stays the contract regardless, so nothing downstream depends on the choice. |

@@ -1002,3 +1002,46 @@ only existed in their interaction. I fixed it by deriving the threshold from bot
 what a model alone can score, at or below the faintest thing any control will assert — and
 pinned that window with a test, which then immediately caught the same bug hiding in my graph
 layer."
+
+
+---
+
+## Pre-Phase-8 audit — 2026-07-30 (green did not mean what I thought it meant)
+
+🏦 **FCC:** The finding that matters most here is a control-testing one, and it is the same
+mistake regulators keep fining firms for. My continuous integration reported green on every
+push for eight days. It was installing only the base dependencies, so the three test files that
+guard themselves against missing optional packages skipped silently — and because a skipped
+*module* counts as one skip, pytest printed "178 passed, 3 skipped" while 226 tests existed.
+Forty-eight tests were absent behind the number 3. Among them were **two of the seven
+source-level tests that enforce this project's single most important rule: no detection code may
+read ground truth.** The control existed, was well designed, was documented in the handoff as
+enforced — and was not executing. That is exactly a control that passes on paper and does
+nothing in practice, which is what SOX testing and model validation exist to catch. I now
+understand *why* a tester samples evidence of operation rather than reading the control
+description.
+
+🔧 **Engineering:** Green ticks are a claim, and I had not audited mine. The fix is two lines of
+dependencies, but the durable part is that CI now **fails if any test skips at all**: with every
+extra installed there is no legitimate reason to skip, so a skip can only mean a dependency
+stopped resolving. A guarantee you have to remember to check is not a guarantee — the same
+instinct that made the MCP audit trail a decorator and `case_events` append-only.
+
+The other four findings were all my own claims. A "detection-rate-per-typology bar chart" the
+project said it had shipped, generated in some session and lost, with no code able to redraw it;
+Phase 3's line still advertising a precision figure that Phase 6 had already demolished, warned
+about in HANDOFF but not in the file anyone reads first; an audit decorator that accepted
+keyword arguments only while advertising a positional signature, uncaught because every test
+happened to call it the one way that worked; and a phase left unchecked in one document and
+complete in another. None of these were coding errors. **All of them were the gap between what I
+wrote down and what was true**, and the only way any of them surfaced was going back and
+running the thing rather than re-reading the claim.
+
+🎯 **Interview line:** "Before starting the last phase I audited my own project for claims I
+couldn't reproduce, and found my CI had been reporting green while running 178 of 226 tests. It
+installed only the base dependencies, so three test files skipped silently — and because a
+skipped module counts as one skip, forty-eight missing tests hid behind the number 3. Two of
+them were the source-level tests enforcing my most important invariant, that detection code
+never reads ground truth. The control was well designed, documented as enforced, and not
+executing. That is a control that passes on paper and does nothing in practice, which is
+precisely what control testing exists to find — so CI now fails if any test skips at all."

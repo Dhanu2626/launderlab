@@ -6,6 +6,7 @@ Usage:
     python -m launderlab statement A001  render account A001 as an HTML statement
     python -m launderlab demo-world      build a world with crime in it, ready for
                                          the workbench (see launderlab/demo.py)
+    python -m launderlab charts          redraw the measured-results charts as SVG
 """
 
 import sys
@@ -14,6 +15,7 @@ import webbrowser
 from launderlab.db.ledger import DEFAULT_DB_PATH, connect, table_counts
 from launderlab.demo import main as build_demo_world
 from launderlab.statement import write
+from launderlab.viz import main as draw_charts
 from launderlab.world import seed
 
 
@@ -24,6 +26,10 @@ def main() -> None:
     # per file — holding the default ledger open here would be for nothing.
     if args and args[0] == "demo-world":
         build_demo_world(args[1:])
+        return
+
+    if args and args[0] == "charts":
+        draw_charts(args[1:])
         return
 
     conn = connect()

@@ -16,6 +16,7 @@ Run:  python -m launderlab.mcp_server
 
 from __future__ import annotations
 
+import inspect
 import json
 import os
 import threading
@@ -58,11 +59,25 @@ def audited(fn):
     A decorator rather than a log line inside each tool: the guarantee we want is
     "no tool can run unlogged", and that only holds if it is impossible to forget.
     """
+    signature = inspect.signature(fn)
+
     @wraps(fn)
-    def wrapper(**kwargs):
+    def wrapper(*args, **kwargs):
+        # Positional args are BOUND TO THEIR NAMES before logging, not appended as
+        # an anonymous list. Two reasons. `@wraps` advertises the wrapped
+        # function's real signature, so `screen_name("Asha Rao")` looks legal --
+        # it used to raise "takes 0 positional arguments", which is a baffling
+        # error for a call that matches the documented signature. And an audit
+        # trail whose `params` column means something different depending on how
+        # the caller happened to pass arguments is one a reviewer has to
+        # interpret; every row now records the same shape.
+        bound = signature.bind(*args, **kwargs)
+        bound.apply_defaults()
+        params = dict(bound.arguments)
+
         conn = _db()
         try:
-            result = fn(**kwargs)
+            result = fn(*args, **kwargs)
             outcome, hits = "ok", _count(result)
         except Exception as exc:
             outcome, hits = f"error: {type(exc).__name__}: {exc}", None
@@ -71,7 +86,7 @@ def audited(fn):
             with _lock:
                 conn.execute(
                     "INSERT INTO audit_log (ts, tool, params, outcome, hits) VALUES (?,?,?,?,?)",
-                    [datetime.now(), fn.__name__, json.dumps(kwargs, default=str),
+                    [datetime.now(), fn.__name__, json.dumps(params, default=str),
                      outcome, hits],
                 )
         return result

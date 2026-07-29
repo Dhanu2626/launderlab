@@ -110,6 +110,28 @@ def test_every_call_is_audited():
     assert latest["outcome"] == "ok"
 
 
+def test_tools_accept_positional_arguments_and_still_audit_them_by_name():
+    """Every other test in this file calls with keywords, which is why nobody
+    noticed the audit decorator only accepted them: `screen_name("Asha Rao")`
+    raised "takes 0 positional arguments" for a call matching the signature
+    `@wraps` advertises. MCP itself passes a JSON object, so it worked over the
+    wire and broke only for Python callers.
+
+    The audit row must not change shape either — a `params` column that means
+    something different depending on how the caller passed arguments is one a
+    reviewer has to interpret rather than read."""
+    positional = mcp_server.screen_name("Zhang Wei Ming")
+    keyword = mcp_server.screen_name(name="Zhang Wei Ming")
+    assert positional == keyword
+
+    entry = next(e for e in mcp_server.audit_trail(limit=50)["entries"]
+                 if e["tool"] == "screen_name")
+    params = json.loads(entry["params"])
+    assert params["name"] == "Zhang Wei Ming", "positional arg was not logged by name"
+    # defaults are recorded too, so the row shows what actually ran
+    assert "threshold" in params
+
+
 def test_failed_calls_are_audited_too():
     # a lookup that errors is exactly the call a reviewer most wants to see
     with pytest.raises(ValueError):
