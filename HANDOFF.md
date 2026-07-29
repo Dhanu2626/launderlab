@@ -1,6 +1,7 @@
 # LaunderLab — project handoff
 
-**Written 2026-07-29 for a Claude session that has none of the previous conversation.**
+**Written 2026-07-29, updated 2026-07-30 (Phase 7 complete) for a Claude session that has
+none of the previous conversation.**
 Everything needed to continue is here or is pointed at from here. Read this file first,
 then `PROJECT.md`, then the last entry in `ledger/FIELD-NOTES.md`.
 
@@ -30,16 +31,16 @@ valuable thing here — preserve it. Details in §7.
 
 ---
 
-## 2. Current state — verified 2026-07-29
+## 2. Current state — verified 2026-07-30
 
 | | |
 |---|---|
-| Latest commit | `e829b6d` — "Phase 7.5: entity 360 — the customer behind the alert" |
+| Latest commit | `PHASE7` — "Phase 7 complete: link graph, disposition workflow, SAR narrative" |
 | Working tree | clean, in sync with `origin/main` |
-| Tests | **198 passing** |
+| Tests | **220 passing** (~9 min) |
 | Lint | `ruff` clean |
 | CI | GitHub Actions green on every push |
-| Phases complete | 0, 2, 3, 4, 5, 6 fully; 1 core (polish deferred); 7 at 7.1–7.5 of 7.1–7.8 |
+| Phases complete | 0, 2, 3, 4, 5, 6, **7** fully; 1 core (polish deferred) |
 
 **Phase status at a glance**
 
@@ -52,8 +53,8 @@ valuable thing here — preserve it. Details in §7.
 | 4 | Screening | ✅ complete; slice **4.1** open (re-scoped, low value) |
 | 5 | Graph Analytics | ✅ complete |
 | 6 | ML Tournament | ✅ complete — all 6 model families |
-| 7 | Investigator Workbench | 🔶 **7.1–7.5 done, 7.6–7.8 remain** |
-| 8 | Red Team co-evolution | ⬜ not started |
+| 7 | Investigator Workbench | ✅ complete — 7.1–7.9, queue → entity 360 → link graph → disposition → SAR draft |
+| 8 | Red Team co-evolution | ⬜ **not started — this is next** |
 | 8.5 | Multi-bank experiment | ⬜ not started |
 | 9 | Story Mode + launch | ⬜ not started |
 
@@ -83,7 +84,10 @@ valuable thing here — preserve it. Details in §7.
 .venv/Scripts/python -m ruff check .
 .venv/Scripts/python -m launderlab seed                # 25-customer demo world
 .venv/Scripts/python -m launderlab statement A001      # render a bank statement
-.venv/Scripts/python -m uvicorn launderlab.workbench.api:app --port 8787   # workbench UI
+.venv/Scripts/python -m launderlab demo-world          # 1200 accounts + all 6 typologies
+                                                       # + detection + 50 open cases (~52s)
+LAUNDERLAB_DB=data/demo.duckdb .venv/Scripts/python -m uvicorn \
+    launderlab.workbench.api:app --port 8787           # workbench UI on that world
 LAUNDERLAB_DB=<path> ... # point any of the above at a specific world
 ```
 
@@ -93,6 +97,10 @@ uvicorn manually and open `http://127.0.0.1:8787/` directly.
 
 ⚠️ **DuckDB locks the file.** A running uvicorn holds the world open; a second process cannot
 connect. Stop the server before inspecting the same `.duckdb` from a script.
+
+⚠️ **Check the port before trusting what you see.** Stale uvicorn processes from earlier
+sessions survive on 8787/8788 serving *old code against an old world*, and the page looks
+fine. `netstat -ano | grep LISTENING | grep 87` before assuming the page is your build.
 
 ---
 
@@ -119,8 +127,9 @@ src/launderlab/
   screening/matcher.py  Jaro-Winkler+Metaphone (Phase 4)
   screening/inject.py   plants watchlist entities + adverse media
   screening/engine.py   both legs, bank-wide   screening/scoring.py scorer-only
-  graph/build.py        rebuilds transfer graph (Phase 5)
-  graph/motifs.py       pass-through chain detection    graph/scoring.py scorer-only
+  graph/build.py        rebuilds transfer graph (Phase 5); edges carry dr_txn/cr_txn
+  graph/motifs.py       pass-through chain detection; Chain.hop_txns names the rows
+                        graph/scoring.py scorer-only
   ml/features.py        31 label-free features (Phase 6)
   ml/dataset.py         labels + stratified split + sequences + adjacency
   ml/models.py          gradient boosting, isolation forest, one-class SVM, autoencoder
@@ -130,8 +139,11 @@ src/launderlab/
   workbench/risk.py     combines all 4 layers -> one 0-100 score (Phase 7.1)
   workbench/evaluate.py scorer-only: does combining actually help?
   workbench/cases.py    case store — the audit trail (7.2)
-  workbench/api.py      FastAPI (7.3)
-  workbench/static/index.html   tiered alert queue UI (7.4) + entity 360 screen (7.5)
+  workbench/api.py      FastAPI (7.3) — incl. GET /cases/{id}/narrative
+  workbench/narrative.py  SAR narrative draft, template not LLM (7.8)
+  workbench/static/index.html   the whole UI: tiered queue (7.4), entity 360 (7.5),
+                        link-graph SVG (7.6), disposition workflow (7.7), SAR draft (7.8)
+  demo.py               `python -m launderlab demo-world` — world + crime + cases (7.9)
 
   mcp_server.py         AML MCP server — 6 read-only tools, every call audited
 ```
@@ -245,6 +257,13 @@ where that model is weak, and only ground-truth-by-crime-type reveals it.
    statement starting a week after the account's own history did — **the evidence screen was
    truncating the evidence**, and nothing failed because the API did exactly what it was
    asked. Truncation is invisible by construction: it looks like a shorter list.
+9. **Phase 7.8.** Printing the first SAR narrative showed a confirmed structuring scheme (50
+   cash deposits, Rs 33,43,000) describing itself to an FIU as **"low band"**. Measured: all
+   50 cases in the bank were low or medium and the top score anywhere was **43.5** — `high`
+   and `critical` described nothing reachable, because the thresholds assumed a 100 that
+   needs all four layers firing at once. Re-derived from the signal algebra to 60/40/18/0.
+   **Three phases running, the bug was found by rendering a number for a human, not by a
+   test** (7.4 queue, 7.5 statement, 7.8 narrative).
 
 ---
 
@@ -269,6 +288,17 @@ where that model is weak, and only ground-truth-by-crime-type reveals it.
   summed from the transaction window the page holds — a window number presented as a whole
   number under-reports silently. The UI requests the endpoint's maximum window for the same
   reason.
+- **Chains carry the ledger rows they were built from** (`Chain.hop_txns`). A chain nobody can
+  trace to transactions is an assertion, not evidence — and the SAR narrative has to cite rows.
+- **The SAR narrative is a template, never a language model.** Every figure is asserted to a
+  regulator; a generated sentence that rounds a number is a false statement in a filing.
+- **The narrative never asserts that laundering occurred** — "consistent with", never "the
+  customer laundered". The bank reports suspicion; it is not the finder of fact.
+- **Risk bands describe corroboration, not a percentage** (60/40/18/0): medium is one named
+  piece of evidence, high is two independent layers agreeing, critical is strong corroboration.
+  Derived from the signal algebra — do not re-fit them to one world's histogram.
+- **The disposition list is served by the API, never hardcoded in the UI**, and a test asserts
+  no disposition string appears in the page.
 
 ---
 
@@ -276,9 +306,10 @@ where that model is weak, and only ground-truth-by-crime-type reveals it.
 
 | Item | Status |
 |---|---|
-| **7.6–7.8** | Link-graph view, disposition workflow in UI, SAR narrative draft |
 | Statement ceiling | The entity screen requests 500 transactions, the endpoint's max. A busier account still truncates — it says so in a caption, but paginate when a world produces one (`ponytail:` comment in `index.html`) |
-| Evidence is not anchored in the statement | 7.5 finding: a chain-tier alert dates from 07-04 while the statement opens on the newest row, so the flagged behaviour can be far down the page. Chains carry their date range, but `ChainOut` has no txn ids — natural to solve in **7.6** |
+| Only graph can cite its own rows | Rules emit a reason string, screening answers an identity question, ML emits a score — none records *which* transactions made it fire, so the SAR annex is ranked by value and says so. Making rules record their triggering txn ids would upgrade every narrative |
+| ML never contributes in practice | `risk.score_accounts(conn)` is called without `ml_scores`, so Tier 3 is always empty and the ml weight (0.15) is unreachable in the demo. Wiring a trained model into the demo world is a real slice |
+| Screening not in the demo world | `demo-world` injects typologies but not Phase 4's watchlist entities/adverse media, so the screening leg contributes nothing there |
 | **1.3** | World realism polish — weekday/weekend, holidays. Non-blocking |
 | **4.1** | Secondary-identifier (DOB/nationality) disambiguation. **Re-scoped by 4.2** — exact-name FPs went to 0 on their own, so this is realism, not a precision fix |
 | **UI is not React** | Deliberate deviation, flagged to Dhanush. One self-contained HTML page. API is the contract so React is a clean swap. **Ask him if he wants the React learning goal back.** |
@@ -286,8 +317,8 @@ where that model is weak, and only ground-truth-by-crime-type reveals it.
 | Small structuring | Documented blind spot — indistinguishable from a shop banking takings |
 | `dormant_reactivation` recall | 60% (9/15) — injector's gap parameter sometimes lands too close to normal weekly cadence |
 | Watchlist | **Synthetic**, not real OFAC/UN data. Swap via `LAUNDERLAB_WATCHLIST` |
-| MCP server demo | `run_detection` returns nothing against an un-injected world |
-| Test suite runtime | ~3–9 min. Do not run two full suites concurrently (once took 72 min) |
+| MCP server demo | Fixed by 7.9 — point it at `data/demo.duckdb`. Entities/media still not planted there, so `screen_name`/`adverse_media_check` remain quiet |
+| Test suite runtime | ~9 min (220 tests). Do not run two full suites concurrently (once took 72 min). `test_demo.py` is the slowest file — a structuring injection costs ~4s |
 
 ---
 
@@ -340,20 +371,28 @@ leak. Report negative results.
 
 ## 13. Exact next steps
 
-**Recommended next slice: 7.6 — link-graph view.**
-The entity screen (7.5) already renders each chain as a text path with the viewed account
-bolded, and `ChainOut` (accounts, amounts, hops, retained, started, ended) is already in the
-API response — so 7.6 is the *drawing*, plus the open question 7.5 surfaced: the chain knows
-its date range but not its transaction ids, so an analyst cannot yet jump from the chain to
-the rows that made it. Deciding whether `ChainOut` should carry txn ids is the first call.
+**Phase 7 is complete. Next is Phase 8 — red-team co-evolution, the project's crown jewel.**
 
-Then: **7.7** disposition workflow in the UI (all four endpoints exist; this is buttons +
-confirmation), **7.8** SAR narrative draft (template-based first, LLM as stretch).
+Phase 8 is the detection-decay benchmark: an adversary that mutates its schemes each
+generation against the blue team, measuring how fast a detection stack rots. Everything it
+needs now exists — six parameterised typology injectors, four detection layers, a scoring
+module per layer, and `demo.build()` (7.9) which already composes generate → inject → detect
+→ open cases into one call and is the natural skeleton for a generation loop.
 
-**To see the workbench with real data:** build a world (generate → inject typologies →
-`cases.open_from_queue`), then point uvicorn at it with `LAUNDERLAB_DB`. Ports 8787/8788 may
-still be held by a stale server from an earlier session — check `netstat -ano | grep LISTEN`
-before assuming the page you are looking at is the code you just wrote.
+The first design call is what the red team is allowed to mutate: injector *parameters*
+(amounts, gaps, hop counts, chain lengths) is the honest version, because those are the knobs
+a real launderer has. Letting it mutate against the detectors' own thresholds would be
+training on the answer key — the same boundary violation the whole project is built to avoid.
+
+**Before starting, ask Dhanush the React question** (see §9) — the workbench shipped as one
+self-contained page and the original plan said React. It is a clean swap (the API is the
+contract) but it is his learning goal to spend or drop.
+
+**To see the workbench with real data:**
+```
+.venv/Scripts/python -m launderlab demo-world
+LAUNDERLAB_DB=data/demo.duckdb .venv/Scripts/python -m uvicorn launderlab.workbench.api:app --port 8787
+```
 
 **To start a session:**
 1. Read `PROJECT.md` and the last entry of `ledger/FIELD-NOTES.md`

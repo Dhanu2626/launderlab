@@ -4,19 +4,29 @@ Usage:
     python -m launderlab                 show table counts
     python -m launderlab seed            seed the 25-customer cast + one week of life
     python -m launderlab statement A001  render account A001 as an HTML statement
+    python -m launderlab demo-world      build a world with crime in it, ready for
+                                         the workbench (see launderlab/demo.py)
 """
 
 import sys
 import webbrowser
 
 from launderlab.db.ledger import DEFAULT_DB_PATH, connect, table_counts
+from launderlab.demo import main as build_demo_world
 from launderlab.statement import write
 from launderlab.world import seed
 
 
 def main() -> None:
-    conn = connect()
     args = sys.argv[1:]
+
+    # Before connect(): the demo builder opens its OWN file, and DuckDB locks
+    # per file — holding the default ledger open here would be for nothing.
+    if args and args[0] == "demo-world":
+        build_demo_world(args[1:])
+        return
+
+    conn = connect()
 
     if args and args[0] == "statement":
         if len(args) < 2:

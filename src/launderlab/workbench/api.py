@@ -29,13 +29,13 @@ from typing import Annotated
 
 import duckdb
 from fastapi import Body, FastAPI, HTTPException, Query
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse
 from pydantic import BaseModel, Field
 
 from launderlab.db.ledger import DEFAULT_DB_PATH, connect
 from launderlab.graph import build as graph_build
 from launderlab.graph import motifs
-from launderlab.workbench import cases
+from launderlab.workbench import cases, narrative
 from launderlab.workbench.cases import CaseError
 
 app = FastAPI(title="LaunderLab investigator workbench",
@@ -104,7 +104,9 @@ class TransactionOut(BaseModel):
 
 class ChainOut(BaseModel):
     accounts: list[str]
+    names: list[str | None]      # the humans behind the account ids
     amounts: list[float]
+    hop_txns: list[list[int]]    # (DR row, CR row) per hop, in order
     hops: int
     retained: float
     started: datetime
@@ -171,6 +173,16 @@ def _customer_name(conn: duckdb.DuckDBPyConnection, account_id: str) -> str | No
         "SELECT c.full_name FROM accounts a JOIN customers c USING (customer_id)"
         " WHERE a.account_id = ?", [account_id]).fetchone()
     return row[0] if row else None
+
+
+def _names_for(conn: duckdb.DuckDBPyConnection, account_ids: list[str]) -> dict[str, str]:
+    """Account id -> customer name, in one query rather than one per hop."""
+    if not account_ids:
+        return {}
+    placeholders = ",".join("?" * len(account_ids))
+    return dict(conn.execute(
+        "SELECT a.account_id, c.full_name FROM accounts a JOIN customers c USING (customer_id)"
+        f" WHERE a.account_id IN ({placeholders})", account_ids).fetchall())
 
 
 def _to_case_out(conn: duckdb.DuckDBPyConnection, case: cases.Case) -> CaseOut:
@@ -287,6 +299,19 @@ def reopen_case(case_id: int, payload: Annotated[ReopenIn, Body()]) -> CaseOut:
         return _to_case_out(conn, cases.get(conn, case_id))
 
 
+@app.get("/cases/{case_id}/narrative", response_class=PlainTextResponse)
+def case_narrative(case_id: int) -> str:
+    """The SAR narrative draft — the only artefact anyone outside the bank reads.
+
+    Plain text on purpose: a narrative is pasted into a filing system or an
+    email, and JSON-escaping a document an analyst has to read is friction for
+    nothing. It is a *draft* and says so in its own footer.
+    """
+    with _lock:
+        conn = db()
+        return _guard(lambda: narrative.draft(conn, case_id))
+
+
 @app.get("/dispositions")
 def dispositions() -> dict:
     """The closing options and what each one means, so the UI never invents its own."""
@@ -321,6 +346,7 @@ def entity_360(account_id: str,
 
         chains = [c for c in motifs.find_chains(graph_build.build_graph(conn))
                   if account_id in c.accounts]
+        chain_names = _names_for(conn, sorted({a for c in chains for a in c.accounts}))
         open_case_ids = [r[0] for r in conn.execute(
             "SELECT case_id FROM cases WHERE account_id = ? AND status IN ('open','in_review')"
             " ORDER BY case_id", [account_id]).fetchall()]
@@ -335,8 +361,12 @@ def entity_360(account_id: str,
         transactions=[TransactionOut(
             txn_id=t[0], ts=t[1], direction=t[2], channel=t[3], amount=t[4],
             counterparty_name=t[5], narration=t[6], balance_after=t[7]) for t in txns],
-        chains=[ChainOut(accounts=list(c.accounts), amounts=list(c.amounts), hops=c.hops,
-                         retained=c.retained, started=c.started, ended=c.ended)
+        chains=[ChainOut(accounts=list(c.accounts),
+                         names=[chain_names.get(a) for a in c.accounts],
+                         amounts=list(c.amounts),
+                         hop_txns=[list(pair) for pair in c.hop_txns],
+                         hops=c.hops, retained=c.retained,
+                         started=c.started, ended=c.ended)
                 for c in chains],
         open_cases=open_case_ids,
     )

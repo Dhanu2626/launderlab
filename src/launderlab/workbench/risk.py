@@ -42,7 +42,31 @@ DEFAULT_WEIGHTS = {
     "ml": 0.15,
 }
 
-BANDS = [(80, "critical"), (55, "high"), (30, "medium"), (0, "low")]
+# Bands describe how much INDEPENDENT CORROBORATION a case has, because that is
+# what the weighted sum above actually measures.
+#
+# They were 80/55/30/0 until the SAR narrative in 7.8 printed one out: a
+# confirmed structuring scheme -- 50 cash deposits totalling Rs 33,43,000, which
+# Phase 3 flags with high confidence -- was described to a Financial Intelligence
+# Unit as "low band". Measured across the whole demo bank, every one of 50 cases
+# landed in low or medium and the top score in the bank was 43.5. **"high" and
+# "critical" described nothing that could exist.**
+#
+# The cause is that the thresholds read the 0-100 score as a percentage of
+# something attainable, and it is not: 100 requires all four layers firing at
+# full strength on one account, while most real cases are seen by exactly one
+# layer. So the thresholds are set from the signal algebra instead:
+#
+#   one rule firing        0.35 x 0.60           = 21.0  -> medium
+#   one 3-hop chain        0.30 x 0.75           = 22.5  -> medium
+#   rules + graph together 0.35x0.60 + 0.30x0.75 = 43.5  -> high
+#   three rules + 4 hops   0.35x0.94 + 0.30x1.00 = 62.9  -> critical
+#
+# Read as: low is below the threshold at which a case is opened at all, medium
+# is one named piece of evidence, high is two independent layers agreeing, and
+# critical is strong corroboration across layers. Derived from what the formula
+# can produce, not fitted to one world's histogram.
+BANDS = [(60, "critical"), (40, "high"), (18, "medium"), (0, "low")]
 
 # Rule hits saturate with DIMINISHING RETURNS, not linearly.
 #

@@ -54,13 +54,20 @@ class Transfer:
     dst: str
     amount: float
     ts: datetime
+    # The two ledger rows this edge was reconstructed FROM. Carried rather than
+    # discarded so an investigator can get back from a detected chain to the
+    # actual statement lines that make it up -- a chain an analyst cannot trace
+    # to transactions is an assertion, not evidence, and a SAR narrative has to
+    # cite rows. The pairing SQL already computes both ids.
+    dr_txn: int
+    cr_txn: int
 
 
 def load_transfers(conn: duckdb.DuckDBPyConnection) -> list[Transfer]:
     """Every internal account-to-account transfer, as directed edges."""
     return [
-        Transfer(src=src, dst=dst, amount=amount, ts=ts)
-        for src, dst, amount, ts, _dr, _cr in conn.execute(_EDGE_SQL).fetchall()
+        Transfer(src=src, dst=dst, amount=amount, ts=ts, dr_txn=dr, cr_txn=cr)
+        for src, dst, amount, ts, dr, cr in conn.execute(_EDGE_SQL).fetchall()
     ]
 
 
@@ -74,5 +81,6 @@ def build_graph(conn: duckdb.DuckDBPyConnection) -> nx.MultiDiGraph:
     graph = nx.MultiDiGraph()
     for transfer in load_transfers(conn):
         graph.add_edge(transfer.src, transfer.dst,
-                       amount=transfer.amount, ts=transfer.ts)
+                       amount=transfer.amount, ts=transfer.ts,
+                       dr_txn=transfer.dr_txn, cr_txn=transfer.cr_txn)
     return graph

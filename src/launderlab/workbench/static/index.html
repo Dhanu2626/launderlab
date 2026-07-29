@@ -10,18 +10,26 @@
     --line: #e3e2da; --accent: #185fa5;
     --tier1: #0f6e56; --tier2: #b45309; --tier3: #5f5e5a;
     --critical: #a32d2d; --high: #b45309; --medium: #7a6a1f; --low: #5f5e5a;
+    --mark: #fdf3d0; --markline: #d9b74a;
   }
   @media (prefers-color-scheme: dark) {
     :root { --bg: #161614; --panel: #1e1e1b; --ink: #f2f1ea; --muted: #9d9c92;
-            --line: #32312c; --accent: #6ea8e6; }
+            --line: #32312c; --accent: #6ea8e6;
+            --mark: #3a3218; --markline: #8a7328; }
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.55
          system-ui, -apple-system, "Segoe UI", sans-serif; }
-  header { padding: 20px 26px 14px; border-bottom: 1px solid var(--line); }
+  header { padding: 20px 26px 14px; border-bottom: 1px solid var(--line);
+           display: flex; justify-content: space-between; align-items: flex-start;
+           gap: 16px; flex-wrap: wrap; }
   h1 { margin: 0 0 3px; font-size: 19px; font-weight: 600; }
   .sub { color: var(--muted); font-size: 13px; }
   main { padding: 20px 26px 60px; max-width: 1200px; }
+  .whoami { font-size: 12px; color: var(--muted); text-align: right; }
+  .whoami input { font: inherit; font-size: 13px; color: var(--ink); padding: 5px 9px;
+                  border: 1px solid var(--line); border-radius: 6px;
+                  background: var(--panel); width: 170px; }
   .stats { display: flex; flex-wrap: wrap; gap: 22px; margin-bottom: 22px; }
   .stat b { display: block; font-size: 21px; font-weight: 600; }
   .stat span { color: var(--muted); font-size: 12px; text-transform: uppercase;
@@ -63,8 +71,10 @@
   .ev .meta { color: var(--muted); font-size: 11.5px; }
   button { font: inherit; padding: 6px 12px; border-radius: 6px; cursor: pointer;
            border: 1px solid var(--line); background: transparent; color: var(--ink); }
+  button:hover { border-color: var(--accent); color: var(--accent); }
+  button.primary { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  button[disabled] { opacity: .45; cursor: not-allowed; }
   .err { color: var(--critical); }
-  /* entity 360 */
   .kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
         gap: 11px 18px; background: var(--panel); border: 1px solid var(--line);
         border-radius: 8px; padding: 12px 14px; }
@@ -74,17 +84,55 @@
   .scroll { overflow-x: auto; }
   .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .cr { color: var(--tier1); } .dr { color: var(--critical); }
-  .chain { font-size: 13px; padding: 7px 0; border-bottom: 1px dotted var(--line); }
-  .chain .path { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
-                 font-size: 12.5px; word-break: break-word; }
-  .chain .here { font-weight: 700; color: var(--accent); }
   .note { color: var(--muted); font-size: 12px; margin: 6px 0 0; }
+  /* link graph (7.6) */
+  .chainbox { border: 1px solid var(--line); border-radius: 8px; padding: 4px 6px 2px;
+              margin-bottom: 10px; background: var(--panel); }
+  .chainbox .caption { color: var(--muted); font-size: 12px; padding: 4px 8px 8px; }
+  .node { cursor: pointer; }
+  .node rect { fill: var(--panel); stroke: var(--line); stroke-width: 1.5; }
+  .node.here rect { stroke: var(--accent); stroke-width: 2.5; }
+  .node:hover rect { stroke: var(--accent); }
+  .node .aid { font-size: 12px; font-weight: 600; fill: var(--ink); }
+  .node .nm { font-size: 10.5px; fill: var(--muted); }
+  .hop { cursor: pointer; }
+  .hop line { stroke: var(--tier1); stroke-width: 2; }
+  .hop:hover line { stroke: var(--accent); }
+  .hop text { font-size: 10.5px; fill: var(--muted); text-anchor: middle; }
+  .hop:hover text { fill: var(--accent); }
+  /* statement rows that ARE the network evidence */
+  tr.evidence td { background: var(--mark); }
+  tr.evidence td:first-child { box-shadow: inset 3px 0 0 var(--markline); }
+  tr.focused td { outline: 2px solid var(--accent); outline-offset: -2px; }
+  /* disposition workflow (7.7) */
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .form { margin-top: 10px; border: 1px solid var(--line); border-radius: 8px;
+          padding: 12px 14px; background: var(--panel); }
+  .form label { display: block; font-size: 11px; text-transform: uppercase;
+                letter-spacing: .04em; color: var(--muted); margin-bottom: 4px; }
+  .form select, .form textarea, .form input { font: inherit; font-size: 13.5px; width: 100%;
+        padding: 7px 9px; border: 1px solid var(--line); border-radius: 6px;
+        background: var(--bg); color: var(--ink); margin-bottom: 10px; }
+  .form textarea { min-height: 62px; resize: vertical; }
+  .msg { font-size: 13px; margin-top: 8px; }
+  /* SAR narrative (7.8) */
+  pre.sar { background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
+            padding: 14px 16px; overflow-x: auto; font: 12.5px/1.5 ui-monospace,
+            "Cascadia Mono", Consolas, monospace; white-space: pre; margin: 0; }
 </style>
 </head>
 <body>
 <header>
-  <h1>LaunderLab — investigator workbench</h1>
-  <div class="sub">Alert queue, tiered by evidence. Highest-precision work first.</div>
+  <div>
+    <h1>LaunderLab — investigator workbench</h1>
+    <div class="sub">Alert queue, tiered by evidence. Highest-precision work first.</div>
+  </div>
+  <div class="whoami">
+    <label for="analyst">Signed in as</label><br>
+    <input id="analyst" placeholder="your name" autocomplete="off"
+           oninput="rememberAnalyst()">
+    <div class="sub" id="who-note">Required — every action is recorded against a name.</div>
+  </div>
 </header>
 
 <main>
@@ -98,9 +146,8 @@
     <button onclick="document.getElementById('detail').close()">Close</button>
   </div>
   <div class="dbody">
-    <h3>Why it was flagged</h3><div id="d-signals"></div>
+    <div id="d-case"></div>
     <div id="d-entity"></div>
-    <h3>Audit trail</h3><div id="d-timeline"></div>
   </div>
 </dialog>
 
@@ -123,8 +170,52 @@ const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c =>
 
 const money = (n) => "₹" + Number(n).toLocaleString("en-IN",
   { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const shortMoney = (n) => "₹" + Number(n).toLocaleString("en-IN",
+  { maximumFractionDigits: 0 });
 const when = (ts) => ts ? String(ts).replace("T", " ").slice(0, 16) : "—";
 
+// What the dialog is currently showing. Actions re-render from this rather than
+// re-deriving what the user clicked three interactions ago.
+let current = { kase: null, entity: null };
+
+// -------------------------------------------------------------------- identity
+// The case store refuses anonymous mutations and the API refuses to invent a
+// default (7.3), so the UI has to know who is working. Kept in localStorage
+// because retyping your name for every note is how people start sharing a login.
+function analyst() { return document.getElementById("analyst").value.trim(); }
+function rememberAnalyst() {
+  localStorage.setItem("launderlab.analyst", analyst());
+  document.getElementById("who-note").textContent = analyst()
+    ? "Actions will be recorded against this name."
+    : "Required — every action is recorded against a name.";
+}
+
+// ------------------------------------------------------------------- transport
+async function api(path, options) {
+  const response = await fetch(path, options);
+  if (!response.ok) {
+    let detail = `${response.status} ${response.statusText}`;
+    try {
+      const body = await response.json();
+      if (body.detail) {
+        detail = typeof body.detail === "string"
+          ? body.detail
+          : body.detail.map(d => d.msg || JSON.stringify(d)).join("; ");
+      }
+    } catch (_) { /* not JSON — keep the status line */ }
+    const error = new Error(detail);
+    error.status = response.status;
+    throw error;
+  }
+  return response;
+}
+const getJSON = (path) => api(path).then(r => r.json());
+const post = (path, payload) => api(path, {
+  method: "POST", headers: { "content-type": "application/json" },
+  body: JSON.stringify(payload),
+}).then(r => r.json());
+
+// ----------------------------------------------------------------- the queue
 function tierOf(kase) {
   const sources = new Set((kase.signals || []).map(s => s.source));
   if (sources.has("graph")) return "graph";
@@ -141,8 +232,8 @@ async function load() {
   let queue, health;
   try {
     [queue, health] = await Promise.all([
-      fetch("/queue?limit=200").then(r => r.json()),
-      fetch("/health").then(r => r.json()),
+      getJSON("/queue?limit=200"),
+      getJSON("/health"),
     ]);
   } catch (err) {
     document.getElementById("queue").innerHTML =
@@ -166,14 +257,15 @@ async function load() {
     const body = rows.length ? `<table><thead><tr>
         <th style="width:74px">Risk</th><th style="width:96px">Band</th>
         <th style="width:150px">Account</th><th style="width:190px">Customer</th>
-        <th>Top signal</th><th style="width:96px">Status</th></tr></thead><tbody>
+        <th>Top signal</th><th style="width:110px">Status</th></tr></thead><tbody>
       ${rows.map(k => `<tr onclick="openCase(${k.case_id})">
         <td class="score">${esc(k.risk_score.toFixed(1))}</td>
         <td class="band ${esc(k.risk_band)}">${esc(k.risk_band)}</td>
         <td>${esc(k.account_id)}</td>
         <td>${esc(k.customer_name || "—")}</td>
         <td class="why">${esc(topSignal(k))}</td>
-        <td>${esc(k.status)}</td></tr>`).join("")}
+        <td>${esc(k.status)}${k.assigned_to ? `<br><span class="why">${esc(k.assigned_to)}</span>` : ""}</td>
+        </tr>`).join("")}
       </tbody></table>`
       : `<div class="empty">No cases in this tier.</div>`;
     return `<section class="tier ${tier.cls}">
@@ -222,6 +314,60 @@ function renderActivity(e) {
   ]);
 }
 
+// ------------------------------------------------------- link-graph view (7.6)
+// Phase 5's headline was that a chain does not exist in any one account's
+// history, only in the edges between accounts — so a list of account ids is the
+// wrong shape to show it in. Drawn as the path the money took, with every node
+// clickable, because the next question an investigator has after "this account
+// is in a chain" is always "who are the others".
+//
+// Hand-written SVG rather than a graph library: it is a path, laid out left to
+// right, and nothing about that needs a force-directed layout engine or a
+// megabyte of JavaScript in a page whose whole point is that it has no build.
+
+const NODE_W = 138, NODE_H = 46, GAP = 78, PAD = 10;
+
+function chainSvg(chain, here, chainIndex) {
+  const n = chain.accounts.length;
+  const width = n * NODE_W + (n - 1) * GAP + PAD * 2;
+  const height = NODE_H + 46;
+  const y = 30;
+
+  const nodes = chain.accounts.map((account, i) => {
+    const x = PAD + i * (NODE_W + GAP);
+    const name = chain.names[i] || "—";
+    const isHere = account === here;
+    return `<g class="node ${isHere ? "here" : ""}"
+       onclick="openAccount('${esc(account)}')">
+      <title>${esc(name)} — open this account</title>
+      <rect x="${x}" y="${y}" width="${NODE_W}" height="${NODE_H}" rx="7"></rect>
+      <text class="aid" x="${x + NODE_W / 2}" y="${y + 19}" text-anchor="middle">${esc(account)}</text>
+      <text class="nm" x="${x + NODE_W / 2}" y="${y + 34}" text-anchor="middle">${esc(
+        name.length > 20 ? name.slice(0, 19) + "…" : name)}</text>
+    </g>`;
+  }).join("");
+
+  const hops = chain.amounts.map((amount, i) => {
+    const x1 = PAD + i * (NODE_W + GAP) + NODE_W;
+    const x2 = x1 + GAP;
+    const mid = (x1 + x2) / 2;
+    return `<g class="hop" onclick="focusHop(${chainIndex}, ${i})">
+      <title>Show the two ledger rows behind this hop</title>
+      <line x1="${x1 + 4}" y1="${y + NODE_H / 2}" x2="${x2 - 10}" y2="${y + NODE_H / 2}"
+            marker-end="url(#arrow)"></line>
+      <text x="${mid}" y="${y + NODE_H / 2 - 8}">${esc(shortMoney(amount))}</text>
+      <rect x="${x1}" y="${y + 6}" width="${GAP}" height="${NODE_H - 12}" fill="transparent"></rect>
+    </g>`;
+  }).join("");
+
+  return `<svg viewBox="0 0 ${width} ${height}" width="${width}" height="${height}"
+      role="img" aria-label="pass-through chain of ${n} accounts">
+    <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7"
+        markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--tier1)"></path>
+    </marker></defs>${hops}${nodes}</svg>`;
+}
+
 function renderChains(e) {
   if (!e.chains.length) {
     return `<h3>Money chains</h3><div class="empty">This account is not in any
@@ -229,32 +375,64 @@ function renderChains(e) {
       here leave an edge — Phase 5 measured that 5 of 6 typologies are invisible
       to the graph for exactly that reason.</div>`;
   }
-  // ponytail: text paths, not a drawing. Slice 7.6 is the link-graph view.
-  return `<h3>Money chains (${e.chains.length})</h3>` + e.chains.map(c => `
-    <div class="chain">
-      <div class="path">${c.accounts.map(a =>
-        a === e.account_id ? `<span class="here">${esc(a)}</span>` : esc(a)).join(" → ")}</div>
-      <div class="sub">${esc(c.hops)} hops · ${money(c.amounts[0])} entering ·
+  return `<h3>Money chains (${e.chains.length})</h3>` + e.chains.map((c, i) => `
+    <div class="chainbox">
+      <div class="scroll">${chainSvg(c, e.account_id, i)}</div>
+      <div class="caption">${esc(c.hops)} hops · ${money(c.amounts[0])} entering ·
         ${esc((c.retained * 100).toFixed(0))}% retained ·
-        ${esc(when(c.started))} → ${esc(when(c.ended))}</div>
+        ${esc(when(c.started))} → ${esc(when(c.ended))} ·
+        click an account to open it, or an arrow to find its rows below</div>
     </div>`).join("");
+}
+
+/** Highlight and scroll to the statement row behind one hop of one chain. */
+function focusHop(chainIndex, hopIndex) {
+  const chain = current.entity.chains[chainIndex];
+  const pair = chain.hop_txns[hopIndex] || [];
+  document.querySelectorAll("tr.focused").forEach(tr => tr.classList.remove("focused"));
+  // Only one leg of a hop lives on the account being viewed — the DR if this
+  // account paid, the CR if it received. Whichever is here is the row to show.
+  let first = null;
+  for (const txnId of pair) {
+    const row = document.getElementById(`txn-${txnId}`);
+    if (row) { row.classList.add("focused"); first = first || row; }
+  }
+  if (first) {
+    first.scrollIntoView({ block: "center", behavior: "smooth" });
+    say("");
+    return;
+  }
+  // A hop between two OTHER accounts has no leg on this statement. Silence here
+  // reads as a broken click, so name the reason and point at the way forward.
+  const from = chain.accounts[hopIndex], to = chain.accounts[hopIndex + 1];
+  say(`That hop is ${from} → ${to}; neither leg is on this account's statement. `
+      + `Click either account above to open it.`);
 }
 
 function renderStatement(e) {
   if (!e.transactions.length) {
     return `<h3>Statement</h3><div class="empty">No transactions on this account.</div>`;
   }
+  // Rows that a reconstructed chain was built from. This is not a second
+  // detector in the UI: these are the exact ledger ids Phase 5 paired into the
+  // edges, carried through the API, so the highlight can never disagree with the
+  // chain drawn above it.
+  const evidence = new Set(e.chains.flatMap(c => c.hop_txns.flat()));
   const shown = e.transactions.length;
   const total = e.summary.transaction_count;
   const caption = shown < total
     ? `<p class="note">Showing the latest ${esc(shown.toLocaleString())} of
        ${esc(total.toLocaleString())} transactions.</p>` : "";
+  const legend = evidence.size
+    ? `<p class="note">Highlighted rows are the transfers a money chain above was
+       reconstructed from.</p>` : "";
   return `<h3>Statement — newest first</h3><div class="scroll"><table><thead><tr>
       <th style="width:118px">When</th><th style="width:44px">Dir</th>
       <th style="width:64px">Channel</th><th class="num" style="width:118px">Amount</th>
       <th style="width:170px">Counterparty</th><th>Narration</th>
       <th class="num" style="width:118px">Balance</th></tr></thead><tbody>
-    ${e.transactions.map(t => `<tr>
+    ${e.transactions.map(t => `<tr id="txn-${t.txn_id}"
+      class="${evidence.has(t.txn_id) ? "evidence" : ""}">
       <td>${esc(when(t.ts))}</td>
       <td class="${t.direction === "CR" ? "cr" : "dr"}">${esc(t.direction)}</td>
       <td>${esc(t.channel)}</td>
@@ -262,48 +440,153 @@ function renderStatement(e) {
       <td>${esc(t.counterparty_name || "—")}</td>
       <td class="why">${esc(t.narration)}</td>
       <td class="num">${money(t.balance_after)}</td></tr>`).join("")}
-    </tbody></table></div>${caption}`;
+    </tbody></table></div>${legend}${caption}`;
 }
 
-// No "other open cases" section: `cases.open_from_queue()` skips accounts that
-// already have a live case, so an account can only ever have one. Measured on the
-// proof world too — 0 of 50. Add it if a second entry point ever opens cases.
+// --------------------------------------------------- disposition workflow (7.7)
+// The four endpoints already existed; what was missing was the part where a
+// human decides. Dispositions are fetched from /dispositions rather than
+// hardcoded here, because a UI that invents its own vocabulary quietly destroys
+// the disposition statistics a regulator samples.
 
-async function openCase(caseId) {
-  const dialog = document.getElementById("detail");
-  const [kase, timeline] = await Promise.all([
-    fetch(`/cases/${caseId}`).then(r => r.json()),
-    fetch(`/cases/${caseId}/timeline`).then(r => r.json()),
-  ]);
+let DISPOSITIONS = {};
 
-  document.getElementById("d-title").textContent =
-    `Case ${kase.case_id} — ${kase.customer_name || kase.account_id}`;
-  document.getElementById("d-sub").textContent =
-    `${kase.account_id} · risk ${kase.risk_score.toFixed(1)} (${kase.risk_band}) · ${kase.status}`
-    + (kase.disposition ? ` · ${kase.disposition}` : "");
+function renderActions(kase) {
+  const closed = kase.status === "closed";
+  const buttons = closed
+    ? `<button class="primary" onclick="showForm('reopen')">Reopen</button>`
+    : `<button onclick="assignToMe()">Assign to me</button>
+       <button onclick="showForm('note')">Add note</button>
+       <button class="primary" onclick="showForm('close')">Close case…</button>`;
+  return `<h3>Actions</h3>
+    <div class="actions">${buttons}
+      <button onclick="showNarrative(${kase.case_id})">Draft SAR narrative</button>
+    </div>
+    <div id="d-form"></div>
+    <div class="msg" id="d-msg"></div>`;
+}
 
-  document.getElementById("d-signals").innerHTML = kase.signals.length
-    ? kase.signals.map(s => `<div class="sig"><em>${esc(s.source)}</em><br>${esc(s.detail)}</div>`).join("")
-    : `<div class="empty">No evidence recorded.</div>`;
+function say(message, isError) {
+  // The message line lives in the case actions block, which the account view
+  // does not have — a status message must never be the thing that throws.
+  const box = document.getElementById("d-msg");
+  if (!box) return;
+  box.className = "msg" + (isError ? " err" : "");
+  box.textContent = message;
+}
 
-  document.getElementById("d-timeline").innerHTML = timeline.map(e =>
-    `<div class="ev"><div>${esc(e.detail)}</div>
-     <div class="meta">${esc(e.event_type)} · ${esc(e.actor)} · ${esc(e.ts.replace("T", " ").slice(0, 19))}</div></div>`
-  ).join("");
+function showForm(kind) {
+  const box = document.getElementById("d-form");
+  if (kind === "note") {
+    box.innerHTML = `<div class="form">
+      <label for="f-note">Case note</label>
+      <textarea id="f-note" placeholder="What did you check, and what did you find?"></textarea>
+      <button class="primary" onclick="doNote()">Save note</button>
+      <button onclick="hideForm()">Cancel</button></div>`;
+  } else if (kind === "close") {
+    box.innerHTML = `<div class="form">
+      <label for="f-disp">Disposition</label>
+      <select id="f-disp">${Object.entries(DISPOSITIONS).map(([key, meaning]) =>
+        `<option value="${esc(key)}">${esc(key)} — ${esc(meaning)}</option>`).join("")}</select>
+      <label for="f-rationale">Rationale</label>
+      <textarea id="f-rationale" placeholder="Why this decision? A disposition without a rationale is not defensible."></textarea>
+      <button class="primary" onclick="doClose()">Close case</button>
+      <button onclick="hideForm()">Cancel</button></div>`;
+  } else if (kind === "reopen") {
+    box.innerHTML = `<div class="form">
+      <label for="f-reason">Reason for reopening</label>
+      <textarea id="f-reason" placeholder="What changed? The earlier decision stays in the record."></textarea>
+      <button class="primary" onclick="doReopen()">Reopen case</button>
+      <button onclick="hideForm()">Cancel</button></div>`;
+  }
+}
+function hideForm() { document.getElementById("d-form").innerHTML = ""; say(""); }
 
-  // Show the case immediately, then fill the customer picture in: entity 360
-  // rebuilds the transfer graph, so it is the slowest call on the page and the
-  // analyst should not wait on it to read the evidence they clicked for.
+function requireAnalyst() {
+  if (analyst()) return true;
+  say("Enter your name at the top right first — the case store refuses anonymous changes.", true);
+  document.getElementById("analyst").focus();
+  return false;
+}
+
+/** Run a mutation, then re-read the case so the screen shows the record, not a guess. */
+async function act(fn, successMessage) {
+  if (!requireAnalyst()) return;
+  try {
+    await fn();
+    hideForm();
+    await openCase(current.kase.case_id, { keepScroll: true });
+    say(successMessage);
+    load();
+  } catch (err) {
+    // 7.3 mapped lifecycle violations to 409 precisely so this branch can say
+    // something true: the record moved under you, nothing is broken.
+    say(err.status === 409
+      ? `${err.message} — someone else may have worked this case. Reopen it from the queue to see the current state.`
+      : err.message, true);
+  }
+}
+
+const assignToMe = () => act(
+  () => post(`/cases/${current.kase.case_id}/assign`,
+             { actor: analyst(), analyst: analyst() }),
+  "Assigned.");
+
+const doNote = () => {
+  const note = document.getElementById("f-note").value.trim();
+  if (!note) return say("A note needs some text.", true);
+  return act(() => post(`/cases/${current.kase.case_id}/notes`,
+                        { actor: analyst(), note }), "Note added.");
+};
+
+const doClose = () => {
+  const disposition = document.getElementById("f-disp").value;
+  const rationale = document.getElementById("f-rationale").value.trim();
+  if (!rationale) return say("A disposition without a rationale is not defensible.", true);
+  return act(() => post(`/cases/${current.kase.case_id}/close`,
+                        { actor: analyst(), disposition, rationale }),
+             `Closed as ${disposition}.`);
+};
+
+const doReopen = () => {
+  const reason = document.getElementById("f-reason").value.trim();
+  if (!reason) return say("Say why it is being reopened — that becomes part of the record.", true);
+  return act(() => post(`/cases/${current.kase.case_id}/reopen`,
+                        { actor: analyst(), reason }), "Reopened.");
+};
+
+// ------------------------------------------------------- SAR narrative (7.8)
+async function showNarrative(caseId) {
+  const box = document.getElementById("d-form");
+  box.innerHTML = `<div class="form">Drafting…</div>`;
+  try {
+    const text = await api(`/cases/${caseId}/narrative`).then(r => r.text());
+    box.innerHTML = `<div class="form">
+      <div class="actions" style="margin-bottom:10px">
+        <button class="primary" onclick="copyNarrative()">Copy to clipboard</button>
+        <button onclick="hideForm()">Hide</button>
+      </div>
+      <pre class="sar" id="sar-text">${esc(text)}</pre></div>`;
+    say("");
+  } catch (err) {
+    box.innerHTML = "";
+    say(err.message, true);
+  }
+}
+
+function copyNarrative() {
+  const text = document.getElementById("sar-text").textContent;
+  navigator.clipboard.writeText(text)
+    .then(() => say("Narrative copied. It is a draft — verify every figure before filing."))
+    .catch(() => say("Could not reach the clipboard; select the text and copy manually.", true));
+}
+
+// ------------------------------------------------------------------- the views
+
+/** Fill the entity panel for one account. Shared by the case and account views. */
+async function loadEntity(accountId) {
   const panel = document.getElementById("d-entity");
   panel.innerHTML = `<h3>Customer</h3><div class="empty">Loading customer 360…</div>`;
-  if (!dialog.open) dialog.showModal();
-  // Back to the top for each case. Working the queue means open, scroll into the
-  // statement, close, open the next — and without this the next customer opens
-  // mid-statement, below their own evidence and profile. This has to come AFTER
-  // showModal(): a closed dialog is not rendered, and scrollTop on an unrendered
-  // element is silently a no-op.
-  dialog.querySelector(".dbody").scrollTop = 0;
-
   try {
     // Ask for the API's maximum window, not its default. A structuring alert on
     // this world reads "89 cash deposits", and at the default 100 rows the
@@ -312,8 +595,9 @@ async function openCase(caseId) {
     // screen is the same failure 7.4 found in the score.
     // ponytail: 500 is the endpoint's ceiling. An account busier than that still
     // truncates, and says so in the caption; paginate when a world produces one.
-    const entity = await fetch(`/accounts/${encodeURIComponent(kase.account_id)}`
-      + `?transaction_limit=500`).then(r => r.json());
+    const entity = await getJSON(
+      `/accounts/${encodeURIComponent(accountId)}?transaction_limit=500`);
+    current.entity = entity;
     panel.innerHTML = renderProfile(entity) + renderActivity(entity)
       + renderChains(entity) + renderStatement(entity);
   } catch (err) {
@@ -322,6 +606,81 @@ async function openCase(caseId) {
   }
 }
 
+async function openCase(caseId, options) {
+  const dialog = document.getElementById("detail");
+  const [kase, timeline] = await Promise.all([
+    getJSON(`/cases/${caseId}`),
+    getJSON(`/cases/${caseId}/timeline`),
+  ]);
+  current.kase = kase;
+
+  document.getElementById("d-title").textContent =
+    `Case ${kase.case_id} — ${kase.customer_name || kase.account_id}`;
+  document.getElementById("d-sub").textContent =
+    `${kase.account_id} · risk ${kase.risk_score.toFixed(1)} (${kase.risk_band}) · ${kase.status}`
+    + (kase.assigned_to ? ` · ${kase.assigned_to}` : "")
+    + (kase.disposition ? ` · ${kase.disposition}` : "");
+
+  document.getElementById("d-case").innerHTML = `
+    <h3>Why it was flagged</h3>
+    ${kase.signals.length
+      ? kase.signals.map(s => `<div class="sig"><em>${esc(s.source)}</em><br>${esc(s.detail)}</div>`).join("")
+      : `<div class="empty">No evidence recorded.</div>`}
+    ${renderActions(kase)}
+    <h3>Audit trail</h3>
+    ${timeline.map(e => `<div class="ev"><div>${esc(e.detail)}</div>
+       <div class="meta">${esc(e.event_type)} · ${esc(e.actor)} ·
+       ${esc(String(e.ts).replace("T", " ").slice(0, 19))}</div></div>`).join("")}`;
+
+  if (!dialog.open) dialog.showModal();
+  // Back to the top for each case. Working the queue means open, scroll into the
+  // statement, close, open the next — and without this the next customer opens
+  // mid-statement, below their own evidence and profile. This has to come AFTER
+  // showModal(): a closed dialog is not rendered, and scrollTop on an unrendered
+  // element is silently a no-op.
+  if (!(options && options.keepScroll)) dialog.querySelector(".dbody").scrollTop = 0;
+
+  // Show the case immediately, then fill the customer picture in: entity 360
+  // rebuilds the transfer graph, so it is the slowest call on the page and the
+  // analyst should not wait on it to read the evidence they clicked for.
+  await loadEntity(kase.account_id);
+}
+
+/** Open an account that may have no case at all — clicked from a chain. */
+async function openAccount(accountId) {
+  const dialog = document.getElementById("detail");
+  current.kase = null;
+  document.getElementById("d-title").textContent = `Account ${accountId}`;
+  document.getElementById("d-sub").textContent = "Opened from a money chain";
+  document.getElementById("d-case").innerHTML =
+    `<div class="empty">Checking for an open case on this account…</div>`;
+  if (!dialog.open) dialog.showModal();
+  dialog.querySelector(".dbody").scrollTop = 0;
+
+  await loadEntity(accountId);
+
+  // A hop in a chain frequently has no case of its own — the mule in the middle
+  // may score below the queue's cut-off. Say so plainly rather than showing an
+  // empty panel, and offer the case if there is one.
+  const openCases = (current.entity && current.entity.open_cases) || [];
+  document.getElementById("d-title").textContent =
+    `${(current.entity && current.entity.full_name) || accountId}`;
+  document.getElementById("d-sub").textContent =
+    `${accountId} · opened from a money chain`;
+  document.getElementById("d-case").innerHTML = openCases.length
+    ? `<h3>Cases on this account</h3><div class="actions">${openCases.map(id =>
+        `<button class="primary" onclick="openCase(${id})">Open case ${esc(id)}</button>`).join(" ")}</div>`
+    : `<h3>Cases on this account</h3><div class="empty">No case is open on this
+        account. An account can sit in a detected chain without being alerted in
+        its own right — a mule in the middle often scores below the queue's
+        cut-off.</div>`;
+}
+
+// ------------------------------------------------------------------- start-up
+document.getElementById("analyst").value =
+  localStorage.getItem("launderlab.analyst") || "";
+rememberAnalyst();
+getJSON("/dispositions").then(d => { DISPOSITIONS = d; }).catch(() => {});
 load();
 </script>
 </body>

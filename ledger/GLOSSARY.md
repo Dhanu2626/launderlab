@@ -39,3 +39,10 @@
 - **SAR (Suspicious Activity Report)** — the formal report a bank files with the financial intelligence unit when it decides activity is suspicious. Filing one is the end state of a real investigation.
 - **MLRO (Money Laundering Reporting Officer)** — the named senior person legally responsible for deciding what gets reported. Escalation ends up here.
 - **Audit trail** — an append-only record of who did what and when. In AML it is not a nice-to-have: an investigation you cannot reconstruct is treated as one that did not happen.
+- **Entity 360** — one screen holding everything known about a customer at once: KYC profile, account activity, network position and case history. Named for the "360-degree view"; it is what an analyst actually adjudicates from, since an alert names an *account* but a decision is about a *person*.
+- **Link analysis** — investigating by following relationships between entities rather than examining one entity at a time. The chain diagram in the workbench is the smallest useful form of it.
+- **SAR narrative** — the prose section of a Suspicious Activity Report: who the subject is, what the activity was, and why the bank finds it suspicious. The only part of an AML system anyone outside the bank ever reads, and the part regulators criticise most.
+- **FIU (Financial Intelligence Unit)** — the national body that receives suspicious activity reports (FIU-IND in India, FinCEN in the US). The bank reports suspicion to them; they decide what becomes an investigation.
+- **Reporting officer** — the person who signs and files a SAR. Software can draft; only a named human can file, which is why every generated narrative is stamped as a draft.
+- **Alert budget** — the number of alerts an investigation team can actually work in a period. Detection is scored *at* a budget because a model that finds everything and floods the queue has not helped anyone.
+- **Case management** — the system of record for investigations: what was opened, who worked it, what they concluded, and the evidence as it stood at the time. Distinct from detection, and audited far more closely.

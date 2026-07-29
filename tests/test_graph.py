@@ -101,6 +101,26 @@ def test_chain_amounts_decay_and_time_moves_forward(mule_world):
             assert later <= earlier  # a mule keeps a cut, never adds money
 
 
+def test_every_hop_traces_back_to_the_two_ledger_rows_that_made_it(mule_world):
+    """A chain an analyst cannot open in the statement is an assertion, not
+    evidence — and 7.8's SAR narrative has to cite the rows it describes. Each
+    hop carries the (DR, CR) pair it was reconstructed from, and those rows must
+    really exist, on the two accounts the hop claims, for the hop's amount."""
+    conn, _planted = mule_world
+    for chain in motifs.find_chains(build.build_graph(conn)):
+        assert len(chain.hop_txns) == chain.hops
+        for i, (dr, cr) in enumerate(chain.hop_txns):
+            rows = conn.execute(
+                "SELECT txn_id, account_id, direction, amount::DOUBLE FROM transactions"
+                " WHERE txn_id IN (?, ?) ORDER BY direction", [dr, cr]).fetchall()
+            assert len(rows) == 2, f"hop {i} points at rows that do not exist"
+            (_, cr_acct, cr_dir, cr_amt), (_, dr_acct, dr_dir, dr_amt) = rows
+            assert (cr_dir, dr_dir) == ("CR", "DR")
+            assert dr_acct == chain.accounts[i], "DR leg is not on the paying account"
+            assert cr_acct == chain.accounts[i + 1], "CR leg is not on the receiving account"
+            assert dr_amt == cr_amt == chain.amounts[i]
+
+
 def test_structuring_is_invisible_to_the_graph(tmp_path):
     """Cash deposits have no counterparty account, so they form no edge at all.
 

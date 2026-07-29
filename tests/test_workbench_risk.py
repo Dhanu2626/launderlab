@@ -100,6 +100,40 @@ def test_bands_follow_score(world):
     assert risk.aggregate({"A": [RiskSignal("ml", "x", 0.1)]})[0].band == "low"
 
 
+def test_a_single_rule_case_is_not_labelled_low_risk(world):
+    """Found by printing a SAR narrative in 7.8: a confirmed structuring scheme --
+    50 cash deposits totalling Rs 33,43,000 -- was described to a Financial
+    Intelligence Unit as "low band", because one rule firing scores 21 and the
+    thresholds assumed 100 was attainable. 7.4 already established that most
+    genuine cases trip exactly ONE scenario, so this is the common case, not an
+    edge one."""
+    one_rule = risk.aggregate({"A": [RiskSignal("rules", "structuring_burst: 50 cash "
+                                                "deposits", risk.rule_strength(1))]})[0]
+    assert one_rule.score == pytest.approx(21.0)
+    assert one_rule.band == "medium", "a named scenario firing is not 'low risk'"
+
+    # and two independent layers agreeing must outrank one
+    both = risk.aggregate({"A": [RiskSignal("rules", "x", risk.rule_strength(1)),
+                                 RiskSignal("graph", "x", 0.75)]})[0]
+    assert both.band == "high"
+    assert both.score > one_rule.score
+
+
+def test_every_band_is_reachable_by_some_real_combination(world):
+    """A vocabulary with words nothing can ever be is not a vocabulary. Before
+    this was measured, no account in the whole demo bank could exceed 43.5, so
+    'high' and 'critical' described nothing."""
+    reachable = {
+        risk.aggregate({"A": [RiskSignal("ml", "x", 0.1)]})[0].band,
+        risk.aggregate({"A": [RiskSignal("rules", "x", risk.rule_strength(1))]})[0].band,
+        risk.aggregate({"A": [RiskSignal("rules", "x", risk.rule_strength(1)),
+                              RiskSignal("graph", "x", 0.75)]})[0].band,
+        risk.aggregate({"A": [RiskSignal("rules", "x", risk.rule_strength(3)),
+                              RiskSignal("graph", "x", 1.0)]})[0].band,
+    }
+    assert reachable == {"low", "medium", "high", "critical"}
+
+
 def test_ml_scores_are_optional(world):
     """A workbench must still work before any model has been trained."""
     scores = risk.score_accounts(world, ml_scores=None)

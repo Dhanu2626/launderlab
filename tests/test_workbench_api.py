@@ -152,6 +152,28 @@ def test_dispositions_endpoint_matches_the_case_store(client):
     assert client.get("/dispositions").json() == cases.DISPOSITIONS
 
 
+def test_narrative_endpoint_serves_plain_text_a_human_can_paste(client):
+    """Slice 7.8. A narrative is pasted into a filing system or an email;
+    JSON-escaping a document an analyst has to read is friction for nothing."""
+    case_id = client.get("/queue").json()[0]["case_id"]
+    response = client.get(f"/cases/{case_id}/narrative")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/plain")
+    text = response.text
+    assert "SUSPICIOUS ACTIVITY REPORT - NARRATIVE DRAFT" in text
+    assert "REASON FOR SUSPICION" in text and "DISPOSITION" in text
+    # it must describe the case the API serves, not a generic form
+    detail = client.get(f"/cases/{case_id}").json()
+    assert detail["account_id"] in text
+    for signal in detail["signals"]:
+        assert signal["detail"] in text
+
+
+def test_narrative_for_an_unknown_case_is_404(client):
+    assert client.get("/cases/999999/narrative").status_code == 404
+
+
 def test_entity_360_returns_profile_transactions_and_chains(client):
     account_id = client.get("/queue").json()[0]["account_id"]
     body = client.get(f"/accounts/{account_id}").json()
@@ -190,6 +212,40 @@ def test_entity_360_summary_covers_the_whole_history_not_the_window(client):
     assert summary["first_activity"] <= summary["last_activity"]
     # identical totals from both windows — the summary ignores the limit entirely
     assert full["summary"] == summary
+
+
+def test_chains_carry_the_rows_and_the_humans_behind_them(client):
+    """Slice 7.6. A chain drawn as four account ids is a picture of nothing an
+    investigator can act on: they need the names, and they need to get from the
+    chain back to the statement lines it was reconstructed from."""
+    body = next(b for b in (client.get(f"/accounts/{c['account_id']}").json()
+                            for c in client.get("/queue").json()) if b["chains"])
+    chain = body["chains"][0]
+
+    assert len(chain["names"]) == len(chain["accounts"])
+    assert any(chain["names"]), "no customer name resolved for any hop"
+    assert len(chain["hop_txns"]) == chain["hops"] == len(chain["amounts"])
+
+    # every cited row must be a real transaction on the account the hop claims
+    for i, (dr, cr) in enumerate(chain["hop_txns"]):
+        for txn_id, account_id, direction in ((dr, chain["accounts"][i], "DR"),
+                                              (cr, chain["accounts"][i + 1], "CR")):
+            leg = next(t for t in client.get(
+                f"/accounts/{account_id}", params={"transaction_limit": 500}
+            ).json()["transactions"] if t["txn_id"] == txn_id)
+            assert leg["direction"] == direction
+            assert leg["amount"] == chain["amounts"][i]
+
+
+def test_a_chain_hop_can_be_opened_as_its_own_entity(client):
+    """The point of drawing the graph is following it. Every account in a chain
+    has to resolve on its own, including the hops with no case of their own."""
+    body = next(b for b in (client.get(f"/accounts/{c['account_id']}").json()
+                            for c in client.get("/queue").json()) if b["chains"])
+    for account_id in body["chains"][0]["accounts"]:
+        hop = client.get(f"/accounts/{account_id}")
+        assert hop.status_code == 200
+        assert hop.json()["full_name"]
 
 
 def test_unknown_account_is_404(client):
@@ -240,6 +296,30 @@ def test_ui_asks_for_the_full_statement_not_the_default_window(client):
     assert client.get(f"/accounts/{account_id}",
                       params={"transaction_limit": 501}).status_code == 422
     assert "transaction_limit=500" in client.get("/").text
+
+
+def test_ui_can_work_a_case_end_to_end_not_just_read_one(client):
+    """Slice 7.7: the four lifecycle endpoints existed since 7.3, but nothing in
+    the browser could reach them — the workbench was read-only, which is not a
+    workbench. Every action must also name its analyst, because the case store
+    refuses anonymous changes and the API refuses to invent a default."""
+    html = client.get("/").text
+    for endpoint in ("/assign", "/notes", "/close", "/reopen", "/dispositions"):
+        assert endpoint in html
+    assert "requireAnalyst" in html and "actor: analyst()" in html
+    # dispositions are fetched, never hardcoded — a UI vocabulary of its own
+    # would quietly destroy the statistics a regulator samples
+    for disposition in cases.DISPOSITIONS:
+        assert f'"{disposition}"' not in html
+
+
+def test_ui_draws_the_chain_and_offers_the_narrative(client):
+    """7.6 and 7.8 in the page: the chain is drawn as the path the money took
+    with clickable hops, and a case can be drafted into a SAR narrative."""
+    html = client.get("/").text
+    assert "chainSvg" in html and "<svg" in html.replace("`<svg", "<svg")
+    assert "openAccount" in html and "focusHop" in html
+    assert "/narrative" in html and "Draft SAR narrative" in html
 
 
 def test_ui_tiers_match_the_measured_evidence_hierarchy(client):

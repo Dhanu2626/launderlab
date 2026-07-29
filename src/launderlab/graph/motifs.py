@@ -49,6 +49,10 @@ class Chain:
     amounts: tuple[float, ...]
     started: datetime
     ended: datetime
+    # One (DR row, CR row) pair per hop, in order. A chain the analyst cannot
+    # trace back to statement lines is an assertion rather than evidence, and the
+    # SAR narrative in 7.8 has to cite the rows it is describing.
+    hop_txns: tuple[tuple[int, int], ...] = ()
 
     @property
     def hops(self) -> int:
@@ -81,7 +85,11 @@ def find_chains(graph: nx.MultiDiGraph, max_hop_hours: int = DEFAULT_MAX_HOP_HOU
     window = timedelta(hours=max_hop_hours)
     chains: list[Chain] = []
 
-    def extend(path: list[str], amounts: list[float], times: list[datetime]) -> bool:
+    def _rows(data: dict) -> tuple[int, int]:
+        return (data.get("dr_txn", -1), data.get("cr_txn", -1))
+
+    def extend(path: list[str], amounts: list[float], times: list[datetime],
+               txns: list[tuple[int, int]]) -> bool:
         """Returns True if the path was extended at least once."""
         extended = False
         for nxt, data in _forward_edges(graph, path[-1]):
@@ -94,7 +102,8 @@ def find_chains(graph: nx.MultiDiGraph, max_hop_hours: int = DEFAULT_MAX_HOP_HOU
             if not (retain_min <= ratio <= retain_max):
                 continue
             extended = True
-            grew = extend(path + [nxt], amounts + [data["amount"]], times + [data["ts"]])
+            grew = extend(path + [nxt], amounts + [data["amount"]], times + [data["ts"]],
+                          txns + [_rows(data)])
             if not grew:  # maximal -- record it here
                 full = path + [nxt]
                 if len(full) - 1 >= min_hops:
@@ -102,13 +111,14 @@ def find_chains(graph: nx.MultiDiGraph, max_hop_hours: int = DEFAULT_MAX_HOP_HOU
                         accounts=tuple(full),
                         amounts=tuple(amounts + [data["amount"]]),
                         started=times[0], ended=data["ts"],
+                        hop_txns=tuple(txns + [_rows(data)]),
                     ))
         return extended
 
     for src, dst, data in graph.edges(data=True):
         if data["amount"] < min_amount:
             continue
-        extend([src, dst], [data["amount"]], [data["ts"]])
+        extend([src, dst], [data["amount"]], [data["ts"]], [_rows(data)])
 
     # de-duplicate identical paths, then drop any chain that is only a fragment of
     # a longer one. Growing from every edge means a 4-hop chain is also discovered

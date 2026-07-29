@@ -804,3 +804,144 @@ exactly what it was asked. I also refused to sum the visible transactions for th
 totals and computed them in SQL over the whole history instead: summing the window is shorter
 code and would have under-reported every busy customer without ever looking wrong. A number
 derived from a window must never be presented as a number about the whole."
+
+
+---
+
+## Phase 7, slice 7.6 — 2026-07-30 (drawing the chain, and getting back to the rows)
+
+🏦 **FCC:** Phase 5's real finding was that a chain does not exist in any single account's
+history — it only exists in the edges *between* accounts. So showing it as a line of account
+ids was showing the wrong shape: an investigator reading `A000640 → A000541 → A000544 →
+A000045` cannot see that they are looking at one movement of money passing through four
+people. Drawn as a path, with each hop labelled by what it carried, the 7.6% skim per hop is
+visible at a glance — and that skim *is* the typology. The other half of the job is the
+reverse direction: from the picture back to the rows. An investigator does not file a report
+saying "the graph said so"; they file one citing two ledger entries. A chain nobody can trace
+to transactions is an assertion, not evidence.
+
+🔧 **Engineering:** The fix for that was already sitting in the codebase, thrown away. The
+edge-pairing SQL in `graph/build.py` has always selected `dr_txn` and `cr_txn` — the two rows
+whose shared narration reference proves they are one payment — and `load_transfers()`
+discarded both. Carrying them through `Transfer` → graph edge → `Chain.hop_txns` → the API
+took about fifteen lines, and it turns the chain from a claim into something clickable: hop 0
+of A000541's chain resolves to a credit of Rs 6,41,251 at 04 Jul 02:21, hop 1 to a debit of
+Rs 5,92,308 at 05 Jul 07:47. The general lesson is one I keep meeting: **when a derived
+result feels unverifiable, check whether the derivation already computed the proof and
+dropped it.** Drawing the thing was the easy part — hand-written SVG, because a path laid out
+left to right does not need a force-directed layout engine, and the page's whole point is
+that it has no build step.
+
+🎯 **Interview line:** "My graph layer detected mule chains but an analyst couldn't act on
+one, because a chain is an assertion until you can name the transactions behind it. The fix
+was already in my own code — the SQL that pairs the two legs of a transfer had always selected
+both row ids and then thrown them away. Carrying them through to the UI means clicking a hop
+in the diagram highlights the exact statement lines it was built from. When a result feels
+unverifiable, check whether the derivation already computed the proof and dropped it."
+
+---
+
+## Phase 7, slice 7.7 — 2026-07-30 (the part where a human decides)
+
+🏦 **FCC:** Until this slice the workbench could show you everything and let you change
+nothing, which is not a workbench — it is a report. The disposition is the moment the bank
+takes a position: this was a false positive, or this is going to the Financial Intelligence
+Unit. Three things had to be true for that to be worth anything, and all three already
+existed one layer down, so the UI's job was to surface them rather than reinvent them. The
+closing options are fetched from the API, because a frontend that invents "cleared" or
+"looks fine" quietly destroys the disposition statistics a regulator samples. Every action
+carries a named analyst, because "the system closed it" is not an audit trail. And a
+disposition without a rationale is refused, because a decision nobody wrote a reason for
+cannot be defended a year later when someone asks why this account was cleared.
+
+🔧 **Engineering:** The most satisfying part was that a design decision from 7.3 finally paid
+out. Back then I mapped case-lifecycle violations to **409 Conflict rather than 500**, and
+the argument was hypothetical: two analysts with the same queue open. This slice is where
+that becomes a sentence a human reads. Closing an already-closed case now says *"case 50 is
+already closed — someone else may have worked this case"* instead of "something broke". I
+tested it by racing a close against the API directly while the form was open, and the message
+was exactly right. Worth noticing: **the error taxonomy had to be decided at the layer that
+knew the truth, three slices before anything could display it.** If 7.3 had returned 500 for
+everything, no amount of frontend work could have recovered the distinction — the information
+would simply not have been there.
+
+🎯 **Interview line:** "In my workbench, closing an already-closed case tells the analyst
+'someone else may have worked this case' rather than showing an error. That's only possible
+because three slices earlier I'd mapped lifecycle violations to 409 rather than 500 — the
+distinction between 'you broke it' and 'the record moved under you' has to be decided at the
+layer that knows the truth. By the time you're writing the error message in the UI, if the
+API returned a 500 for everything, the information is already gone."
+
+---
+
+## Phase 7, slice 7.8 — 2026-07-30 (the filing — and the number it caught)
+
+🏦 **FCC:** The narrative is the only artefact of this entire system that anyone outside the
+bank ever reads. Everything upstream — the world, six typologies, four detection layers, a
+tournament of six models — exists to produce a few paragraphs a Financial Intelligence Unit
+can act on. Writing the template forced three positions I had not had to take before. It
+never says laundering occurred: the bank reports *suspicion* and is not the finder of fact,
+so the language stays at "consistent with" and "no conclusion is drawn as to whether an
+offence has occurred". It reproduces the case's **snapshotted** signals rather than re-running
+today's detectors, because a filing that silently acquires reasoning the analyst never saw is
+worse than no filing. And the transaction annex is ranked by value and says so out loud —
+because only the graph layer can name the rows behind its own alert. A rule emits a reason
+string, screening answers an identity question, a model emits a score; none of them record
+which transactions made them fire. **Explainability in an AML stack is not one property, it
+is four different ones, and only one of my four layers has it.**
+
+🔧 **Engineering:** The roadmap allowed a language model here and I did not use one, which is
+a decision rather than laziness. A SAR is a regulatory filing: every figure in it is asserted
+to a regulator by the bank. A generated sentence that rounds Rs 26,00,000 to "approximately
+2.5 million", or invents a plausible counterparty name, is not a style problem — it is a false
+statement in a legal document. A template can only emit numbers it read from the ledger, and
+the same case always drafts identically, so it can be diffed and reviewed. Then **the very
+first narrative I printed caught a bug the whole project had been carrying**: a confirmed
+structuring scheme, 50 cash deposits totalling Rs 33,43,000, described itself as *"21.0 out of
+100 (low band)"*. Measuring the whole bank: every one of 50 cases was low or medium and the
+highest score that existed anywhere was 43.5 — `high` and `critical` were words describing
+nothing. The thresholds treated the score as a percentage of something attainable, but 100
+requires all four layers firing at full strength on one account, and 7.4 had already
+established that most real cases trip exactly one. Re-derived the bands from the signal
+algebra instead of guessing again. **Twice now, the thing that exposed a bad number was
+rendering it for a human**: the queue in 7.4, and a document in 7.8.
+
+🎯 **Interview line:** "I deliberately did not use an LLM for the SAR narrative, even though
+my own plan allowed it. A suspicious activity report is a regulatory filing where every figure
+is asserted to a regulator by the bank — a generated sentence that rounds a number is a false
+statement in a legal document, not a style problem. And the first narrative I printed caught a
+real bug: a confirmed structuring scheme with fifty cash deposits described itself as 'low
+risk', because my risk bands assumed a score of 100 was attainable when nothing in the bank
+could exceed 43. 'High' and 'critical' were words that described nothing."
+
+---
+
+## Phase 7 complete — 2026-07-30 (what the workbench turned out to be)
+
+🏦 **FCC:** Phase 7 was supposed to be the presentation layer over phases 3-6 and it was not.
+It was where the detection work got audited by contact with the job. The queue exposed that
+genuine single-rule cases were scoring below the cut-off. The entity screen exposed that the
+statement was truncating the evidence it existed to show. The narrative exposed that the risk
+bands described a scale nothing could reach. **Three defects, none of which any test could
+have found, all of them discovered by rendering a number where a person had to read it next
+to a decision.** That is the honest case for building the investigator's tool rather than
+stopping at the leaderboard: detection metrics grade a detector against ground truth, but
+nothing grades whether the output is *usable*, and the gap between those two is where AML
+programmes actually fail.
+
+🔧 **Engineering:** Phase 7 also closed a gap that had been open since Phase 4 — there was no
+way to *see* any of it. Every world with crime in it lived inside a test fixture or a
+throwaway script, so the workbench demoed on an empty queue and the MCP server returned empty
+lists. `python -m launderlab demo-world` now builds the thing in 52 seconds: 1,200 accounts,
+78,556 transactions, 36 schemes, 50 cases across two evidence tiers. The lesson is unglamorous
+and general: **a demo path is not documentation, it is a feature, and if it does not exist the
+work is invisible regardless of how good it is.** I had shipped six phases whose only
+demonstration was `pytest -q`.
+
+🎯 **Interview line:** "Building the investigator's workbench found three bugs in detection
+work that a hundred and ninety passing tests had not: a scoring curve that hid single-rule
+cases below the queue cut-off, a statement that truncated the evidence it existed to display,
+and risk bands calibrated to a score nothing could ever reach. All three surfaced the same
+way — by putting a number in front of a person next to a decision they had to make. Detection
+metrics tell you whether a detector is right; only the investigator's screen tells you whether
+the output is usable, and that gap is where AML programmes actually fail."
