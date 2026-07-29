@@ -35,7 +35,7 @@ valuable thing here — preserve it. Details in §7.
 
 | | |
 |---|---|
-| Latest commit | `0f1d5d3` — "Phase 7 complete: link graph, disposition workflow, SAR narrative" |
+| Latest commit | `549d750` — "Phase 7.10: the workbench was combining two of its four layers" |
 | Working tree | clean, in sync with `origin/main` |
 | Tests | **226 passing** (~3-9 min) |
 | Lint | `ruff` clean |
