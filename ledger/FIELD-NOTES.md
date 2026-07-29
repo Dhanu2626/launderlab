@@ -667,3 +667,36 @@ because sanctions screening was diluting it. So I documented the combination's r
 explainability and tiering rather than accuracy, and split screening out as a separate queue.
 The measurement also caught a bug in my own evaluation code that had been understating recall
 threefold."
+
+---
+
+## Phase 7, slice 7.2 — 2026-07-29 (the case store — where detection becomes decision)
+
+🏦 **FCC:** Everything built before today *finds* things. This is the first part of the system
+that records a human having looked, and in AML that record is the actual deliverable. A bank
+is not judged on whether its models were clever; it is judged on whether it can show an
+examiner who reviewed an alert, what they saw, what they decided and why. So the dispositions
+are the real vocabulary an FIU uses — false positive, suspicious with a SAR filed, suspicious
+below the reporting threshold, escalated — and none of them can be recorded without a written
+rationale, because a decision without a reason is indefensible under examination.
+
+The subtle one is snapshotting the evidence at the moment a case opens. Detectors change:
+Phase 6 retuned two rules and knowingly left a third producing false positives. If a case
+re-derived its justification from today's code, an analyst's decision from last month would
+silently acquire reasoning they never actually saw. That is not a database design choice, it
+is the difference between an audit trail and a work of fiction.
+
+🔧 **Engineering:** The append-only rule only holds if it is impossible to violate by
+accident, so there is no code path that touches `case_events` other than inserting — and a
+test asserts that at source level rather than trusting the convention. Same instinct as the
+MCP server's audited decorator: a guarantee you have to remember is not a guarantee. Also
+built duplicate suppression into `open_from_queue()` from the start rather than later:
+detection gets re-run constantly, and a workbench that opens a fresh case for the same
+account every run would bury an analyst in precisely the noise the whole alert-budget idea
+exists to control.
+
+🎯 **Interview line:** "The case store snapshots the evidence at the moment a case opens
+rather than re-deriving it later, because my detectors get retuned — I'd already changed two
+rules and knowingly left a third producing false positives. Without the snapshot, an
+analyst's decision from last month would silently acquire reasoning they never actually saw.
+That's the difference between an audit trail and a reconstruction."

@@ -35,3 +35,7 @@
 - **Flow motif** — a recognisable shape in the money-flow graph: a chain (A→B→C), fan-in (many→one), fan-out (one→many), or a cycle. Different laundering typologies leave different shapes.
 - **Pass-through chain** — money arriving at an account and leaving again quickly, slightly smaller, repeatedly down a path. The signature of a mule network, and invisible to any rule that looks at one account at a time.
 - **Cross-bank blind spot** — a bank's graph only contains transfers where *both* parties bank there. Anything crossing to another institution leaves a single leg and no edge, so the network is structurally unseeable from inside one bank.
+- **Disposition** — the recorded outcome of an investigation: false positive, suspicious with a SAR filed, suspicious below threshold, or escalated. A closed case without one is meaningless.
+- **SAR (Suspicious Activity Report)** — the formal report a bank files with the financial intelligence unit when it decides activity is suspicious. Filing one is the end state of a real investigation.
+- **MLRO (Money Laundering Reporting Officer)** — the named senior person legally responsible for deciding what gets reported. Escalation ends up here.
+- **Audit trail** — an append-only record of who did what and when. In AML it is not a nice-to-have: an investigation you cannot reconstruct is treated as one that did not happen.

@@ -83,5 +83,52 @@ CREATE TABLE IF NOT EXISTS media_labels (
     PRIMARY KEY (article_id, customer_id)
 );
 
+-- ---------------------------------------------------------------- case management
+-- Where a detection becomes a decision. Everything above this line finds things;
+-- these three tables are the only record that a human ever looked.
+
+CREATE SEQUENCE IF NOT EXISTS case_seq;
+CREATE SEQUENCE IF NOT EXISTS case_event_seq;
+
+CREATE TABLE IF NOT EXISTS cases (
+    case_id      BIGINT PRIMARY KEY DEFAULT nextval('case_seq'),
+    account_id   VARCHAR NOT NULL REFERENCES accounts(account_id),
+    opened_at    TIMESTAMP NOT NULL,
+    risk_score   DECIMAL(5,2) NOT NULL,
+    risk_band    VARCHAR NOT NULL,
+    status       VARCHAR NOT NULL DEFAULT 'open'
+                 CHECK (status IN ('open','in_review','closed')),
+    -- real FIU vocabulary: a closed case must say WHY it closed
+    disposition  VARCHAR CHECK (disposition IN
+                 ('false_positive','true_positive_sar','true_positive_no_sar','escalated')),
+    assigned_to  VARCHAR,
+    closed_at    TIMESTAMP
+);
+
+-- APPEND-ONLY. Never UPDATE, never DELETE. An investigation's defensibility rests
+-- on being able to reconstruct who did what and when -- a disposition that can be
+-- silently rewritten is worth nothing to a regulator, and "we changed our mind" is
+-- itself a fact worth keeping.
+CREATE TABLE IF NOT EXISTS case_events (
+    event_id   BIGINT PRIMARY KEY DEFAULT nextval('case_event_seq'),
+    case_id    BIGINT NOT NULL REFERENCES cases(case_id),
+    ts         TIMESTAMP NOT NULL,
+    actor      VARCHAR NOT NULL,
+    event_type VARCHAR NOT NULL,
+    detail     VARCHAR NOT NULL
+);
+
+-- The evidence AS IT STOOD when the case was opened. Detectors get retuned and
+-- models get retrained -- Phase 6 already re-tuned two rules -- so re-deriving an
+-- old case's justification from today's code would rewrite history. An analyst
+-- must be able to see what they were actually shown.
+CREATE TABLE IF NOT EXISTS case_signals (
+    case_id      BIGINT NOT NULL REFERENCES cases(case_id),
+    source       VARCHAR NOT NULL,
+    detail       VARCHAR NOT NULL,
+    contribution DECIMAL(4,3) NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_txn_account_ts ON transactions(account_id, ts);
 CREATE INDEX IF NOT EXISTS idx_txn_ts ON transactions(ts);
+CREATE INDEX IF NOT EXISTS idx_case_events_case ON case_events(case_id, event_id);
