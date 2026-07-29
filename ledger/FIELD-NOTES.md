@@ -700,3 +700,69 @@ rather than re-deriving it later, because my detectors get retuned — I'd alrea
 rules and knowingly left a third producing false positives. Without the snapshot, an
 analyst's decision from last month would silently acquire reasoning they never actually saw.
 That's the difference between an audit trail and a reconstruction."
+
+---
+
+## Phase 7, slice 7.3 — 2026-07-29 (the API — a transport, not a second brain)
+
+🏦 **FCC:** The `/dispositions` endpoint looks trivial and is not: it serves the four closing
+options straight from the case store rather than letting the UI hardcode its own list. If a
+frontend invented its own vocabulary — "cleared", "no action", "suspicious-ish" — the
+disposition field would slowly stop meaning anything, and disposition statistics are exactly
+what a regulator samples. One list, one source, defined where the rule is enforced.
+
+The entity-360 endpoint is the shape of the actual job. An analyst opening an alert needs
+four things at once: who this customer is (KYC profile), what they did (transactions, newest
+first), who they moved money with (the Phase 5 chains they sit in), and whether anyone has
+looked before (open cases). Assembling those four from four different subsystems into one
+response is most of what an investigation platform *is* — the detection was the easy part.
+
+🔧 **Engineering:** Mapped case lifecycle violations to **409 Conflict rather than 500**.
+Closing an already-closed case is not a server fault; it is a disagreement with the state of
+the record, usually because two analysts had the same queue open. A 500 tells the UI "we
+broke"; a 409 lets it say "someone already dispositioned this — refresh". Same reasoning for
+requiring `actor` on every mutation: the case store already refuses anonymous changes, so
+inventing an API-level default like "system" would have quietly created an audit trail that
+lies. Where a lower layer enforces something, the layer above should surface it, not paper
+over it. The API is deliberately thin for the same reason the MCP server was rewired in
+Phase 4 — two implementations of the same logic drift, and then the numbers you publish stop
+describing the thing users actually touch.
+
+🎯 **Interview line:** "I mapped case-lifecycle violations to 409 Conflict rather than 500,
+because closing an already-closed case isn't a server fault — it's usually two analysts with
+the same queue open, and the UI needs to say 'someone already dispositioned this' rather than
+'something broke'. I also refused to default the actor field on mutations: the case store
+rejects anonymous changes, and inventing a default would have created an audit trail that
+lies."
+
+---
+
+## Phase 7, slice 7.4 — 2026-07-29 (the queue — and the bug only the UI could show)
+
+🏦 **FCC:** The queue is tiered by *kind of evidence*, not sorted by one blended number, and
+that is a direct consequence of measuring rather than assuming: slice 7.1 showed the combined
+score never out-ranked the best single layer, while graph evidence alone hit 100% precision.
+So Tier 1 is "this account sits in a reconstructed money chain — work these first", Tier 2 is
+"a named scenario fired, explainable in a sentence", Tier 3 is "no rule, but the model finds
+it unusual". That is how a real FIU allocates scarce analyst hours, and here it is derived
+from evidence instead of an org chart.
+
+🔧 **Engineering:** Then the UI immediately earned its place by exposing a bug 178 passing
+tests had missed. Rule strength was `min(n, 3) / 3`, so one rule firing counted as a third of
+a signal. But **most genuine cases trip exactly one scenario** — a structuring scheme of 27
+cash deposits totalling ₹2.6M trips `structuring_burst` and nothing else. It scored 11.7 out
+of 100, fell below the queue's cut-off, and never reached an analyst, while mule accounts
+scored 34.2 and did. The system was silently hiding confirmed placement cases. Nothing in the
+test suite could see it, because every test asserted relative behaviour — more sources score
+higher, repeats do not stack — and all of that stayed true. The absolute number was wrong,
+and absolute numbers only look wrong when a human looks at them next to a threshold.
+Replaced with a diminishing-returns curve (one rule 0.60, two 0.84, three 0.94), which is
+also the more honest model: a second scenario is real corroboration, a third adds little.
+The demo world went from 16 cases in a single tier to 30 across two.
+
+🎯 **Interview line:** "I built the alert queue, looked at it, and found my risk score had
+been hiding genuine cases. One rule firing counted as a third of a signal, so a confirmed
+structuring scheme — 27 sub-threshold cash deposits — scored 11.7 out of 100 and fell below
+the queue cut-off, while mule accounts appeared. A hundred and seventy-eight passing tests
+never caught it, because they all asserted relative behaviour and that stayed true. Some bugs
+only surface when a human looks at an absolute number next to a threshold."

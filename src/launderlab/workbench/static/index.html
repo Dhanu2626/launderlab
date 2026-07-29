@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LaunderLab — investigator workbench</title>
+<style>
+  :root {
+    --bg: #fbfbfa; --panel: #fff; --ink: #14140f; --muted: #6b6b63;
+    --line: #e3e2da; --accent: #185fa5;
+    --tier1: #0f6e56; --tier2: #b45309; --tier3: #5f5e5a;
+    --critical: #a32d2d; --high: #b45309; --medium: #7a6a1f; --low: #5f5e5a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #161614; --panel: #1e1e1b; --ink: #f2f1ea; --muted: #9d9c92;
+            --line: #32312c; --accent: #6ea8e6; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.55
+         system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { padding: 20px 26px 14px; border-bottom: 1px solid var(--line); }
+  h1 { margin: 0 0 3px; font-size: 19px; font-weight: 600; }
+  .sub { color: var(--muted); font-size: 13px; }
+  main { padding: 20px 26px 60px; max-width: 1200px; }
+  .stats { display: flex; flex-wrap: wrap; gap: 22px; margin-bottom: 22px; }
+  .stat b { display: block; font-size: 21px; font-weight: 600; }
+  .stat span { color: var(--muted); font-size: 12px; text-transform: uppercase;
+               letter-spacing: .04em; }
+  .tier { margin-bottom: 26px; }
+  .tier h2 { font-size: 14px; margin: 0 0 3px; font-weight: 600; }
+  .tier p { margin: 0 0 10px; color: var(--muted); font-size: 12.5px; }
+  .t1 h2 { color: var(--tier1); } .t2 h2 { color: var(--tier2); } .t3 h2 { color: var(--tier3); }
+  table { width: 100%; border-collapse: collapse; background: var(--panel);
+          border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  th, td { padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--line);
+           font-size: 13.5px; vertical-align: top; }
+  th { font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
+       color: var(--muted); font-weight: 600; }
+  tr:last-child td { border-bottom: 0; }
+  tbody tr { cursor: pointer; }
+  tbody tr:hover { background: rgba(24,95,165,.07); }
+  .score { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .band { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+  .band.critical { color: var(--critical); } .band.high { color: var(--high); }
+  .band.medium { color: var(--medium); } .band.low { color: var(--low); }
+  .why { color: var(--muted); font-size: 12.5px; }
+  .empty { padding: 14px; color: var(--muted); font-size: 13px; background: var(--panel);
+           border: 1px dashed var(--line); border-radius: 8px; }
+  dialog { border: 1px solid var(--line); border-radius: 10px; background: var(--panel);
+           color: var(--ink); max-width: 720px; width: 92%; padding: 0; }
+  dialog::backdrop { background: rgba(0,0,0,.45); }
+  .dhead { padding: 16px 20px; border-bottom: 1px solid var(--line);
+           display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+  .dbody { padding: 16px 20px; max-height: 62vh; overflow: auto; }
+  .dbody h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .05em;
+              color: var(--muted); margin: 16px 0 7px; }
+  .dbody h3:first-child { margin-top: 0; }
+  .sig { border-left: 3px solid var(--accent); padding: 3px 0 3px 10px; margin-bottom: 7px;
+         font-size: 13px; }
+  .sig em { color: var(--muted); font-style: normal; font-size: 11px;
+            text-transform: uppercase; letter-spacing: .04em; }
+  .ev { font-size: 13px; padding: 5px 0; border-bottom: 1px dotted var(--line); }
+  .ev .meta { color: var(--muted); font-size: 11.5px; }
+  button { font: inherit; padding: 6px 12px; border-radius: 6px; cursor: pointer;
+           border: 1px solid var(--line); background: transparent; color: var(--ink); }
+  .err { color: var(--critical); }
+</style>
+</head>
+<body>
+<header>
+  <h1>LaunderLab — investigator workbench</h1>
+  <div class="sub">Alert queue, tiered by evidence. Highest-precision work first.</div>
+</header>
+
+<main>
+  <div class="stats" id="stats"></div>
+  <div id="queue"><div class="empty">Loading queue…</div></div>
+</main>
+
+<dialog id="detail">
+  <div class="dhead">
+    <div><strong id="d-title">Case</strong><div class="sub" id="d-sub"></div></div>
+    <button onclick="document.getElementById('detail').close()">Close</button>
+  </div>
+  <div class="dbody">
+    <h3>Why it was flagged</h3><div id="d-signals"></div>
+    <h3>Audit trail</h3><div id="d-timeline"></div>
+  </div>
+</dialog>
+
+<script>
+// Tiers come from slice 7.1's measurement, not from taste: graph evidence alone
+// scored 100% precision, rules 72%, ML the broadest reach at 60%. A single list
+// sorted by the blended score measurably did NOT rank better, so the queue is
+// split by what kind of evidence exists rather than by one number.
+const TIERS = [
+  { key: "graph", cls: "t1", title: "Tier 1 — network evidence",
+    note: "Account sits in a reconstructed pass-through chain. Highest hit rate; work these first." },
+  { key: "rules", cls: "t2", title: "Tier 2 — rule alerts",
+    note: "A named monitoring scenario fired. Explainable in one sentence." },
+  { key: "ml",    cls: "t3", title: "Tier 3 — model-ranked",
+    note: "No rule or chain, but the model ranks this account as unusual. Broadest reach, lowest precision." },
+];
+
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c =>
+  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+function tierOf(kase) {
+  const sources = new Set((kase.signals || []).map(s => s.source));
+  if (sources.has("graph")) return "graph";
+  if (sources.has("rules")) return "rules";
+  return "ml";
+}
+
+function topSignal(kase) {
+  const best = (kase.signals || [])[0];
+  return best ? best.detail : "—";
+}
+
+async function load() {
+  let queue, health;
+  try {
+    [queue, health] = await Promise.all([
+      fetch("/queue?limit=200").then(r => r.json()),
+      fetch("/health").then(r => r.json()),
+    ]);
+  } catch (err) {
+    document.getElementById("queue").innerHTML =
+      `<div class="empty err">Could not reach the API: ${esc(err.message)}</div>`;
+    return;
+  }
+
+  document.getElementById("stats").innerHTML = [
+    ["Open cases", queue.length],
+    ["Accounts", (health.accounts ?? 0).toLocaleString()],
+    ["Transactions", (health.transactions ?? 0).toLocaleString()],
+    ["Cases on record", (health.cases ?? 0).toLocaleString()],
+  ].map(([label, value]) =>
+    `<div class="stat"><b>${esc(value)}</b><span>${esc(label)}</span></div>`).join("");
+
+  const grouped = { graph: [], rules: [], ml: [] };
+  queue.forEach(k => grouped[tierOf(k)].push(k));
+
+  document.getElementById("queue").innerHTML = TIERS.map(tier => {
+    const rows = grouped[tier.key];
+    const body = rows.length ? `<table><thead><tr>
+        <th style="width:74px">Risk</th><th style="width:96px">Band</th>
+        <th style="width:150px">Account</th><th style="width:190px">Customer</th>
+        <th>Top signal</th><th style="width:96px">Status</th></tr></thead><tbody>
+      ${rows.map(k => `<tr onclick="openCase(${k.case_id})">
+        <td class="score">${esc(k.risk_score.toFixed(1))}</td>
+        <td class="band ${esc(k.risk_band)}">${esc(k.risk_band)}</td>
+        <td>${esc(k.account_id)}</td>
+        <td>${esc(k.customer_name || "—")}</td>
+        <td class="why">${esc(topSignal(k))}</td>
+        <td>${esc(k.status)}</td></tr>`).join("")}
+      </tbody></table>`
+      : `<div class="empty">No cases in this tier.</div>`;
+    return `<section class="tier ${tier.cls}">
+      <h2>${esc(tier.title)} — ${rows.length}</h2>
+      <p>${esc(tier.note)}</p>${body}</section>`;
+  }).join("");
+}
+
+async function openCase(caseId) {
+  const dialog = document.getElementById("detail");
+  const [kase, timeline] = await Promise.all([
+    fetch(`/cases/${caseId}`).then(r => r.json()),
+    fetch(`/cases/${caseId}/timeline`).then(r => r.json()),
+  ]);
+
+  document.getElementById("d-title").textContent =
+    `Case ${kase.case_id} — ${kase.customer_name || kase.account_id}`;
+  document.getElementById("d-sub").textContent =
+    `${kase.account_id} · risk ${kase.risk_score.toFixed(1)} (${kase.risk_band}) · ${kase.status}`
+    + (kase.disposition ? ` · ${kase.disposition}` : "");
+
+  document.getElementById("d-signals").innerHTML = kase.signals.length
+    ? kase.signals.map(s => `<div class="sig"><em>${esc(s.source)}</em><br>${esc(s.detail)}</div>`).join("")
+    : `<div class="empty">No evidence recorded.</div>`;
+
+  document.getElementById("d-timeline").innerHTML = timeline.map(e =>
+    `<div class="ev"><div>${esc(e.detail)}</div>
+     <div class="meta">${esc(e.event_type)} · ${esc(e.actor)} · ${esc(e.ts.replace("T", " ").slice(0, 19))}</div></div>`
+  ).join("");
+
+  dialog.showModal();
+}
+
+load();
+</script>
+</body>
+</html>

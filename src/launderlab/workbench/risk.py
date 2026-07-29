@@ -44,9 +44,24 @@ DEFAULT_WEIGHTS = {
 
 BANDS = [(80, "critical"), (55, "high"), (30, "medium"), (0, "low")]
 
-# A single account firing every rule at once is not 6x more suspicious than one
-# firing three; the signal saturates. Capped so one noisy layer cannot dominate.
-MAX_RULE_HITS = 3
+# Rule hits saturate with DIMINISHING RETURNS, not linearly.
+#
+# This was `min(n, 3) / 3` until the queue UI was actually looked at, and the bug
+# was only visible there: a real structuring scheme -- 27 cash deposits totalling
+# Rs 2.6M, which Phase 3 flags with high confidence -- trips exactly ONE rule, so
+# it scored 0.35 x 1/3 = 11.7 out of 100, landed in the "low" band and was
+# filtered out of the queue entirely. Meanwhile a mule account scored 34.2 and
+# appeared. The system was hiding genuine placement cases.
+#
+# The flaw was treating one rule as a third of a signal. In practice most real
+# cases trip exactly one scenario; a second is meaningful corroboration, a third
+# adds little. So: 1 hit -> 0.60, 2 -> 0.84, 3 -> 0.94, saturating at 1.0.
+RULE_DECAY = 0.4
+
+
+def rule_strength(hits: int) -> float:
+    """Diminishing-returns weight for `hits` distinct rules firing on one account."""
+    return 1.0 - RULE_DECAY ** max(hits, 0) if hits else 0.0
 
 
 @dataclass(frozen=True)
@@ -97,7 +112,7 @@ def collect(conn: duckdb.DuckDBPyConnection,
                 contribution=0.0))  # filled in below, once the count is known
     # rewrite rule contributions now that we know how many fired per account
     for account_id, rule_names in fired.items():
-        share = min(len(rule_names), MAX_RULE_HITS) / MAX_RULE_HITS
+        share = rule_strength(len(rule_names))
         signals[account_id] = [
             RiskSignal(s.source, s.detail, share) if s.source == "rules" else s
             for s in signals[account_id]

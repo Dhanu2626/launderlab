@@ -61,6 +61,28 @@ def test_more_corroborating_sources_scores_higher():
     assert b.score > a.score
 
 
+def test_a_single_rule_hit_still_reaches_the_queue():
+    """Regression: genuine one-rule cases were being filtered out entirely.
+
+    Rule strength used to be min(n,3)/3, so one rule scored 0.35 x 1/3 = 11.7 --
+    below the queue's default 30-point cut. A real structuring scheme trips
+    exactly one scenario, so confirmed placement cases never reached an analyst
+    while mule accounts did. Found by looking at the queue UI, not by a test.
+    """
+    one_rule = risk.aggregate({"A": [RiskSignal("rules", "structuring_burst", 1.0)]})[0]
+    assert one_rule.score >= 20.0, "a genuine single-rule case must not be filtered out"
+
+
+def test_rule_strength_has_diminishing_returns():
+    """One scenario is meaningful, two corroborate, a third adds little."""
+    strengths = [risk.rule_strength(n) for n in range(1, 5)]
+    assert strengths == sorted(strengths), "more rules must never score lower"
+    assert strengths[0] >= 0.5, "one rule is real evidence, not a third of one"
+    gains = [b - a for a, b in zip(strengths, strengths[1:])]
+    assert gains == sorted(gains, reverse=True), "each extra rule must add less than the last"
+    assert risk.rule_strength(0) == 0.0
+
+
 def test_repeat_signals_from_one_source_do_not_stack():
     """Being in three chains is not three times as suspicious as being in one."""
     single = {"A": [RiskSignal("graph", "chain 1", 1.0)]}

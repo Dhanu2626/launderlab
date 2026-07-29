@@ -8,6 +8,9 @@ dependencies = ["duckdb>=1.0", "jellyfish>=1.0", "networkx>=3.0", "scikit-learn>
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.5"]
 mcp = ["mcp>=1.28"]
+# The investigator workbench backend. Optional so the detection stack stays
+# installable without a web server; the API tests skip cleanly when absent.
+api = ["fastapi>=0.110", "uvicorn>=0.27", "httpx>=0.27"]
 # Only the LSTM and GraphSAGE families need this. Install the CPU build --
 # pip install torch --index-url https://download.pytorch.org/whl/cpu -- which is
 # ~200MB against ~2.5GB for the CUDA one, and these models are far too small to
@@ -23,6 +26,7 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 "launderlab.db" = ["*.sql", "*.json"]
+"launderlab.workbench.static" = ["*.html"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

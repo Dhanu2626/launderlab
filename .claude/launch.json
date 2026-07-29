@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "launderlab-workbench",
+      "runtimeExecutable": ".venv/Scripts/python.exe",
+      "runtimeArgs": ["-m", "uvicorn", "launderlab.workbench.api:app", "--port", "8787"],
+      "port": 8787
+    }
+  ]
+}
