@@ -111,6 +111,21 @@ class ChainOut(BaseModel):
     ended: datetime
 
 
+class AccountSummary(BaseModel):
+    """Totals over the account's WHOLE history, not the window returned below.
+
+    Deriving these in the browser from `transactions` would understate every one
+    of them the moment an account has more rows than `transaction_limit` — and it
+    would do so silently, which is exactly the class of quietly-wrong number this
+    project keeps finding. So they are computed in SQL over the full history.
+    """
+    transaction_count: int
+    total_credit: float
+    total_debit: float
+    first_activity: datetime | None
+    last_activity: datetime | None
+
+
 class Entity360(BaseModel):
     account_id: str
     customer_id: str
@@ -122,6 +137,7 @@ class Entity360(BaseModel):
     account_type: str
     status: str
     opened_at: datetime
+    summary: AccountSummary
     transactions: list[TransactionOut]
     chains: list[ChainOut]
     open_cases: list[int]
@@ -291,6 +307,12 @@ def entity_360(account_id: str,
         if row is None:
             raise HTTPException(status_code=404, detail=f"no such account: {account_id}")
 
+        totals = conn.execute(
+            "SELECT count(*),"
+            " coalesce(sum(CASE WHEN direction = 'CR' THEN amount END), 0)::DOUBLE,"
+            " coalesce(sum(CASE WHEN direction = 'DR' THEN amount END), 0)::DOUBLE,"
+            " min(ts), max(ts) FROM transactions WHERE account_id = ?", [account_id]).fetchone()
+
         txns = conn.execute(
             "SELECT txn_id, ts, direction, channel, amount::DOUBLE, counterparty_name,"
             " narration, balance_after::DOUBLE FROM transactions WHERE account_id = ?"
@@ -307,6 +329,9 @@ def entity_360(account_id: str,
         account_id=row[0], customer_id=row[1], full_name=row[2], segment=row[3],
         city=row[4], kyc_level=row[5], risk_rating=row[6], account_type=row[7],
         status=row[8], opened_at=row[9],
+        summary=AccountSummary(transaction_count=totals[0], total_credit=totals[1],
+                               total_debit=totals[2], first_activity=totals[3],
+                               last_activity=totals[4]),
         transactions=[TransactionOut(
             txn_id=t[0], ts=t[1], direction=t[2], channel=t[3], amount=t[4],
             counterparty_name=t[5], narration=t[6], balance_after=t[7]) for t in txns],

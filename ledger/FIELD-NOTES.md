@@ -766,3 +766,41 @@ structuring scheme — 27 sub-threshold cash deposits — scored 11.7 out of 100
 the queue cut-off, while mule accounts appeared. A hundred and seventy-eight passing tests
 never caught it, because they all asserted relative behaviour and that stayed true. Some bugs
 only surface when a human looks at an absolute number next to a threshold."
+
+---
+
+## Phase 7, slice 7.5 — 2026-07-29 (the customer behind the alert — and a second truncation)
+
+🏦 **FCC:** An alert names an *account*. A disposition is about a *customer*. Everything
+between those two sentences is the investigation, and the entity-360 screen is where it
+happens: KYC profile, what the account has done in total, who it moved money with, and the
+statement itself, all on one screen with the evidence that raised the alert. The ordering is
+deliberate and it is the analyst's own order — why am I looking at this, who is this, what
+have they done, has anyone looked before. Notably, the profile is where a case usually turns:
+A000630 alerted on 89 cash deposits, and it is a *business* account in Ahmedabad with a
+medium risk rating — the deposits are either takings or placement, and nothing in the
+transaction data alone decides which. That is why entity 360 exists and why detection alone
+never closes a case.
+
+🔧 **Engineering:** The screen found a bug for the second slice running, and it is the same
+family as 7.4's. The entity endpoint returns the latest 100 transactions by default. Account
+A000630 has 136, so its statement began 2026-07-08 while the account's history begins
+2026-07-01 — an alert reading "89 cash deposits under Rs 100,000" was rendered above a
+statement that could not contain 89 of anything. Nothing failed. No test could fail, because
+the API was doing exactly what it was asked. **The evidence screen was truncating the
+evidence, and truncation is invisible by construction — it looks like a shorter list.** Same
+instinct produced the other decision in this slice: the activity totals are computed in SQL
+over the whole account rather than summed from the transaction list the page already holds.
+Summing what is on screen is one line shorter and would have understated credits on every
+busy account without ever looking wrong. The rule I keep re-learning here: a number derived
+from a *window* must never be presented as a number about the *whole*, and if the code cannot
+tell the difference, a human will not either.
+
+🎯 **Interview line:** "Building the entity-360 screen caught the same class of bug two slices
+running. The transaction endpoint defaults to the latest hundred rows, so an account alerted
+for eighty-nine cash deposits displayed a statement that started a week after the account did
+— the evidence screen was truncating the evidence, and nothing failed, because the API did
+exactly what it was asked. I also refused to sum the visible transactions for the account
+totals and computed them in SQL over the whole history instead: summing the window is shorter
+code and would have under-reported every busy customer without ever looking wrong. A number
+derived from a window must never be presented as a number about the whole."

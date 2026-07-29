@@ -34,12 +34,12 @@ valuable thing here — preserve it. Details in §7.
 
 | | |
 |---|---|
-| Latest commit | `01a8e8e` — "Phase 7.3 + 7.4: workbench API and the alert queue that caught a scoring bug" |
+| Latest commit | `7.5` — "Phase 7.5: entity 360 — the customer behind the alert" |
 | Working tree | clean, in sync with `origin/main` |
-| Tests | **193 passing** |
+| Tests | **198 passing** |
 | Lint | `ruff` clean |
 | CI | GitHub Actions green on every push |
-| Phases complete | 0, 2, 3, 4, 5, 6 fully; 1 core (polish deferred); 7 half (7.1–7.4 of 7.1–7.8) |
+| Phases complete | 0, 2, 3, 4, 5, 6 fully; 1 core (polish deferred); 7 at 7.1–7.5 of 7.1–7.8 |
 
 **Phase status at a glance**
 
@@ -52,7 +52,7 @@ valuable thing here — preserve it. Details in §7.
 | 4 | Screening | ✅ complete; slice **4.1** open (re-scoped, low value) |
 | 5 | Graph Analytics | ✅ complete |
 | 6 | ML Tournament | ✅ complete — all 6 model families |
-| 7 | Investigator Workbench | 🔶 **7.1–7.4 done, 7.5–7.8 remain** |
+| 7 | Investigator Workbench | 🔶 **7.1–7.5 done, 7.6–7.8 remain** |
 | 8 | Red Team co-evolution | ⬜ not started |
 | 8.5 | Multi-bank experiment | ⬜ not started |
 | 9 | Story Mode + launch | ⬜ not started |
@@ -131,7 +131,7 @@ src/launderlab/
   workbench/evaluate.py scorer-only: does combining actually help?
   workbench/cases.py    case store — the audit trail (7.2)
   workbench/api.py      FastAPI (7.3)
-  workbench/static/index.html   tiered alert queue UI (7.4)
+  workbench/static/index.html   tiered alert queue UI (7.4) + entity 360 screen (7.5)
 
   mcp_server.py         AML MCP server — 6 read-only tools, every call audited
 ```
@@ -211,6 +211,8 @@ where that model is weak, and only ground-truth-by-crime-type reveals it.
 - 7.2 case store — append-only audit trail, evidence snapshotted at open time.
 - 7.3 FastAPI backend.
 - 7.4 tiered alert queue UI.
+- 7.5 entity 360 screen — click an alert, get the customer: KYC profile, whole-history
+  activity totals, Phase 5 chains, full statement, above the audit trail.
 
 ---
 
@@ -238,6 +240,11 @@ where that model is weak, and only ground-truth-by-crime-type reveals it.
    `min(n,3)/3`, so a genuine structuring scheme (one rule) scored 11.7/100 and **fell below
    the queue cut-off, never reaching an analyst.** Tests all asserted *relative* behaviour,
    which stayed true. Fixed with a diminishing-returns curve.
+8. **Phase 7.5.** Same family again, one slice later. The entity endpoint defaults to the
+   latest 100 transactions, so an account alerted for **89 cash deposits** rendered a
+   statement starting a week after the account's own history did — **the evidence screen was
+   truncating the evidence**, and nothing failed because the API did exactly what it was
+   asked. Truncation is invisible by construction: it looks like a shorter list.
 
 ---
 
@@ -258,6 +265,10 @@ where that model is weak, and only ground-truth-by-crime-type reveals it.
   doesn't rank better while graph alone hit 100% precision.
 - **New name/list values are APPENDED, never reordered** — that is what made 4.2's controlled
   before/after possible by slicing.
+- **Account totals on the entity screen are computed in SQL over the whole history**, never
+  summed from the transaction window the page holds — a window number presented as a whole
+  number under-reports silently. The UI requests the endpoint's maximum window for the same
+  reason.
 
 ---
 
@@ -265,7 +276,9 @@ where that model is weak, and only ground-truth-by-crime-type reveals it.
 
 | Item | Status |
 |---|---|
-| **7.5–7.8** | Entity-360 screen, link-graph view, disposition workflow in UI, SAR narrative draft |
+| **7.6–7.8** | Link-graph view, disposition workflow in UI, SAR narrative draft |
+| Statement ceiling | The entity screen requests 500 transactions, the endpoint's max. A busier account still truncates — it says so in a caption, but paginate when a world produces one (`ponytail:` comment in `index.html`) |
+| Evidence is not anchored in the statement | 7.5 finding: a chain-tier alert dates from 07-04 while the statement opens on the newest row, so the flagged behaviour can be far down the page. Chains carry their date range, but `ChainOut` has no txn ids — natural to solve in **7.6** |
 | **1.3** | World realism polish — weekday/weekend, holidays. Non-blocking |
 | **4.1** | Secondary-identifier (DOB/nationality) disambiguation. **Re-scoped by 4.2** — exact-name FPs went to 0 on their own, so this is realism, not a precision fix |
 | **UI is not React** | Deliberate deviation, flagged to Dhanush. One self-contained HTML page. API is the contract so React is a clean swap. **Ask him if he wants the React learning goal back.** |
@@ -327,15 +340,20 @@ leak. Report negative results.
 
 ## 13. Exact next steps
 
-**Recommended next slice: 7.5 — entity 360 screen.**
-The API already returns everything it needs (`GET /accounts/{id}` gives profile, newest-first
-transactions, the Phase 5 chains the account sits in, and open cases). This slice is the
-*screen*: click a queue row → full customer picture. It is the natural follow-on because the
-queue currently opens a modal with evidence and timeline but no transaction detail.
+**Recommended next slice: 7.6 — link-graph view.**
+The entity screen (7.5) already renders each chain as a text path with the viewed account
+bolded, and `ChainOut` (accounts, amounts, hops, retained, started, ended) is already in the
+API response — so 7.6 is the *drawing*, plus the open question 7.5 surfaced: the chain knows
+its date range but not its transaction ids, so an analyst cannot yet jump from the chain to
+the rows that made it. Deciding whether `ChainOut` should carry txn ids is the first call.
 
-Then, in order: **7.6** link-graph view (visualise the chains — `ChainOut` is already in the
-API response), **7.7** disposition workflow in the UI (all four endpoints exist; this is
-buttons + confirmation), **7.8** SAR narrative draft (template-based first, LLM as stretch).
+Then: **7.7** disposition workflow in the UI (all four endpoints exist; this is buttons +
+confirmation), **7.8** SAR narrative draft (template-based first, LLM as stretch).
+
+**To see the workbench with real data:** build a world (generate → inject typologies →
+`cases.open_from_queue`), then point uvicorn at it with `LAUNDERLAB_DB`. Ports 8787/8788 may
+still be held by a stale server from an earlier session — check `netstat -ano | grep LISTEN`
+before assuming the page you are looking at is the code you just wrote.
 
 **To start a session:**
 1. Read `PROJECT.md` and the last entry of `ledger/FIELD-NOTES.md`

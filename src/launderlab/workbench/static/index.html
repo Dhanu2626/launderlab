@@ -37,8 +37,8 @@
   th { font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
        color: var(--muted); font-weight: 600; }
   tr:last-child td { border-bottom: 0; }
-  tbody tr { cursor: pointer; }
-  tbody tr:hover { background: rgba(24,95,165,.07); }
+  #queue tbody tr { cursor: pointer; }
+  #queue tbody tr:hover { background: rgba(24,95,165,.07); }
   .score { font-variant-numeric: tabular-nums; font-weight: 600; }
   .band { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
   .band.critical { color: var(--critical); } .band.high { color: var(--high); }
@@ -47,13 +47,13 @@
   .empty { padding: 14px; color: var(--muted); font-size: 13px; background: var(--panel);
            border: 1px dashed var(--line); border-radius: 8px; }
   dialog { border: 1px solid var(--line); border-radius: 10px; background: var(--panel);
-           color: var(--ink); max-width: 720px; width: 92%; padding: 0; }
+           color: var(--ink); max-width: 980px; width: 94%; padding: 0; }
   dialog::backdrop { background: rgba(0,0,0,.45); }
   .dhead { padding: 16px 20px; border-bottom: 1px solid var(--line);
            display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
-  .dbody { padding: 16px 20px; max-height: 62vh; overflow: auto; }
+  .dbody { padding: 16px 20px; max-height: 74vh; overflow: auto; }
   .dbody h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .05em;
-              color: var(--muted); margin: 16px 0 7px; }
+              color: var(--muted); margin: 18px 0 7px; }
   .dbody h3:first-child { margin-top: 0; }
   .sig { border-left: 3px solid var(--accent); padding: 3px 0 3px 10px; margin-bottom: 7px;
          font-size: 13px; }
@@ -64,6 +64,21 @@
   button { font: inherit; padding: 6px 12px; border-radius: 6px; cursor: pointer;
            border: 1px solid var(--line); background: transparent; color: var(--ink); }
   .err { color: var(--critical); }
+  /* entity 360 */
+  .kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 11px 18px; background: var(--panel); border: 1px solid var(--line);
+        border-radius: 8px; padding: 12px 14px; }
+  .kv span { display: block; color: var(--muted); font-size: 11px;
+             text-transform: uppercase; letter-spacing: .04em; }
+  .kv b { font-weight: 600; font-size: 13.5px; }
+  .scroll { overflow-x: auto; }
+  .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .cr { color: var(--tier1); } .dr { color: var(--critical); }
+  .chain { font-size: 13px; padding: 7px 0; border-bottom: 1px dotted var(--line); }
+  .chain .path { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+                 font-size: 12.5px; word-break: break-word; }
+  .chain .here { font-weight: 700; color: var(--accent); }
+  .note { color: var(--muted); font-size: 12px; margin: 6px 0 0; }
 </style>
 </head>
 <body>
@@ -84,6 +99,7 @@
   </div>
   <div class="dbody">
     <h3>Why it was flagged</h3><div id="d-signals"></div>
+    <div id="d-entity"></div>
     <h3>Audit trail</h3><div id="d-timeline"></div>
   </div>
 </dialog>
@@ -104,6 +120,10 @@ const TIERS = [
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+const money = (n) => "₹" + Number(n).toLocaleString("en-IN",
+  { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const when = (ts) => ts ? String(ts).replace("T", " ").slice(0, 16) : "—";
 
 function tierOf(kase) {
   const sources = new Set((kase.signals || []).map(s => s.source));
@@ -162,6 +182,97 @@ async function load() {
   }).join("");
 }
 
+// ------------------------------------------------------------ entity 360 (7.5)
+// The alert says an account is suspicious; adjudicating it needs the customer
+// behind it. Four things at once, which is the shape of the actual job: who they
+// are (KYC), what the account has done in total, who they moved money with, and
+// the transactions themselves.
+
+function kv(pairs) {
+  return `<div class="kv">${pairs.map(([label, value, cls]) =>
+    `<div><span>${esc(label)}</span><b class="${cls || ""}">${value}</b></div>`).join("")}</div>`;
+}
+
+function renderProfile(e) {
+  return `<h3>Customer</h3>` + kv([
+    ["Name", esc(e.full_name)],
+    ["Customer", esc(e.customer_id)],
+    ["Segment", esc(e.segment)],
+    ["City", esc(e.city || "—")],
+    ["KYC level", esc(e.kyc_level)],
+    ["Risk rating", esc(e.risk_rating), `band ${esc(e.risk_rating)}`],
+    ["Account", `${esc(e.account_id)} (${esc(e.account_type)})`],
+    ["Account status", esc(e.status)],
+  ]);
+}
+
+function renderActivity(e) {
+  const s = e.summary;
+  const balance = e.transactions.length ? money(e.transactions[0].balance_after) : "—";
+  // Every figure here is computed server-side over the WHOLE history. Summing
+  // the transaction list in the browser would silently under-report any account
+  // with more rows than the fetch limit.
+  return `<h3>Activity (whole history)</h3>` + kv([
+    ["Transactions", esc(s.transaction_count.toLocaleString())],
+    ["Total credits", `<span class="cr">${money(s.total_credit)}</span>`],
+    ["Total debits", `<span class="dr">${money(s.total_debit)}</span>`],
+    ["Current balance", balance],
+    ["First activity", esc(when(s.first_activity))],
+    ["Last activity", esc(when(s.last_activity))],
+  ]);
+}
+
+function renderChains(e) {
+  if (!e.chains.length) {
+    return `<h3>Money chains</h3><div class="empty">This account is not in any
+      reconstructed pass-through chain. Note that only counterparties who bank
+      here leave an edge — Phase 5 measured that 5 of 6 typologies are invisible
+      to the graph for exactly that reason.</div>`;
+  }
+  // ponytail: text paths, not a drawing. Slice 7.6 is the link-graph view.
+  return `<h3>Money chains (${e.chains.length})</h3>` + e.chains.map(c => `
+    <div class="chain">
+      <div class="path">${c.accounts.map(a =>
+        a === e.account_id ? `<span class="here">${esc(a)}</span>` : esc(a)).join(" → ")}</div>
+      <div class="sub">${esc(c.hops)} hops · ${money(c.amounts[0])} entering ·
+        ${esc((c.retained * 100).toFixed(0))}% retained ·
+        ${esc(when(c.started))} → ${esc(when(c.ended))}</div>
+    </div>`).join("");
+}
+
+function renderStatement(e) {
+  if (!e.transactions.length) {
+    return `<h3>Statement</h3><div class="empty">No transactions on this account.</div>`;
+  }
+  const shown = e.transactions.length;
+  const total = e.summary.transaction_count;
+  const caption = shown < total
+    ? `<p class="note">Showing the latest ${esc(shown.toLocaleString())} of
+       ${esc(total.toLocaleString())} transactions.</p>` : "";
+  return `<h3>Statement — newest first</h3><div class="scroll"><table><thead><tr>
+      <th style="width:118px">When</th><th style="width:44px">Dir</th>
+      <th style="width:64px">Channel</th><th class="num" style="width:118px">Amount</th>
+      <th style="width:170px">Counterparty</th><th>Narration</th>
+      <th class="num" style="width:118px">Balance</th></tr></thead><tbody>
+    ${e.transactions.map(t => `<tr>
+      <td>${esc(when(t.ts))}</td>
+      <td class="${t.direction === "CR" ? "cr" : "dr"}">${esc(t.direction)}</td>
+      <td>${esc(t.channel)}</td>
+      <td class="num ${t.direction === "CR" ? "cr" : "dr"}">${money(t.amount)}</td>
+      <td>${esc(t.counterparty_name || "—")}</td>
+      <td class="why">${esc(t.narration)}</td>
+      <td class="num">${money(t.balance_after)}</td></tr>`).join("")}
+    </tbody></table></div>${caption}`;
+}
+
+function renderOtherCases(e, currentCaseId) {
+  const others = e.open_cases.filter(id => id !== currentCaseId);
+  if (!others.length) return "";
+  return `<h3>Other open cases on this account</h3><div class="chain">` +
+    others.map(id => `<button onclick="openCase(${id})">Case ${esc(id)}</button>`).join(" ") +
+    `</div>`;
+}
+
 async function openCase(caseId) {
   const dialog = document.getElementById("detail");
   const [kase, timeline] = await Promise.all([
@@ -184,7 +295,30 @@ async function openCase(caseId) {
      <div class="meta">${esc(e.event_type)} · ${esc(e.actor)} · ${esc(e.ts.replace("T", " ").slice(0, 19))}</div></div>`
   ).join("");
 
-  dialog.showModal();
+  // Show the case immediately, then fill the customer picture in: entity 360
+  // rebuilds the transfer graph, so it is the slowest call on the page and the
+  // analyst should not wait on it to read the evidence they clicked for.
+  const panel = document.getElementById("d-entity");
+  panel.innerHTML = `<h3>Customer</h3><div class="empty">Loading customer 360…</div>`;
+  if (!dialog.open) dialog.showModal();
+
+  try {
+    // Ask for the API's maximum window, not its default. A structuring alert on
+    // this world reads "89 cash deposits", and at the default 100 rows the
+    // statement started a week AFTER the account did — the analyst could not see
+    // the run the rule fired on. Truncating the evidence out of the evidence
+    // screen is the same failure 7.4 found in the score.
+    // ponytail: 500 is the endpoint's ceiling. An account busier than that still
+    // truncates, and says so in the caption; paginate when a world produces one.
+    const entity = await fetch(`/accounts/${encodeURIComponent(kase.account_id)}`
+      + `?transaction_limit=500`).then(r => r.json());
+    panel.innerHTML = renderProfile(entity) + renderActivity(entity)
+      + renderChains(entity) + renderOtherCases(entity, kase.case_id)
+      + renderStatement(entity);
+  } catch (err) {
+    panel.innerHTML = `<h3>Customer</h3>
+      <div class="empty err">Could not load the entity view: ${esc(err.message)}</div>`;
+  }
 }
 
 load();

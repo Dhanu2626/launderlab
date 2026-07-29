@@ -166,6 +166,32 @@ def test_entity_360_returns_profile_transactions_and_chains(client):
         assert account_id in chain["accounts"]
 
 
+def test_entity_360_summary_covers_the_whole_history_not_the_window(client):
+    """The totals must not describe only the transactions that were returned.
+
+    An entity screen showing "total credits" computed from the latest 100 rows
+    would under-report every busy account, and would do it silently — the exact
+    failure mode slice 7.4 found in the risk score. So the summary is computed in
+    SQL over the full account and this test proves the window cannot fake it.
+    """
+    account_id = client.get("/queue").json()[0]["account_id"]
+
+    windowed = client.get(f"/accounts/{account_id}", params={"transaction_limit": 5}).json()
+    summary = windowed["summary"]
+    assert len(windowed["transactions"]) == 5
+    assert summary["transaction_count"] > 5, "need an account with more history than the window"
+
+    full = client.get(f"/accounts/{account_id}", params={"transaction_limit": 500}).json()
+    assert len(full["transactions"]) == summary["transaction_count"] <= 500
+    assert summary["total_credit"] == pytest.approx(
+        sum(t["amount"] for t in full["transactions"] if t["direction"] == "CR"))
+    assert summary["total_debit"] == pytest.approx(
+        sum(t["amount"] for t in full["transactions"] if t["direction"] == "DR"))
+    assert summary["first_activity"] <= summary["last_activity"]
+    # identical totals from both windows — the summary ignores the limit entirely
+    assert full["summary"] == summary
+
+
 def test_unknown_account_is_404(client):
     assert client.get("/accounts/NOPE").status_code == 404
 
@@ -185,8 +211,35 @@ def test_workbench_ui_is_served_and_self_contained(client):
     # no external origins - no CDN scripts, stylesheets or fonts
     assert "http://" not in html and "https://" not in html
     # it must actually call the API it is paired with
-    for endpoint in ("/queue", "/health", "/cases/"):
+    for endpoint in ("/queue", "/health", "/cases/", "/accounts/"):
         assert endpoint in html
+
+
+def test_ui_case_view_carries_the_whole_entity_360(client):
+    """Slice 7.5: an alert names an account, but adjudicating one needs the
+    customer behind it — KYC, what the account did in total, who they moved money
+    with, and the statement. All four render from `/accounts/{id}`."""
+    html = client.get("/").text
+    assert "renderProfile" in html and "renderStatement" in html
+    for heading in ("Customer", "Activity (whole history)", "Money chains", "Statement"):
+        assert heading in html
+    # totals come from the server's whole-history summary, never re-derived from
+    # the truncated transaction list the page happens to hold
+    assert "summary.total_credit" in html or "s.total_credit" in html
+
+
+def test_ui_asks_for_the_full_statement_not_the_default_window(client):
+    """Looking at the screen caught this: an account flagged for *89 cash
+    deposits* rendered a statement starting a week after the account itself did,
+    because the endpoint defaults to the latest 100 rows. The evidence screen was
+    truncating the evidence. It must request the API's maximum window, and the
+    two numbers must not drift apart."""
+    account_id = client.get("/queue").json()[0]["account_id"]
+    assert client.get(f"/accounts/{account_id}",
+                      params={"transaction_limit": 500}).status_code == 200
+    assert client.get(f"/accounts/{account_id}",
+                      params={"transaction_limit": 501}).status_code == 422
+    assert "transaction_limit=500" in client.get("/").text
 
 
 def test_ui_tiers_match_the_measured_evidence_hierarchy(client):
