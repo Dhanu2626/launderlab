@@ -34,7 +34,7 @@ valuable thing here — preserve it. Details in §7.
 
 | | |
 |---|---|
-| Latest commit | `7.5` — "Phase 7.5: entity 360 — the customer behind the alert" |
+| Latest commit | `e829b6d` — "Phase 7.5: entity 360 — the customer behind the alert" |
 | Working tree | clean, in sync with `origin/main` |
 | Tests | **198 passing** |
 | Lint | `ruff` clean |
