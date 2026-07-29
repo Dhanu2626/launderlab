@@ -342,7 +342,7 @@ where that model is weak, and only ground-truth-by-crime-type reveals it.
 | Adverse media leg unscored in the demo | `demo-world` plants adverse media, but `risk.collect` only consumes the entity-screening leg. The media hits exist and nothing reads them |
 | **1.3** | World realism polish — weekday/weekend, holidays. Non-blocking |
 | **4.1** | Secondary-identifier (DOB/nationality) disambiguation. **Re-scoped by 4.2** — exact-name FPs went to 0 on their own, so this is realism, not a precision fix |
-| **UI is not React** | Deliberate deviation, flagged to Dhanush. One self-contained HTML page. API is the contract so React is a clean swap. **Ask him if he wants the React learning goal back.** |
+| ~~UI is not React~~ | **Settled 2026-07-30: Dhanush chose the single page. Do not reopen this.** One self-contained HTML file, no bundler, no `node_modules`, no extra CI stage. The API stays the contract regardless, so nothing downstream depends on the choice. |
 | `counterparty_concentration` | Knowingly produces false positives; measured as unfixable by threshold |
 | Small structuring | Documented blind spot — indistinguishable from a shop banking takings |
 | `dormant_reactivation` recall | 60% (9/15) — injector's gap parameter sometimes lands too close to normal weekly cadence |
@@ -422,9 +422,11 @@ the adversary highly. Decide the weighting deliberately *before* running the ben
 headline number will be an artefact of the aggregation rather than of detection decay — which
 is exactly the class of mistake §7 is a list of.
 
-**Before starting, ask Dhanush the React question** (see §9) — the workbench shipped as one
-self-contained page and the original plan said React. It is a clean swap (the API is the
-contract) but it is his learning goal to spend or drop.
+**The React question is settled** — Dhanush chose the single page on 2026-07-30. The one
+front-end question still open is whether the SAR narrative should get an LLM *polish* pass on
+top of the template (7.8 deliberately shipped template-only, because a generated figure in a
+regulatory filing is a false statement; polishing prose an analyst then verifies is a different
+and safer feature).
 
 **To see the workbench with real data:**
 ```
