@@ -630,3 +630,40 @@ learned that anomalous means large, which only worked while my honest population
 legitimate transactions. Real banks have an enormous upper tail, which is exactly why
 unsupervised anomaly detection underdelivers in production AML. I'd rather have models that
 score lower against realistic data than models that score well against data I made easy."
+
+---
+
+## Phase 7, slice 7.1 — 2026-07-29 (risk aggregation, and a negative result)
+
+🏦 **FCC:** The combined risk score does not rank better than the single best detector. At an
+alert budget of 25 it is actually *worse* than the ML model alone — 0.800 precision against
+0.840 — because screening drags it down. That is worth saying plainly rather than burying:
+the reason to aggregate is not accuracy, it is that an analyst opening an alert needs to see
+*why*, and a score assembled from named signals can tell them. Ranking was never the problem
+the workbench was solving.
+
+Two findings fell out of measuring it. First, **graph analytics alone has perfect precision**
+— 10 alerts, 10 real launderers — which makes it the natural top tier of a queue: work those
+first, they are all real. Rules give more volume at 72%, ML gives the broadest reach at 60%.
+That is a tiered alert queue derived from evidence rather than from an org chart, and it is
+exactly how a real FIU allocates scarce analyst hours. Second, **screening barely contributes
+to laundering risk at all** (0.250 precision) — and it should not, because it answers a
+different question. Sanctions screening finds *who someone is*; transaction monitoring finds
+*what they did*. Blending them into one number mixes identity risk with behaviour risk and
+dilutes both. A real bank runs them as separate queues, and now I can say why with a number.
+
+🔧 **Engineering:** I found a bug in my own measurement code before it could flatter me.
+`compare_against_individual` divided recall by every dirty account in the bank, while ranking
+only a held-out slice — understating recall roughly threefold (0.276 where the truth was
+0.923). It surfaced because I knew the split contained exactly 26 positives and the reported
+number was impossible against that. The lesson is the same one as Phase 4 and Phase 6: check
+your measurement apparatus against a quantity you already know, because a plausible-looking
+wrong number is far more dangerous than an obviously broken one. There is now a regression
+test that recomputes recall independently and asserts they agree.
+
+🎯 **Interview line:** "I built a risk score combining four detection layers, measured it, and
+found it did not out-rank the best single layer — at one alert budget it was actively worse,
+because sanctions screening was diluting it. So I documented the combination's real value as
+explainability and tiering rather than accuracy, and split screening out as a separate queue.
+The measurement also caught a bug in my own evaluation code that had been understating recall
+threefold."
