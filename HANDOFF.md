@@ -35,7 +35,7 @@ valuable thing here — preserve it. Details in §7.
 
 | | |
 |---|---|
-| Latest commit | `549d750` — "Phase 7.10: the workbench was combining two of its four layers" |
+| Latest commit | `f40ae75` — "Pre-Phase-8 audit: five claims that were not true" |
 | Working tree | clean, in sync with `origin/main` |
 | Tests | **233 passing**, zero skips (~3-9 min) |
 | Lint | `ruff` clean |
