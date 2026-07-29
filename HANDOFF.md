@@ -35,7 +35,7 @@ valuable thing here — preserve it. Details in §7.
 
 | | |
 |---|---|
-| Latest commit | `PHASE7` — "Phase 7 complete: link graph, disposition workflow, SAR narrative" |
+| Latest commit | `0f1d5d3` — "Phase 7 complete: link graph, disposition workflow, SAR narrative" |
 | Working tree | clean, in sync with `origin/main` |
 | Tests | **220 passing** (~9 min) |
 | Lint | `ruff` clean |
