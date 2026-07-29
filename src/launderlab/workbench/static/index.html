@@ -265,13 +265,9 @@ function renderStatement(e) {
     </tbody></table></div>${caption}`;
 }
 
-function renderOtherCases(e, currentCaseId) {
-  const others = e.open_cases.filter(id => id !== currentCaseId);
-  if (!others.length) return "";
-  return `<h3>Other open cases on this account</h3><div class="chain">` +
-    others.map(id => `<button onclick="openCase(${id})">Case ${esc(id)}</button>`).join(" ") +
-    `</div>`;
-}
+// No "other open cases" section: `cases.open_from_queue()` skips accounts that
+// already have a live case, so an account can only ever have one. Measured on the
+// proof world too — 0 of 50. Add it if a second entry point ever opens cases.
 
 async function openCase(caseId) {
   const dialog = document.getElementById("detail");
@@ -313,8 +309,7 @@ async function openCase(caseId) {
     const entity = await fetch(`/accounts/${encodeURIComponent(kase.account_id)}`
       + `?transaction_limit=500`).then(r => r.json());
     panel.innerHTML = renderProfile(entity) + renderActivity(entity)
-      + renderChains(entity) + renderOtherCases(entity, kase.case_id)
-      + renderStatement(entity);
+      + renderChains(entity) + renderStatement(entity);
   } catch (err) {
     panel.innerHTML = `<h3>Customer</h3>
       <div class="empty err">Could not load the entity view: ${esc(err.message)}</div>`;
