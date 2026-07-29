@@ -27,7 +27,11 @@ import time
 from datetime import date
 from pathlib import Path
 
+import numpy as np
+
 from launderlab.db.ledger import connect
+from launderlab.ml import features, models
+from launderlab.screening import inject as screening_inject
 from launderlab.typology import (
     dormant_reactivation,
     high_risk_geography,
@@ -55,9 +59,53 @@ SCHEME_MIX = {
 }
 
 
+def unsupervised_ml_scores(conn, budget: int = 100) -> dict[str, float]:
+    """Rank accounts by how unusual they look, and return only the top `budget`.
+
+    WHY A BUDGET AND NOT EVERY ACCOUNT. Returning a score for all 1,200 accounts
+    was the first version and it was wrong twice over. A model that scores
+    everything is not evidence about anyone — and because the aggregation adds
+    weight x score, a mid-ranked account picked up ~7 free points and borderline
+    accounts crossed the opening threshold on nothing but "the model mildly
+    dislikes you". It also swallowed the queue: every case that was not a chain or
+    a rule carried an ml signal, so sanctions hits were filed under "model-ranked".
+    An alert budget is how Phase 6 scored these models and how a bank runs one.
+
+    WHY UNSUPERVISED, and it is not a shortcut. The strongest model in the Phase 6
+    tournament is supervised, but it has to be trained on labels — and in a demo
+    there is only ONE world, so a supervised model would be scoring the same
+    accounts it was fitted on. Every training account would get a flattered
+    score and the queue would look sharper than the method really is. An
+    unsupervised model never sees a label at all, so fitting and scoring on the
+    same population leaks nothing: there is no answer key in the loop.
+
+    The honest cost is that these scores are weak — Phase 6 measured isolation
+    forest at 0.155 average precision once the world gained a realistic upper
+    tail of legitimate large payments. That is the true state of the art here,
+    and Tier 3 in the queue says so.
+    """
+    account_ids, _names, matrix = features.extract(conn)
+    if len(account_ids) < 2:
+        return {}
+
+    model = models.Isolation()
+    assert not model.needs_labels, "the demo must never fit a labelled model to itself"
+    raw = model.fit(np.asarray(matrix, dtype=float)).score(np.asarray(matrix, dtype=float))
+
+    # risk.collect expects 0-1. Min-max rather than a z-score: the aggregation
+    # treats the value as "how strong is this evidence", and an unsupervised
+    # score has no calibrated meaning beyond its rank within the population.
+    low, high = float(min(raw)), float(max(raw))
+    if high <= low:
+        return {}
+    ranked = sorted(zip(account_ids, (float(v) for v in raw)),
+                    key=lambda pair: pair[1], reverse=True)[:budget]
+    return {account: (value - low) / (high - low) for account, value in ranked}
+
+
 def build(path: Path = DEFAULT_DEMO_PATH, customers: int = 1200, days: int = 30,
-          seed: int = 7, min_score: float = 20.0, overwrite: bool = False,
-          mix: dict[str, int] | None = None) -> dict:
+          seed: int = 7, min_score: float | None = None, overwrite: bool = False,
+          mix: dict[str, int] | None = None, entity_count: int = 15) -> dict:
     """Generate, inject, detect and open cases. Returns a summary of what it made.
 
     `mix` overrides how many schemes of each typology to inject. It exists for
@@ -109,14 +157,35 @@ def build(path: Path = DEFAULT_DEMO_PATH, customers: int = 1200, days: int = 30,
     for i in range(count("high_risk_geography", 0)):
         high_risk_geography.inject(conn, f"G{i}", rng.choice(nri), window, rng)
 
-    scored = risk.score_accounts(conn)
-    opened = cases.open_from_queue(conn, scored, actor="system", min_score=min_score)
+    # Phase 4's leg needs its own planting: screening looks for sanctioned
+    # IDENTITIES, so without listed entities and adverse media in the world the
+    # screening weight contributes nothing and the demo shows a four-layer
+    # workbench exercising two.
+    entities = screening_inject.inject_entities(conn, rng, n=entity_count)
+    screening_inject.inject_adverse_media(conn, rng)
 
-    tiers = {"graph": 0, "rules": 0, "ml": 0}
+    ml_scores = unsupervised_ml_scores(conn)
+    scored = risk.score_accounts(conn, ml_scores=ml_scores)
+    threshold = risk.MIN_CASE_SCORE if min_score is None else min_score
+    opened = cases.open_from_queue(conn, scored, actor="system", min_score=threshold)
+    # How many cleared the bar versus how many an analyst can actually be given.
+    # Reported because the gap is where sanctions alerts go to die: they score
+    # 17.6-19.7 alone, so under ONE shared budget every behavioural case outranks
+    # them and they are never worked. Real banks queue screening separately for
+    # exactly this reason -- a sanctions match is a blocking obligation with its
+    # own clock, not a "review when you reach it".
+    eligible = sum(1 for entry in scored if entry.score >= threshold)
+
+    # Same tiering the queue uses, from the one place that owns the measurement.
+    tiers = dict.fromkeys(risk.TIER_ORDER, 0)
+    layers = dict.fromkeys(risk.TIER_ORDER, 0)
     for case in cases.queue(conn, status="open", limit=len(opened) or 1):
         sources = {signal.source for signal in case.signals}
-        tiers["graph" if "graph" in sources else
-              "rules" if "rules" in sources else "ml"] += 1
+        tier = next((t for t in risk.TIER_ORDER if t in sources), risk.TIER_ORDER[-1])
+        tiers[tier] += 1
+        for source in sources:
+            if source in layers:
+                layers[source] += 1
 
     summary = {
         "path": path,
@@ -124,8 +193,11 @@ def build(path: Path = DEFAULT_DEMO_PATH, customers: int = 1200, days: int = 30,
         "accounts": conn.execute("SELECT count(*) FROM accounts").fetchone()[0],
         "schemes": conn.execute(
             "SELECT count(DISTINCT scheme_id) FROM scheme_labels").fetchone()[0],
+        "entities": entities,
+        "eligible": eligible,
         "cases": len(opened),
         "tiers": tiers,
+        "layers": layers,
         "seconds": round(time.time() - started, 1),
     }
     conn.close()
@@ -143,9 +215,25 @@ def main(argv: list[str]) -> None:  # pragma: no cover - CLI wiring
     print(f"Demo world built in {summary['seconds']}s")
     print(f"  {summary['accounts']:,} accounts, {summary['transactions']:,} transactions")
     print(f"  {summary['schemes']} injected schemes across 6 typologies")
-    print(f"  {summary['cases']} cases opened - "
-          f"{summary['tiers']['graph']} network, {summary['tiers']['rules']} rule, "
-          f"{summary['tiers']['ml']} model")
+    print(f"  {summary['entities']} watchlist entities planted + adverse media")
+    tiers, layers = summary["tiers"], summary["layers"]
+    print(f"  {summary['cases']} of {summary['eligible']} eligible accounts opened "
+          f"as cases (alert budget), by tier: "
+          + ", ".join(f"{name} {tiers[name]}" for name in tiers))
+    print("  layers contributing to any case: "
+          + ", ".join(f"{name} {layers[name]}" for name in layers))
+    if not summary["tiers"]["ml"]:
+        # Not a build failure: an ml-only case tops out at 15.0 (weight 0.15) and
+        # the opening threshold sits above that deliberately, because a model-only
+        # alert has no reason to give an analyst.
+        print("  note: the model tier is empty by arithmetic, not for lack of signal;")
+        print(f"        model scores lifted {layers['ml']} cases another layer had "
+              f"already flagged")
+    if summary["cases"] < summary["eligible"]:
+        print(f"  note: {summary['eligible'] - summary['cases']} eligible accounts did not "
+              f"fit the budget - sanctions-only")
+        print("        hits score lowest and are cut first, which is why real banks queue "
+              "screening separately")
     print()
     print("Open the workbench on it:")
     print(f"  LAUNDERLAB_DB={summary['path']} "

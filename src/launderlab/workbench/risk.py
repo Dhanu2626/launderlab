@@ -68,24 +68,86 @@ DEFAULT_WEIGHTS = {
 # can produce, not fitted to one world's histogram.
 BANDS = [(60, "critical"), (40, "high"), (18, "medium"), (0, "low")]
 
-# Rule hits saturate with DIMINISHING RETURNS, not linearly.
+# The order the queue works evidence in. A case is tiered by the FIRST of these
+# it has a signal from, so a case with both a chain and a name match is worked as
+# network evidence.
 #
-# This was `min(n, 3) / 3` until the queue UI was actually looked at, and the bug
-# was only visible there: a real structuring scheme -- 27 cash deposits totalling
-# Rs 2.6M, which Phase 3 flags with high confidence -- trips exactly ONE rule, so
-# it scored 0.35 x 1/3 = 11.7 out of 100, landed in the "low" band and was
-# filtered out of the queue entirely. Meanwhile a mule account scored 34.2 and
-# appeared. The system was hiding genuine placement cases.
+# ORDERED BY HOW SPECIFIC A REASON THE ANALYST GETS, which is a firmer principle
+# than 7.1's precision numbers and gives a different answer. Graph names a path.
+# A rule names a scenario. Screening names a listed person. A model names
+# *nothing* — it only ranks — so it is genuinely the last resort: "no layer could
+# say why, but this account looks unlike its peers".
 #
-# The flaw was treating one rule as a third of a signal. In practice most real
-# cases trip exactly one scenario; a second is meaningful corroboration, a third
-# adds little. So: 1 hit -> 0.60, 2 -> 0.84, 3 -> 0.94, saturating at 1.0.
-RULE_DECAY = 0.4
+# Using 7.1's standalone precisions (graph 1.000, rules 0.72, ml 0.60, screening
+# 0.250) to order this was a stretch, and it broke as soon as the model was wired
+# into the demo world: those figures measure each layer as a lone ranker, not the
+# value of a signal sitting alongside another. With ml ahead of screening, every
+# sanctions hit that also happened to be model-ranked was filed under
+# "model-ranked" — the analyst is told a model found it when a watchlist did.
+# The precision figures still belong in the tier descriptions, as context.
+#
+# Canonical here rather than in the page so the two cannot drift; a test pins the
+# UI's ordering to this list.
+TIER_ORDER = ("graph", "rules", "screening", "ml")
+
+# The score at which an account is worth opening a case on.
+#
+# This was 20.0 and it silently destroyed most of Phase 4. A screening-only case
+# scores weight x match, so with weight 0.20 its ceiling is *exactly* 20.0 — an
+# account only opened a case on a PERFECT 1.000 name match. Every transliteration,
+# initials and reordered variant the fuzzy matcher exists to catch scored
+# 0.887-0.984, landing at 17.7-19.7, and was dropped at the gate. 14 of the 15
+# planted watchlist entities never reached an analyst. Phase 4 measured 100%
+# recall; the aggregation then threw it away, and nothing failed.
+#
+# So the threshold is derived from both sides rather than picked:
+#
+#   floor  — screening's own accept threshold is 0.88, so the least it will ever
+#            assert is 0.88 x 0.20 x 100 = 17.6. Anything a control is willing to
+#            flag must be able to open a case, or the control is decoration.
+#   ceiling— the model's maximum contribution is 0.15 x 1.0 x 100 = 15.0, and the
+#            threshold must stay ABOVE it. That is deliberate, not incidental: a
+#            model-only alert has no reason to give an analyst, and "the model said
+#            so" is not a Suspicious Activity Report. The model corroborates and
+#            ranks; it does not open cases by itself.
+#
+# A test pins this window, so changing any weight forces the decision to be made
+# again rather than quietly breaking a layer.
+MIN_CASE_SCORE = 17.5
+
+# Evidence saturates with DIMINISHING RETURNS, not linearly.
+#
+# This was `min(n, 3) / 3` for rules until the queue UI was actually looked at,
+# and the bug was only visible there: a real structuring scheme -- 27 cash
+# deposits totalling Rs 2.6M, which Phase 3 flags with high confidence -- trips
+# exactly ONE rule, so it scored 0.35 x 1/3 = 11.7 out of 100, landed in the "low"
+# band and was filtered out of the queue entirely. Meanwhile a mule account
+# scored 34.2 and appeared. The system was hiding genuine placement cases.
+#
+# The flaw was treating one piece of evidence as a fraction of a signal. In
+# practice most real cases trip exactly one scenario; a second is meaningful
+# corroboration, a third adds little. So: 1 -> 0.60, 2 -> 0.84, 3 -> 0.94.
+#
+# THE GRAPH LAYER HAD THE IDENTICAL BUG and it survived three more slices, because
+# every chain in the demo world happens to be 3 hops long. Chain strength was
+# `min(hops, 4) / 4`, so the SHORTEST chain Phase 5 will report -- 2 hops, which
+# is real, named, traceable evidence with both ledger rows behind it -- scored
+# half. At weight 0.30 that is 15.0 out of 100, exactly the model's own ceiling,
+# which made the case-opening threshold unsatisfiable: no single cut could admit a
+# minimal chain while excluding a model-only alert. Found by a test written about
+# the threshold, not about the graph. Same curve, same reason.
+DECAY = 0.4
 
 
-def rule_strength(hits: int) -> float:
-    """Diminishing-returns weight for `hits` distinct rules firing on one account."""
-    return 1.0 - RULE_DECAY ** max(hits, 0) if hits else 0.0
+def corroboration_strength(count: int) -> float:
+    """Diminishing-returns weight for `count` independent pieces of one kind of
+    evidence: 1 -> 0.60, 2 -> 0.84, 3 -> 0.94, saturating at 1.0."""
+    return 1.0 - DECAY ** max(count, 0) if count else 0.0
+
+
+# Kept as a name because the rules path reads better with it, and because
+# `rule_strength` is referenced by 7.4's regression test.
+rule_strength = corroboration_strength
 
 
 @dataclass(frozen=True)
@@ -160,8 +222,11 @@ def collect(conn: duckdb.DuckDBPyConnection,
     # Phase 5 — graph. Position in a pass-through chain.
     graph = graph_build.build_graph(conn)
     for chain in motifs.find_chains(graph):
-        # a longer chain is stronger evidence, saturating at 4 hops
-        strength = min(chain.hops, 4) / 4
+        # a longer chain is stronger evidence, with diminishing returns -- and
+        # crucially the SHORTEST reportable chain is not worth half a signal. See
+        # the note on DECAY: linear-in-hops made a 2-hop chain score exactly as
+        # much as a model guess.
+        strength = corroboration_strength(chain.hops)
         for account_id in chain.accounts:
             add(account_id, RiskSignal(
                 source="graph",

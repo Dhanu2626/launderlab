@@ -119,6 +119,39 @@ def test_a_single_rule_case_is_not_labelled_low_risk(world):
     assert both.score > one_rule.score
 
 
+def test_the_case_opening_threshold_lets_every_control_open_a_case_except_the_model(world):
+    """This threshold was 20.0 and it silently destroyed most of Phase 4.
+
+    A screening-only case scores weight x match, so with weight 0.20 its ceiling is
+    *exactly* 20.0 — only a perfect 1.000 name match could open one. Every
+    transliteration and reordered variant the fuzzy matcher exists to catch scored
+    0.887-0.984, landing just below the gate, and 14 of 15 planted watchlist
+    entities never reached an analyst. Phase 4 measured 100% recall and the
+    aggregation threw it away without anything failing.
+
+    So the threshold has to sit inside a window, and this pins it: below what any
+    control is willing to assert, above what the model alone can produce.
+    """
+    from launderlab.graph import motifs
+    from launderlab.screening.matcher import DEFAULT_THRESHOLD
+
+    weights = risk.DEFAULT_WEIGHTS
+    quietest_control = min(
+        weights["rules"] * risk.corroboration_strength(1),   # one scenario fires
+        weights["screening"] * DEFAULT_THRESHOLD,            # the faintest match allowed
+        weights["graph"] * risk.corroboration_strength(      # the shortest chain reported
+            motifs.DEFAULT_MIN_HOPS),
+    ) * 100
+    model_alone = weights["ml"] * 1.0 * 100
+
+    assert model_alone < risk.MIN_CASE_SCORE, (
+        "a model-only alert would open a case; it has no reason to give an analyst, "
+        "and 'the model said so' is not a SAR")
+    assert risk.MIN_CASE_SCORE <= quietest_control, (
+        f"a control can flag something ({quietest_control:.1f}) that cannot open a case "
+        f"({risk.MIN_CASE_SCORE}) - that control is decoration")
+
+
 def test_every_band_is_reachable_by_some_real_combination(world):
     """A vocabulary with words nothing can ever be is not a vocabulary. Before
     this was measured, no account in the whole demo bank could exceed 43.5, so

@@ -323,8 +323,34 @@ def test_ui_draws_the_chain_and_offers_the_narrative(client):
 
 
 def test_ui_tiers_match_the_measured_evidence_hierarchy(client):
-    """Slice 7.1 measured graph > rules > ML by precision; the queue is ordered
-    that way deliberately, so a regression in the UI's ordering is a real bug."""
+    """Slice 7.1 measured precision on held-out accounts: graph 1.000, rules 0.72,
+    ML 0.60, screening 0.250. The queue is ordered that way deliberately, so a
+    regression in the UI's ordering is a real bug.
+
+    Screening is a tier of its own rather than folded in with the model: it finds
+    sanctioned *identities*, not laundering *behaviour*, and while it was silent
+    (no watchlist entities in any demo world) its hits fell through into the tier
+    headed "model-ranked" — telling an analyst a model had ranked a name match."""
+    from launderlab.workbench import risk
+
     html = client.get("/").text
-    positions = [html.index(f'key: "{source}"') for source in ("graph", "rules", "ml")]
+    positions = [html.index(f'key: "{source}"') for source in risk.TIER_ORDER]
     assert positions == sorted(positions), "tiers must stay in measured precision order"
+    assert "sanctions / PEP match" in html
+    # the page and risk.TIER_ORDER must not drift apart
+    assert len(positions) == html.count('key: "')
+
+
+def test_ui_explains_a_tier_that_cannot_fill_rather_than_looking_quiet(client):
+    """An empty tier reads as "nothing unusual today". For the model tier that
+    would be false: the ml weight is 0.15, so a model-only case tops out at 15 of
+    100 while a case opens at 20 — it cannot appear there by arithmetic."""
+    from launderlab.workbench import risk
+
+    html = client.get("/").text
+    assert "emptyNote" in html, "an empty tier must be able to explain itself"
+    assert "Empty by arithmetic" in html
+    # the note quotes the model's ceiling; if a re-weighting moves it the note lies
+    ceiling = risk.DEFAULT_WEIGHTS["ml"] * 100
+    assert f"{ceiling:.1f} of 100" in html
+    assert ceiling < risk.MIN_CASE_SCORE, "the note is only true while this holds"

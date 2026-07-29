@@ -945,3 +945,60 @@ and risk bands calibrated to a score nothing could ever reach. All three surface
 way — by putting a number in front of a person next to a decision they had to make. Detection
 metrics tell you whether a detector is right; only the investigator's screen tells you whether
 the output is usable, and that gap is where AML programmes actually fail."
+
+
+---
+
+## Phase 7, slice 7.10 — 2026-07-30 (the same bug, four times)
+
+🏦 **FCC:** The workbench exists to combine four detection layers and it had been demonstrating
+two. Nothing planted watchlist entities in the demo world, so screening never fired; nothing
+passed model scores, so the models never contributed. Ten lines fixed the demo. Then the
+interesting part: **fuzzy sanctions screening was being discarded wholesale.** A screening-only
+case scores weight × match, and at weight 0.20 its ceiling is exactly 20.0 — which was the
+threshold at which a case opens. So only a *perfect* 1.000 name match ever reached an analyst.
+Every transliteration, every reordered name, every initials variant — 0.887 to 0.984, which is
+the entire reason a fuzzy matcher exists rather than a string comparison — landed between 17.7
+and 19.7 and was thrown away at the gate. Fourteen of fifteen planted entities. Phase 4 had
+measured 100% recall and been quietly proud of it; the layer above it deleted the result.
+
+This is the most consequential thing I have found in the project, because in the real world it
+is not a missed alert, it is a missed *blocking obligation*. A sanctions hit is not a "review
+when you get to it" item. And the related finding is the same shape: under one shared alert
+budget, sanctions-only hits score lowest of anything and are cut first — 42 of 92 eligible
+accounts did not fit. That is precisely why banks run screening as its own queue with its own
+clock, and I now understand that as arithmetic rather than as organisational trivia.
+
+🔧 **Engineering:** The threshold is no longer a number someone picked. It is derived from both
+directions: it must sit **above** what the model alone can produce (0.15 × 1.0 = 15.0, because
+a model-only alert has no reason to give an analyst and "the model said so" is not a SAR) and
+**at or below** the faintest thing any control is willing to assert (screening's own accept
+threshold, 0.88 × 0.20 = 17.6). That leaves 17.5, and a test pins the window — so changing any
+weight now fails a test and forces the decision to be made rather than silently breaking a
+layer.
+
+That test then earned its keep in its first run by catching **7.4's bug living in the graph
+layer**, where it had survived three slices for the dumbest possible reason: every chain in the
+demo world happens to be exactly 3 hops long. Chain strength was `min(hops, 4) / 4`, so the
+shortest chain Phase 5 will report — 2 hops, real named evidence with both ledger rows behind
+it — scored half, landing at 15.0, *exactly* the model's ceiling and making the threshold
+window mathematically unsatisfiable. Identical to treating one rule as a third of a signal, and
+fixed with the identical curve, now shared.
+
+Four instances of one root cause: **a global cut applied to a score whose scale depends on
+which layers happened to fire.** Bands (7.8), the model tier, screening's gate, the graph
+curve. I keep finding this because the weighted sum makes it invisible — every individual
+number looks reasonable, and the defect only exists in the interaction. The general lesson: if
+a threshold and a weight are chosen in different places at different times, something is
+already broken and nothing will tell you.
+
+🎯 **Interview line:** "I found that my system was discarding fourteen of fifteen sanctions
+matches. A screening-only alert scored the layer's weight times the match confidence — 0.20 ×
+0.98 — which landed just under the threshold at which a case opens. Only a perfect 1.000 name
+match ever reached an analyst, so every transliteration, the entire reason you run a fuzzy
+matcher, was thrown away one layer above the matcher that correctly found it. Nothing failed:
+the threshold and the weight were chosen in different places at different times, and the defect
+only existed in their interaction. I fixed it by deriving the threshold from both sides — above
+what a model alone can score, at or below the faintest thing any control will assert — and
+pinned that window with a test, which then immediately caught the same bug hiding in my graph
+layer."

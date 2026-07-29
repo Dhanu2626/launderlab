@@ -32,7 +32,7 @@ from datetime import datetime
 
 import duckdb
 
-from launderlab.workbench.risk import RiskScore, RiskSignal
+from launderlab.workbench.risk import MIN_CASE_SCORE, RiskScore, RiskSignal
 
 DISPOSITIONS = {
     "false_positive": "Reviewed and cleared — activity explained.",
@@ -212,7 +212,7 @@ def queue(conn: duckdb.DuckDBPyConnection, status: str | None = "open",
 
 
 def open_from_queue(conn: duckdb.DuckDBPyConnection, scores: list[RiskScore], actor: str,
-                    min_score: float = 30.0, limit: int = 50) -> list[int]:
+                    min_score: float = MIN_CASE_SCORE, limit: int = 50) -> list[int]:
     """Open cases for the highest-risk accounts that do not already have one.
 
     Skipping accounts with a live case matters: re-running detection is routine,

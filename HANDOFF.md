@@ -37,7 +37,7 @@ valuable thing here — preserve it. Details in §7.
 |---|---|
 | Latest commit | `0f1d5d3` — "Phase 7 complete: link graph, disposition workflow, SAR narrative" |
 | Working tree | clean, in sync with `origin/main` |
-| Tests | **220 passing** (~9 min) |
+| Tests | **226 passing** (~3-9 min) |
 | Lint | `ruff` clean |
 | CI | GitHub Actions green on every push |
 | Phases complete | 0, 2, 3, 4, 5, 6, **7** fully; 1 core (polish deferred) |
@@ -53,7 +53,7 @@ valuable thing here — preserve it. Details in §7.
 | 4 | Screening | ✅ complete; slice **4.1** open (re-scoped, low value) |
 | 5 | Graph Analytics | ✅ complete |
 | 6 | ML Tournament | ✅ complete — all 6 model families |
-| 7 | Investigator Workbench | ✅ complete — 7.1–7.9, queue → entity 360 → link graph → disposition → SAR draft |
+| 7 | Investigator Workbench | ✅ complete — 7.1–7.10, queue → entity 360 → link graph → disposition → SAR draft, all four layers reaching an analyst |
 | 8 | Red Team co-evolution | ⬜ **not started — this is next** |
 | 8.5 | Multi-bank experiment | ⬜ not started |
 | 9 | Story Mode + launch | ⬜ not started |
@@ -264,6 +264,19 @@ where that model is weak, and only ground-truth-by-crime-type reveals it.
    needs all four layers firing at once. Re-derived from the signal algebra to 60/40/18/0.
    **Three phases running, the bug was found by rendering a number for a human, not by a
    test** (7.4 queue, 7.5 statement, 7.8 narrative).
+10. **Phase 7.10 — the biggest one, and the same defect four times.** Wiring the two
+   unused detection layers into the demo world exposed that **screening was being discarded
+   wholesale**: a screening-only case scores weight × match, so at weight 0.20 its ceiling
+   is *exactly* 20.0, which was the case-opening threshold. Only a perfect 1.000 name match
+   ever reached an analyst — every transliteration and reordered variant (0.887-0.984,
+   the whole reason a fuzzy matcher exists) landed at 17.7-19.7 and was dropped at the gate.
+   **14 of 15 planted entities.** Phase 4 measured 100% recall; the layer above deleted it.
+   The threshold is now derived from both sides (`risk.MIN_CASE_SCORE`), and the test pinning
+   that window immediately caught **7.4's bug living in the graph layer** — chain strength
+   was `min(hops,4)/4`, so a 2-hop chain (Phase 5's shortest reportable) scored 15.0, exactly
+   the model's ceiling. Hidden for three slices because every chain in the demo world happens
+   to be 3 hops. One root cause behind all four: **a global threshold applied to a score whose
+   scale depends on which layers fired.**
 
 ---
 
@@ -299,6 +312,22 @@ where that model is weak, and only ground-truth-by-crime-type reveals it.
   Derived from the signal algebra — do not re-fit them to one world's histogram.
 - **The disposition list is served by the API, never hardcoded in the UI**, and a test asserts
   no disposition string appears in the page.
+- **`risk.MIN_CASE_SCORE` (17.5) is DERIVED, not chosen**: above the model's 15.0 ceiling (a
+  model-only alert has no reason to give an analyst) and at or below the faintest thing any
+  control will assert (screening's 0.88 accept threshold × 0.20 = 17.6). A test pins that
+  window — **if you change any weight, that test fails on purpose.** Do not widen it to make
+  it pass; re-derive.
+- **Evidence strength uses one shared diminishing-returns curve** (`corroboration_strength`,
+  `1 - 0.4^n`) for rules AND graph hops. Linear-in-count made the minimum reportable case
+  score a fraction of a signal — the 7.4 bug, which was found twice in two different layers.
+- **`risk.TIER_ORDER` is canonical** and ordered by *how specific a reason the analyst gets*
+  (graph names a path, a rule names a scenario, screening names a person, a model names
+  nothing), NOT by 7.1's standalone precisions — those measure each layer as a lone ranker,
+  and using them filed sanctions hits under a "model-ranked" heading. A test pins the page to
+  this list.
+- **The demo's ML scores are unsupervised and budgeted** (isolation forest, top 100). One
+  world means a supervised model would score the accounts it was fitted on; and scoring
+  *every* account gave mid-ranked ones ~7 free points toward the opening threshold.
 
 ---
 
@@ -308,8 +337,9 @@ where that model is weak, and only ground-truth-by-crime-type reveals it.
 |---|---|
 | Statement ceiling | The entity screen requests 500 transactions, the endpoint's max. A busier account still truncates — it says so in a caption, but paginate when a world produces one (`ponytail:` comment in `index.html`) |
 | Only graph can cite its own rows | Rules emit a reason string, screening answers an identity question, ML emits a score — none records *which* transactions made it fire, so the SAR annex is ranked by value and says so. Making rules record their triggering txn ids would upgrade every narrative |
-| ML never contributes in practice | `risk.score_accounts(conn)` is called without `ml_scores`, so Tier 3 is always empty and the ml weight (0.15) is unreachable in the demo. Wiring a trained model into the demo world is a real slice |
-| Screening not in the demo world | `demo-world` injects typologies but not Phase 4's watchlist entities/adverse media, so the screening leg contributes nothing there |
+| **The model tier cannot fill** | By arithmetic, and deliberately: the ml weight is 0.15, so a model-only case tops out at 15.0 and the opening threshold sits above it, because an alert with no explainable reason should not open a case. The UI says this in the empty tier rather than looking quiet. **Letting it fill is a re-weighting decision — and it is the tier that matters most against a red team that has learned to evade the named scenarios, so Phase 8 will have to face it.** |
+| **Sanctions lose the shared alert budget** | Screening-only hits score 17.6-19.7, the lowest of any control, so under one budget every behavioural case outranks them — 42 of 92 eligible accounts did not fit. Real banks queue screening separately under its own obligation clock; a per-tier budget in `open_from_queue` would model that |
+| Adverse media leg unscored in the demo | `demo-world` plants adverse media, but `risk.collect` only consumes the entity-screening leg. The media hits exist and nothing reads them |
 | **1.3** | World realism polish — weekday/weekend, holidays. Non-blocking |
 | **4.1** | Secondary-identifier (DOB/nationality) disambiguation. **Re-scoped by 4.2** — exact-name FPs went to 0 on their own, so this is realism, not a precision fix |
 | **UI is not React** | Deliberate deviation, flagged to Dhanush. One self-contained HTML page. API is the contract so React is a clean swap. **Ask him if he wants the React learning goal back.** |
@@ -317,8 +347,8 @@ where that model is weak, and only ground-truth-by-crime-type reveals it.
 | Small structuring | Documented blind spot — indistinguishable from a shop banking takings |
 | `dormant_reactivation` recall | 60% (9/15) — injector's gap parameter sometimes lands too close to normal weekly cadence |
 | Watchlist | **Synthetic**, not real OFAC/UN data. Swap via `LAUNDERLAB_WATCHLIST` |
-| MCP server demo | Fixed by 7.9 — point it at `data/demo.duckdb`. Entities/media still not planted there, so `screen_name`/`adverse_media_check` remain quiet |
-| Test suite runtime | ~9 min (220 tests). Do not run two full suites concurrently (once took 72 min). `test_demo.py` is the slowest file — a structuring injection costs ~4s |
+| MCP server demo | Fixed by 7.9 + 7.10 — point it at `data/demo.duckdb`: typologies, watchlist entities AND adverse media are all planted, so `run_detection`, `screen_name` and `adverse_media_check` all surface real hits |
+| Test suite runtime | ~3-9 min (226 tests). Do not run two full suites concurrently (once took 72 min). `test_demo.py` is the slowest file — a structuring injection costs ~4s |
 
 ---
 
@@ -383,6 +413,14 @@ The first design call is what the red team is allowed to mutate: injector *param
 (amounts, gaps, hop counts, chain lengths) is the honest version, because those are the knobs
 a real launderer has. Letting it mutate against the detectors' own thresholds would be
 training on the answer key — the same boundary violation the whole project is built to avoid.
+
+**Phase 8 will force the model-tier decision.** The adversary's whole purpose is evading named
+scenarios; when it succeeds, rules and graph go quiet and the model is the only layer left. At
+the current weights a model-only alert cannot open a case (15.0 vs a 17.5 threshold), so the
+decay benchmark would measure the stack going blind while the model was in fact still ranking
+the adversary highly. Decide the weighting deliberately *before* running the benchmark, or the
+headline number will be an artefact of the aggregation rather than of detection decay — which
+is exactly the class of mistake §7 is a list of.
 
 **Before starting, ask Dhanush the React question** (see §9) — the workbench shipped as one
 self-contained page and the original plan said React. It is a clean swap (the API is the

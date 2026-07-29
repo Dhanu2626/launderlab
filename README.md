@@ -47,9 +47,10 @@ set LAUNDERLAB_DB=data\demo.duckdb
 .venv\Scripts\python -m uvicorn launderlab.workbench.api:app --port 8787
 ```
 
-`demo-world` generates 1,200 accounts and 78,556 transactions, injects all six typologies,
-runs the whole detection stack and opens the cases an analyst would find waiting — 50 of
-them, across two evidence tiers, in about a minute. Then open <http://127.0.0.1:8787/>.
+`demo-world` generates 1,200 accounts and 78,556 transactions, injects all six typologies
+plus watchlist entities and adverse media, runs the whole detection stack and opens the cases
+an analyst would find waiting — 50 of 92 eligible accounts, in about 20 seconds. It reports what
+it had to cut, and why. Then open <http://127.0.0.1:8787/>.
 
 Smaller pieces:
 
@@ -208,10 +209,18 @@ Every one of these passed a full test suite. None of them was a coding error.
 | Alert queue (7.4) | Rule strength was `min(n,3)/3`, so a genuine structuring scheme — 27 cash deposits, ₹26 lakh — tripped exactly one rule, scored 11.7/100 and **fell below the queue cut-off**. Confirmed placement cases were invisible to analysts, while mule accounts at 34.2 appeared. 178 tests passed, because every one asserted *relative* behaviour, and that stayed true. |
 | Entity 360 (7.5) | The transaction endpoint defaults to the latest 100 rows. An account alerted for **89 cash deposits** rendered a statement starting a week after the account's own history did — the evidence screen was truncating the evidence. Truncation is invisible by construction: it looks like a shorter list. |
 | Risk bands (7.8) | Printing a SAR narrative showed a confirmed structuring scheme describing itself to a Financial Intelligence Unit as **"low band"**. Measured across the bank: all 50 cases were low or medium, and the highest score that existed anywhere was 43.5. `high` and `critical` were words describing nothing, because the thresholds assumed a 100 that needs all four layers firing at once on one account. |
+| Sanctions screening (7.10) | A screening-only alert scores the layer's weight × the match confidence, so at weight 0.20 its ceiling was *exactly* the threshold at which a case opens. Only a **perfect 1.000 name match** ever reached an analyst — every transliteration and reordered variant, the entire reason a fuzzy matcher exists, scored 0.887-0.984 and was dropped at the gate. **14 of 15 planted watchlist entities.** Phase 4 had measured 100% recall; the layer above it deleted the result. |
+| Graph strength (7.10) | The test written to pin the fix above caught the *same bug as 7.4* hiding in the graph layer: chain strength was `min(hops,4)/4`, so a 2-hop chain — the shortest Phase 5 reports, real evidence with both ledger rows behind it — scored half. Invisible for three slices because every chain in the demo world happens to be 3 hops. |
 
-The pattern is the point. Detection metrics grade a detector against ground truth; nothing
-grades whether its output is *usable*. All three surfaced the same way — by rendering a
-number where a person had to read it next to a decision.
+The pattern is the point, and by the end it had a name. Three of these surfaced by rendering
+a number where a person had to read it next to a decision — detection metrics grade a
+detector against ground truth, but nothing grades whether its output is *usable*. The last two
+share a single root cause: **a global threshold applied to a score whose scale depends on which
+layers happened to fire.** Every individual number looked reasonable; the defect existed only in
+the interaction. So the case-opening threshold is now *derived* rather than chosen — above what
+a model alone can score, at or below the faintest thing any control will assert — and a test
+pins that window, so changing a weight fails on purpose instead of silently switching off a
+control.
 
 ## What gets built
 
