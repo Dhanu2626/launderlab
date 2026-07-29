@@ -7,7 +7,15 @@ dependencies = ["duckdb>=1.0", "jellyfish>=1.0", "networkx>=3.0", "scikit-learn>
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.5"]
-mcp = ["mcp>=1.28"]
+# Capped at <2 deliberately. `mcp_server.py` imports `mcp.server.fastmcp`, which
+# is the 1.x path; mcp 2.0.0 moved it. With an open upper bound a fresh install
+# resolved to 2.0.0, the import failed, and because the test module guards itself
+# with `pytest.importorskip` the whole MCP server silently dropped out of the test
+# run -- and the README's documented `pip install -e ".[mcp]"` produced a server
+# that could not start. Found in CI on 2026-07-30 only because the job began
+# failing on skips; before that it looked like a pass. Lift the cap when the code
+# is migrated to the 2.x API, not before.
+mcp = ["mcp>=1.28,<2"]
 # The investigator workbench backend. Optional so the detection stack stays
 # installable without a web server; the API tests skip cleanly when absent.
 api = ["fastapi>=0.110", "uvicorn>=0.27", "httpx>=0.27"]
