@@ -1,6 +1,6 @@
 # LaunderLab — project handoff
 
-**Written 2026-07-29, updated 2026-07-30 (Phase 7 complete) for a Claude session that has
+**Written 2026-07-29, updated 2026-07-31 (Phase 8 complete) for a Claude session that has
 none of the previous conversation.**
 Everything needed to continue is here or is pointed at from here. Read this file first,
 then `PROJECT.md`, then the last entry in `ledger/FIELD-NOTES.md`.
@@ -31,16 +31,16 @@ valuable thing here — preserve it. Details in §7.
 
 ---
 
-## 2. Current state — verified 2026-07-30
+## 2. Current state — verified 2026-07-31
 
 | | |
 |---|---|
-| Latest commit | `13e58aa` — "Phase 7.12: adverse media measured as a scoring signal, and rejected" |
+| Latest commit | *(pin after this session's Phase 8 commit lands — see `git log --oneline -1`)* |
 | Working tree | clean, in sync with `origin/main` |
-| Tests | **242 passing**, zero skips (~9 min) |
+| Tests | **258 passing**, zero skips (~8 min) |
 | Lint | `ruff` clean |
-| CI | GitHub Actions green on every push — **and since 2026-07-30 it actually runs everything**: installs `[dev,api,mcp]` + CPU torch and **fails if any test skips**. Before that it installed only `[dev]` and ran 178 of 226 tests |
-| Phases complete | 0, 2, 3, 4, 5, 6, **7** fully; 1 core (polish deferred) |
+| CI | GitHub Actions green on every push — installs `[dev,api,mcp]` + CPU torch and **fails if any test skips** |
+| Phases complete | 0, 2, 3, 4, 5, 6, 7, **8** fully; 1 core (polish deferred) |
 
 **Phase status at a glance**
 
@@ -54,8 +54,8 @@ valuable thing here — preserve it. Details in §7.
 | 5 | Graph Analytics | ✅ complete |
 | 6 | ML Tournament | ✅ complete — all 6 model families |
 | 7 | Investigator Workbench | ✅ complete — 7.1–7.12, queue → entity 360 → link graph → disposition → SAR draft, all four layers reaching an analyst |
-| 8 | Red Team co-evolution | ⬜ **not started — this is next** |
-| 8.5 | Multi-bank experiment | ⬜ not started |
+| 8 | Red Team co-evolution | ✅ complete — 8-generation decay benchmark, non-uniform decay across typologies (see §13) |
+| 8.5 | Multi-bank experiment | ⬜ **not started — pick this or Phase 9 next** |
 | 9 | Story Mode + launch | ⬜ not started |
 
 ---
@@ -144,11 +144,14 @@ src/launderlab/
   workbench/api.py      FastAPI (7.3) — incl. GET /cases/{id}/narrative
   workbench/narrative.py  SAR narrative draft, template not LLM (7.8)
   workbench/media_experiment.py  scorer-only: does adverse media earn a weight? (7.12 - no)
-  viz.py                `python -m launderlab charts` - SVG charts from the SCORERS
   workbench/static/index.html   the whole UI: tiered queue (7.4), entity 360 (7.5),
                         link-graph SVG (7.6), disposition workflow (7.7), SAR draft (7.8)
   demo.py               `python -m launderlab demo-world` — world + crime + cases (7.9)
-  viz.py                `python -m launderlab charts` — SVG charts from the SCORERS (7.11)
+  viz.py                `python -m launderlab charts` — SVG charts from the SCORERS (7.11);
+                        also `render_redteam()` — Phase 8's decay chart, own page
+  redteam.py            `python -m launderlab redteam` — Phase 8 co-evolution benchmark:
+                        one mutating Knob/Genome per typology, `run_decay_benchmark()`,
+                        `report()` incl. post-convergence stability
 
   mcp_server.py         AML MCP server — 6 read-only tools, every call audited
 ```
@@ -351,21 +354,21 @@ where that model is weak, and only ground-truth-by-crime-type reveals it.
 |---|---|
 | Statement ceiling | The entity screen requests 500 transactions, the endpoint's max. A busier account still truncates — it says so in a caption, but paginate when a world produces one (`ponytail:` comment in `index.html`) |
 | Only graph can cite its own rows | Rules emit a reason string, screening answers an identity question, ML emits a score — none records *which* transactions made it fire, so the SAR annex is ranked by value and says so. Making rules record their triggering txn ids would upgrade every narrative |
-| **The model tier cannot fill** | By arithmetic, and deliberately: the ml weight is 0.15, so a model-only case tops out at 15.0 and the opening threshold sits above it, because an alert with no explainable reason should not open a case. The UI says this in the empty tier rather than looking quiet. **Letting it fill is a re-weighting decision — and it is the tier that matters most against a red team that has learned to evade the named scenarios, so Phase 8 will have to face it.** |
+| **The model tier cannot fill** | By arithmetic, and deliberately: the ml weight is 0.15, so a model-only case tops out at 15.0 and the opening threshold sits above it, because an alert with no explainable reason should not open a case. The UI says this in the empty tier rather than looking quiet. **Phase 8 confirmed why this matters, concretely rather than hypothetically**: `mule_network` recall fell from 100% to 0% by generation 7 against a real adaptive adversary, and `shell_company` fell from 70% to 0% by generation 2 and stayed there. When rules and graph go quiet like that, the model is the only layer left that could still see something — and at the current weights it cannot open a case alone. **Letting it fill is a re-weighting decision that is now overdue, not hypothetical.** |
+| **Phase 8 measured rules + graph decay only** | Deliberately (see `redteam.py` docstring) — whether a TRAINED model (Phase 6) decays faster or slower than static SQL thresholds against the same adaptive adversary is a real, different question, left open for a later slice |
+| **Phase 8's numbers are from one seed** | `run_decay_benchmark` ran once (seed 41, 8 generations). The generation-of-convergence figures are a real measured data point, not yet a stable population statistic. Average over several seeds before treating a specific generation count as more than an example |
 | **Sanctions lose the shared alert budget** | Screening-only hits score 17.6-19.7, the lowest of any control, so under one budget every behavioural case outranks them — 42 of 92 eligible accounts did not fit. Real banks queue screening separately under its own obligation clock; a per-tier budget in `open_from_queue` would model that |
 | ~~Adverse media leg unscored~~ | **FINAL ARCHITECTURAL DECISION — confirmed by Dhanush 2026-07-30. Do not reopen without a new measurement.** Adverse media stays investigator context on the Entity-360 screen ("context, not evidence") and carries weight 0.0 in the risk score, permanently. 7.12 measured it: of 21 accounts it flags, 1 is laundering, and the set of laundering accounts only media reaches is **empty** — so no weighting can add a true positive, and every weighting tried displaced real cases out of the alert budget. `risk.collect(media_mode=...)` keeps the experiment reproducible; production stays `media_mode="off"`. If a future world or a future analyst ever makes the unique-reach set non-empty, that is new evidence and re-running `python -m launderlab media-experiment` is the correct way to revisit this — but the decision itself does not get re-argued casually. |
 | **Single-rule cases are all tied** | Every one scores exactly 0.35 × 0.60 = 21.00, so a 27-deposit structuring scheme and an 89-deposit one are indistinguishable to the queue — and on the demo world 45 accounts sit on that value with the budget cut inside the cluster. Ties now break on account id so the queue is at least *reproducible*, but giving rules a magnitude-aware confidence is a real scoring change needing its own measurement |
-| **1.3 world realism** | Weekday/weekend variation, holidays. Open since 2026-07-26, non-blocking, and has blocked nothing across five phases. The only reason Phase 1's roadmap box is unchecked |
+| **1.3 world realism** | Weekday/weekend variation, holidays. Open since 2026-07-26, non-blocking, and has blocked nothing across eight phases. The only reason Phase 1's roadmap box is unchecked |
 | **4.1 secondary identifiers** | DOB/nationality disambiguation. Re-scoped by 4.2 to a realism item rather than a precision fix |
-| **1.3** | World realism polish — weekday/weekend, holidays. Non-blocking |
-| **4.1** | Secondary-identifier (DOB/nationality) disambiguation. **Re-scoped by 4.2** — exact-name FPs went to 0 on their own, so this is realism, not a precision fix |
 | ~~UI is not React~~ | **Settled 2026-07-30: Dhanush chose the single page. Do not reopen this.** One self-contained HTML file, no bundler, no `node_modules`, no extra CI stage. The API stays the contract regardless, so nothing downstream depends on the choice. |
 | `counterparty_concentration` | Knowingly produces false positives; measured as unfixable by threshold |
 | Small structuring | Documented blind spot — indistinguishable from a shop banking takings |
 | `dormant_reactivation` recall | 60% (9/15) — injector's gap parameter sometimes lands too close to normal weekly cadence |
 | Watchlist | **Synthetic**, not real OFAC/UN data. Swap via `LAUNDERLAB_WATCHLIST` |
 | MCP server demo | Fixed by 7.9 + 7.10 — point it at `data/demo.duckdb`: typologies, watchlist entities AND adverse media are all planted, so `run_detection`, `screen_name` and `adverse_media_check` all surface real hits |
-| Test suite runtime | ~9 min (242 tests). Do not run two full suites concurrently (once took 72 min). `test_demo.py` is the slowest file — a structuring injection costs ~4s |
+| Test suite runtime | ~8 min (258 tests). Do not run two full suites concurrently (once took 72 min) — also true of running the suite alongside `python -m launderlab redteam`, which cost this run several extra minutes of CPU contention. `test_redteam.py`'s small live run and `test_demo.py` are the slowest files |
 
 ---
 
@@ -418,26 +421,35 @@ leak. Report negative results.
 
 ## 13. Exact next steps
 
-**Phase 7 is complete. Next is Phase 8 — red-team co-evolution, the project's crown jewel.**
+**Phase 8 is complete. Next is Phase 8.5 — the multi-bank experiment — or Phase 9 (Story Mode
++ whitepaper + launch), Dhanush's call.**
 
-Phase 8 is the detection-decay benchmark: an adversary that mutates its schemes each
-generation against the blue team, measuring how fast a detection stack rots. Everything it
-needs now exists — six parameterised typology injectors, four detection layers, a scoring
-module per layer, and `demo.build()` (7.9) which already composes generate → inject → detect
-→ open cases into one call and is the natural skeleton for a generation loop.
+**What Phase 8 actually found, in one paragraph**: decay is not uniform across typologies.
+`shell_company` collapses fastest and most completely (70%→0% recall by generation 2, stable
+at 0% after — confirming 6.2's "measured as unfixable by threshold" finding under real
+adversarial pressure rather than a static test). `mule_network` — the one typology both rules
+AND the graph watch — starts at a perfect 100% and still fully collapses by generation 7.
+`structuring` and `round_tripping` never fully converge across 8 generations even at realistic
+parameter extremes, genuinely more resistant to this evasion class. `dormant_reactivation`
+converges fastest (generation 2) but least *stably* — 12% mean recall afterward, which is why
+the report measures post-convergence stability as its own number rather than trusting the word
+"converged" to mean permanent. Full numbers, the harness bugs found building it, and the
+methodology are in PROJECT.md's Phase 8 slice-log entry and `ledger/FIELD-NOTES.md`.
+Reproduce: `python -m launderlab redteam` (~8 min; writes `charts/redteam.html`).
 
-The first design call is what the red team is allowed to mutate: injector *parameters*
-(amounts, gaps, hop counts, chain lengths) is the honest version, because those are the knobs
-a real launderer has. Letting it mutate against the detectors' own thresholds would be
-training on the answer key — the same boundary violation the whole project is built to avoid.
+**The model-tier decision from §9 is now the most concrete open item, not a hypothetical
+one.** Phase 8 showed rules and graph actually going to 0% recall against a real adversary. At
+the current weights (ml=0.15, threshold 17.5) a model-only alert still cannot open a case. If
+Phase 8.5 or a future decay run needs the aggregated risk score (not just the raw rules+graph
+layers Phase 8 measured directly) to reflect what happens once an adversary has evaded the
+named scenarios, that re-weighting has to happen first — deliberately, and measured the way
+7.10 and 7.12 measured their own changes, not guessed at.
 
-**Phase 8 will force the model-tier decision.** The adversary's whole purpose is evading named
-scenarios; when it succeeds, rules and graph go quiet and the model is the only layer left. At
-the current weights a model-only alert cannot open a case (15.0 vs a 17.5 threshold), so the
-decay benchmark would measure the stack going blind while the model was in fact still ranking
-the adversary highly. Decide the weighting deliberately *before* running the benchmark, or the
-headline number will be an artefact of the aggregation rather than of detection decay — which
-is exactly the class of mistake §7 is a list of.
+**Two honest limits on Phase 8, logged rather than hidden**: it is one random seed's
+realisation of one adaptive trajectory (average over seeds before treating a specific
+generation-of-convergence number as more than a real example), and it measures rules + graph
+decay only — whether a *trained* ML model (Phase 6) decays faster or slower against the same
+adversary is a different, real question left open.
 
 **The React question is settled** — Dhanush chose the single page on 2026-07-30.
 **The adverse-media question is settled** — Dhanush confirmed 2026-07-30: context on Entity-360,
@@ -452,6 +464,11 @@ statement; polishing prose an analyst then verifies is a different and safer fea
 LAUNDERLAB_DB=data/demo.duckdb .venv/Scripts/python -m uvicorn launderlab.workbench.api:app --port 8787
 ```
 
+**To reproduce the Phase 8 benchmark and its chart:**
+```
+.venv/Scripts/python -m launderlab redteam
+```
+
 **To start a session:**
 1. Read `PROJECT.md` and the last entry of `ledger/FIELD-NOTES.md`
 2. Confirm the tree is clean and CI is green
@@ -459,7 +476,6 @@ LAUNDERLAB_DB=data/demo.duckdb .venv/Scripts/python -m uvicorn launderlab.workbe
 4. Build → test → lint → real-scale proof → docs → commit → push → verify CI
 5. Close with three Field Notes insights
 
-**After Phase 7:** Phase 8 (red-team co-evolution — the detection-decay benchmark, and the
-project's crown jewel), Phase 8.5 (multi-bank experiment — Phase 5 already measured the
+**After Phase 8:** Phase 8.5 (multi-bank experiment — Phase 5 already measured the cross-bank
 blind spot at 1-in-6, which is the setup for this), Phase 9 (Story Mode + whitepaper + demo
-video + launch).
+video + launch). Ask Dhanush which one he wants next; both are genuinely open.

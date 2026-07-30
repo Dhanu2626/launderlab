@@ -1103,3 +1103,66 @@ budget-capped queue pushes something real out. It cost two confirmed structuring
 room for sanctions-plus-news name matches, none of which were laundering. So it ships on the
 entity screen as context for the analyst and carries zero weight in the ranking, which is where
 adverse media actually belongs — enhanced due diligence, not transaction monitoring."
+
+
+---
+
+## Phase 8 — 2026-07-30 (the number nobody else has published, and it isn't one number)
+
+🏦 **FCC:** The research question was "how fast does a detection stack rot against an adapting
+adversary", and I built it expecting one headline number — a generation count, maybe a curve
+that slopes the same way for everything. It doesn't. `shell_company` collapses from 70% recall
+to 0% in two generations and never recovers — n_invoices only had to move from 5 to 3, barely a
+mutation at all, and that confirms something I already suspected from 6.2: `counterparty_concentration`
+isn't fragile, it is structurally unfixable, and now I have adversarial pressure proving it rather
+than a static clean-world test implying it. `mule_network` — the one typology BOTH the rules
+engine and Phase 5's graph watch — starts at a perfect 100% and still fully collapses by
+generation 7, once the cut and the hop window both drift past what either detector accepts.
+But `structuring` and `round_tripping` never fully converge across all 8 generations, even at
+genuinely extreme parameter values — a deposit ceiling one rupee under the cash-reporting line,
+a round-trip left parked for 38 days. Those two rules are comparatively ROBUST to this class of
+evasion, and Phase 3's single aggregate number (93.3% recall across all six typologies) could
+never have told me that some of my detectors decay and some hold. That is the actual finding:
+detection decay is not a property of "the stack", it is a property of each individual rule's
+relationship to the typology it watches, and averaging across typologies was hiding that the
+whole time.
+
+🔧 **Engineering:** Two real bugs, and both were the project's recurring lesson arriving in a new
+place. First: the account pool for each typology was sampled independently from a shared pool, so
+structuring and shell_company sometimes landed on the SAME business account within one
+generation — the extra scheme's credits diluted `counterparty_concentration`'s "one counterparty
+is most of my money" signal, and shell_company's measured generation-0 recall came out as 1/12
+before I noticed. That is not the adversary winning, that is cross-contamination between two
+unrelated experiments sharing a variable they shouldn't share — the exact bug class 2.7's
+capstone test exists to catch in the injectors, now found in the benchmark harness on top of
+them. Fixed with `_partition()`, which carves disjoint account chunks and *raises* rather than
+silently sampling with replacement if the pool runs out — a silent fallback there would have
+recreated the same bug quietly instead of loudly. Real generation-0 recall for shell_company
+turned out to be 70%, not 8%; the harness bug was hiding the actual finding underneath it.
+
+Second, smaller but the same instinct: `run_decay_benchmark`'s real docstring was immediately
+followed by a second string literal, and Python only keeps the FIRST bare string as a function's
+`__doc__` — the second silently evaluates as a no-op expression and vanishes without an error.
+The actual explanation of what the function does had disappeared from `help()` and I only found
+it by reading the file end to end rather than trusting that a docstring existing meant it was the
+right one. A test now pins that `__doc__` contains specific text, so a repeat of that edit
+mistake fails loudly instead of quietly.
+
+The methodological addition I'm proudest of: "converged" in my own report used to mean "first
+generation this typology scored zero recall", and I initially reported it as if that meant
+permanent invisibility from then on. It doesn't — the genome freezes, but it still runs against a
+FRESH randomly generated world every generation, so a frozen doctrine can still occasionally trip
+a rule by chance. `dormant_reactivation` converged at generation 2 and still showed 20% recall
+at generation 4. So the report now computes a post-convergence mean recall as its own number,
+and it caught exactly this: shell_company's convergence is genuinely stable (0% mean afterward),
+dormant_reactivation's is not (12% mean afterward) — two typologies that both say "converged at
+generation 2" are not equally caught, and the label alone would have hidden that.
+
+🎯 **Interview line:** "I built a red team that mutates its own parameters generation over
+generation, and the finding wasn't a decay curve, it was that decay isn't uniform. One rule —
+counterparty concentration for shell companies — collapsed to zero recall in two generations and
+stayed there, which confirmed something I'd suspected since an earlier phase: that rule is
+structurally unfixable, not just weakly tuned. But two other rules never fully converged across
+eight generations even at extreme, realistic parameter values. Averaging those into one recall
+number, which is what my Phase 3 proof originally did, was hiding that some of my detectors decay
+fast and some don't decay at all — and you cannot tell which is which from an aggregate."

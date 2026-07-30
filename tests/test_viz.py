@@ -91,3 +91,47 @@ def test_bar_chart_survives_no_data_and_an_all_zero_series():
     assert "No data" in viz.bar_chart([])
     svg = viz.bar_chart([("a", 0.0), ("b", 0.0)], maximum=1.0)
     assert "a" in svg and "b" in svg  # labels present even with nothing to draw
+
+
+# ------------------------------------------------------- Phase 8 (redteam) chart
+# A real, small-scale benchmark run rather than fabricated GenerationResults --
+# proves the chart draws from what the benchmark actually returns, not from a
+# shape the test happened to construct.
+
+@pytest.fixture(scope="module")
+def redteam_run():
+    redteam = pytest.importorskip("launderlab.redteam")
+    return redteam.run_decay_benchmark(customers=120, days=14, seed=7,
+                                       schemes_per_typology=3, generations=2)
+
+
+def test_line_chart_draws_one_polyline_per_series():
+    svg = viz.line_chart({"a": [0.1, 0.5, 0.9], "b": [0.9, 0.5, 0.1]})
+    assert svg.count("<polyline") == 2
+    assert "gen0" in svg and "gen2" in svg
+    assert '<span><i style="background:var(--l1)"></i>a</span>' in svg
+
+
+def test_line_chart_survives_no_series():
+    assert "No data" in viz.line_chart({})
+
+
+def test_redteam_chart_draws_a_series_per_typology(redteam_run):
+    results, genomes = redteam_run
+    svg, note = viz.redteam_decay_chart(results, genomes)
+    assert svg.count("<polyline") == len(genomes)
+    for typology in genomes:
+        assert typology in svg
+    assert "high_risk_geography" in note
+
+
+def test_redteam_page_is_self_contained_and_separate_from_the_main_charts(redteam_run, tmp_path):
+    """Must not force `charts/index.html` to depend on an 8-generation benchmark
+    result, and must never reach out to a CDN — same rule every other page in
+    this project follows."""
+    results, genomes = redteam_run
+    path = viz.render_redteam(results, genomes, tmp_path / "charts")
+    assert path.name == "redteam.html"
+    page = path.read_text(encoding="utf-8")
+    assert "http://" not in page and "https://" not in page
+    assert page.count("<svg") == 1

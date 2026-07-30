@@ -9,6 +9,10 @@ Usage:
     python -m launderlab charts          redraw the measured-results charts as SVG
     python -m launderlab media-experiment  measure whether adverse media earns a
                                          place in the risk score (workbench/media_experiment.py)
+    python -m launderlab redteam           run the Phase 8 decay benchmark: an
+                                         adversary that mutates its own typology
+                                         parameters generation over generation
+                                         (see redteam.py). ~8 min at defaults
 """
 
 import sys
@@ -37,6 +41,11 @@ def main() -> None:
     if args and args[0] == "media-experiment":
         from launderlab.workbench.media_experiment import main as run_media_experiment
         run_media_experiment(args[1:])
+        return
+
+    if args and args[0] == "redteam":
+        from launderlab.redteam import main as run_redteam
+        run_redteam(args[1:])
         return
 
     conn = connect()

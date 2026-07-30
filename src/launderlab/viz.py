@@ -43,10 +43,12 @@ DEFAULT_OUT = Path("charts")
 # themes; the fallbacks keep it sane if the file is opened standalone.
 _CSS = """
 :root { --bg:#fbfbfa; --panel:#fff; --ink:#14140f; --muted:#6b6b63; --line:#e3e2da;
-        --bar:#185fa5; --bar2:#0f6e56; --miss:#c9c7bd; --warn:#a32d2d; }
+        --bar:#185fa5; --bar2:#0f6e56; --miss:#c9c7bd; --warn:#a32d2d;
+        --l1:#185fa5; --l2:#0f6e56; --l3:#b45309; --l4:#7a3ea3; --l5:#a32d2d; }
 @media (prefers-color-scheme: dark) {
   :root { --bg:#161614; --panel:#1e1e1b; --ink:#f2f1ea; --muted:#9d9c92;
-          --line:#32312c; --bar:#6ea8e6; --bar2:#4fb59a; --miss:#3a3934; } }
+          --line:#32312c; --bar:#6ea8e6; --bar2:#4fb59a; --miss:#3a3934;
+          --l1:#6ea8e6; --l2:#4fb59a; --l3:#e0a458; --l4:#c398e8; --l5:#e08080; } }
 * { box-sizing:border-box; }
 body { margin:0; padding:30px 28px 60px; background:var(--bg); color:var(--ink);
        font:15px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif; max-width:900px; }
@@ -61,6 +63,9 @@ p.sub { color:var(--muted); font-size:13px; margin:0 0 12px; }
 .axis { stroke:var(--line); stroke-width:1; }
 .note { color:var(--muted); font-size:12.5px; margin:10px 0 0; }
 .warn { color:var(--warn); }
+.legend { display:flex; flex-wrap:wrap; gap:12px 18px; margin-top:8px; font-size:12.5px; }
+.legend span { display:inline-flex; align-items:center; gap:6px; }
+.legend i { width:11px; height:11px; border-radius:2px; display:inline-block; }
 """
 
 _ROW_H = 26
@@ -162,6 +167,91 @@ def queue_composition(conn: duckdb.DuckDBPyConnection) -> tuple[str, str]:
     return svg, note
 
 
+_LINE_COLORS = ("l1", "l2", "l3", "l4", "l5")
+_LINE_W, _LINE_H = 700, 300
+_LINE_PAD = 44
+
+
+def line_chart(series: dict[str, list[float]], *, y_max: float = 1.0,
+               y_fmt: str = "{:.0%}") -> str:
+    """Multiple named series, one polyline each, sharing 0..len-1 on the x-axis.
+
+    Generic on purpose -- Phase 8 is the first thing in this module with a
+    trend over an ordered axis rather than one snapshot, so it earns its own
+    primitive instead of forcing a line into `bar_chart`'s per-category shape.
+    """
+    if not series:
+        return '<p class="note">No data.</p>'
+    n_points = max(len(values) for values in series.values())
+    plot_w, plot_h = _LINE_W - _LINE_PAD * 2, _LINE_H - _LINE_PAD * 2
+    x_step = plot_w / max(n_points - 1, 1)
+
+    def xy(i: int, value: float) -> tuple[float, float]:
+        x = _LINE_PAD + i * x_step
+        y = _LINE_PAD + plot_h * (1 - min(value / y_max, 1.0))
+        return x, y
+
+    parts = [f'<svg viewBox="0 0 {_LINE_W} {_LINE_H}" width="{_LINE_W}" height="{_LINE_H}" '
+             f'role="img" aria-label="line chart, {len(series)} series over '
+             f'{n_points} points">']
+    # axes + y gridlines at 0/25/50/75/100%
+    for frac in (0.0, 0.25, 0.5, 0.75, 1.0):
+        _, y = xy(0, frac * y_max)
+        parts.append(f'<line class="axis" x1="{_LINE_PAD}" y1="{y:.1f}" '
+                     f'x2="{_LINE_W - _LINE_PAD}" y2="{y:.1f}"></line>')
+        parts.append(f'<text class="val" x="{_LINE_PAD - 8}" y="{y + 4:.1f}" '
+                     f'text-anchor="end">{y_fmt.format(frac * y_max)}</text>')
+    for i in range(n_points):
+        x, _ = xy(i, 0)
+        parts.append(f'<text class="val" x="{x:.1f}" y="{_LINE_H - _LINE_PAD + 16}" '
+                     f'text-anchor="middle">gen{i}</text>')
+
+    for idx, (name, values) in enumerate(series.items()):
+        color = f"var(--{_LINE_COLORS[idx % len(_LINE_COLORS)]})"
+        points = [xy(i, v) for i, v in enumerate(values)]
+        path = " ".join(f"{x:.1f},{y:.1f}" for x, y in points)
+        parts.append(f'<polyline points="{path}" fill="none" stroke="{color}" '
+                     f'stroke-width="2.25"></polyline>')
+        for x, y in points:
+            parts.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="3" fill="{color}"></circle>')
+
+    parts.append("</svg>")
+    legend = "".join(
+        f'<span><i style="background:var(--{_LINE_COLORS[i % len(_LINE_COLORS)]})"></i>'
+        f'{html.escape(name)}</span>'
+        for i, name in enumerate(series))
+    return "".join(parts) + f'<div class="legend">{legend}</div>'
+
+
+def redteam_decay_chart(results, genomes) -> tuple[str, str]:
+    """Phase 8's headline: recall per typology, generation over generation,
+    against an adversary that mutates its own parameters. Takes the benchmark's
+    own return values directly rather than a connection -- `run_decay_benchmark`
+    builds and discards a fresh throwaway world per generation internally, so
+    there is no single `conn` this chart could read from, and re-running an
+    8-generation benchmark (minutes) just to draw a chart already computed in
+    memory would be wasted work the CLI already avoided.
+    """
+    by_typology: dict[str, list] = {}
+    for r in results:
+        by_typology.setdefault(r.typology, []).append(r)
+    series = {}
+    for typology, rows in by_typology.items():
+        rows = sorted(rows, key=lambda r: r.generation)
+        series[typology] = [r.recall for r in rows]
+
+    svg = line_chart(series, y_max=1.0)
+    converged = [f"{t} (gen {g.converged_at})" for t, g in genomes.items()
+                if g.converged_at is not None]
+    note = ("Recall against a static rules engine (plus Phase 5's graph for "
+            "mule_network) as the adversary mutates its own injector parameters "
+            "each generation it evades detection. Converged (fully evaded at "
+            "least once): " + (", ".join(converged) if converged else "none") +
+            ". high_risk_geography is excluded -- no continuous evasion knob "
+            "exists for it (see redteam.py).")
+    return svg, note
+
+
 def render(conn: duckdb.DuckDBPyConnection, out_dir: Path = DEFAULT_OUT) -> Path:
     """Write every chart as one self-contained page. Returns its path."""
     out_dir = Path(out_dir)
@@ -192,6 +282,35 @@ def render(conn: duckdb.DuckDBPyConnection, out_dir: Path = DEFAULT_OUT) -> Path
             + "\n".join(sections) + "\n")
 
     path = out_dir / "index.html"
+    path.write_text(page, encoding="utf-8")
+    return path
+
+
+def render_redteam(results, genomes, out_dir: Path = DEFAULT_OUT) -> Path:
+    """Write the Phase 8 decay chart as its own self-contained page.
+
+    Separate from `render()`'s `charts/index.html` rather than folded into it:
+    that page's three charts each cost a query against an already-open
+    connection, while a red team run costs several minutes end to end. Rebuilding
+    the fast charts should never force an 8-generation benchmark, and a red team
+    result should never depend on which world happens to be sitting at
+    `data/demo.duckdb` when someone runs `charts`.
+    """
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    svg, note = redteam_decay_chart(results, genomes)
+
+    page = (f"<!doctype html>\n<meta charset=\"utf-8\">\n"
+            f"<title>LaunderLab — red team decay benchmark</title>\n<style>{_CSS}</style>\n"
+            f"<h1>LaunderLab — red team decay benchmark (Phase 8)</h1>\n"
+            f'<p class="sub">Recall of a static rules engine against an adversary that '
+            f"mutates its own parameters. Regenerate with "
+            f"<code>python -m launderlab redteam</code>.</p>\n"
+            f"<h2>Recall by typology, generation over generation</h2>"
+            f'<div class="card">{svg}</div>'
+            f'<p class="note">{html.escape(note)}</p>\n')
+
+    path = out_dir / "redteam.html"
     path.write_text(page, encoding="utf-8")
     return path
 

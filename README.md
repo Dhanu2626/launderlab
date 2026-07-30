@@ -17,7 +17,7 @@ RED TEAM ──launders through──► SYNTHETIC BANK ──transactions──
 
 ## Status
 
-✅ **Phases 0–7 complete** — the full AML value chain, end to end:
+✅ **Phases 0–8 complete** — the full AML value chain, end to end, plus the decay benchmark:
 
 | Phase | What it is | Headline |
 |---|---|---|
@@ -28,8 +28,10 @@ RED TEAM ──launders through──► SYNTHETIC BANK ──transactions──
 | 5 | Graph analytics | 15/15 mule networks reconstructed at 100% precision — and **only 1 of 6 typologies is visible to a graph at all** |
 | 6 | ML tournament | 6 model families on one leaderboard; **they fail differently**, which is the argument for the tournament |
 | 7 | Investigator workbench | Alert queue → entity 360 → link graph → disposition → SAR narrative draft |
+| 8 | Red team decay benchmark | Detection decay is **not uniform** — one rule collapses in 2 generations of adaptation and stays collapsed; two others never fully evade across 8 |
 
-Next: **Phase 8**, the red-team co-evolution engine and the detection-decay benchmark.
+Next: **Phase 8.5**, the multi-bank experiment — quantifying the cross-bank blind spot Phase 5
+already measured at 1-in-6.
 
 ## Quickstart (Windows)
 
@@ -228,6 +230,50 @@ the interaction. So the case-opening threshold is now *derived* rather than chos
 a model alone can score, at or below the faintest thing any control will assert — and a test
 pins that window, so changing a weight fails on purpose instead of silently switching off a
 control.
+
+## Red team decay benchmark (Phase 8) — and why it isn't one number
+
+Nobody has published this number: how fast does a static detection stack rot against an
+adversary that adapts generation over generation? It needs ground truth on both sides at
+once — a real bank sees its own catch rate but never the schemes it missed, and no public
+dataset contains a criminal who learns. This project has both.
+
+One adversary genome per typology starts at a naive default and takes one step toward whatever
+real-world-plausible parameter change plausibly reduces detectability each generation it gets
+caught — fewer, larger deposits instead of many small ones; skim more per hop; fewer invoices —
+the same inference a real launderer draws from an account being frozen. It never reads
+`scheme_labels` (only the accounts it planted this call, held locally) and never reads a rule's
+tuned constants, only public facts any real launderer already knows (the cash-reporting line
+near ₹1,00,000). `high_risk_geography` is excluded: its only real evasion move is routing
+through an unlisted jurisdiction, a categorical choice with no honest continuous knob.
+
+**The result is not a decay curve, it's proof that decay isn't uniform.** Over 8 real
+generations: `shell_company` collapses from 70% to 0% recall by generation 2 and never
+recovers — confirming, under real adversarial pressure, a rule Phase 6 had already flagged as
+structurally unfixable by threshold. `mule_network` — the one typology both the rules engine
+and the graph analytics watch — starts at a perfect 100% and still fully collapses by
+generation 7. But `structuring` and `round_tripping` never fully evade across all 8
+generations, even at genuinely extreme parameter values (a deposit ceiling one rupee under the
+cash-reporting line; a round-trip parked for 38 days) — some detection surfaces are
+structurally more resistant to this class of evasion, which Phase 3's single aggregate recall
+figure could never have shown.
+
+**"Converged" doesn't mean caught 0% forever, and the benchmark says so as a number.** A
+genome freezes once it first fully evades, but it still runs against a freshly generated world
+every later generation, so a frozen doctrine can still get unlucky. `dormant_reactivation`
+converged fastest of all (generation 2) but least *stably* — 12% mean recall in the
+generations after, against `shell_company`'s stable 0%. Two typologies both labelled
+"converged at generation 2" were not equally caught.
+
+**A harness bug hid the real result before any of this was visible.** The first version
+sampled each typology's accounts independently from a shared pool, so structuring and
+shell_company sometimes landed on the *same* business account within one generation — the
+extra scheme's credits diluted the concentration signal `shell_company`'s detector watches,
+so its measured generation-0 recall came out as 1-in-12 instead of the real 7-in-10. Fixed by
+carving disjoint account pools that raise an error rather than silently sampling with
+replacement when the pool runs low.
+
+Reproduce it: `python -m launderlab redteam` (~8 minutes, writes `charts/redteam.html`).
 
 ## What gets built
 
