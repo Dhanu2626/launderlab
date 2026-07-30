@@ -7,6 +7,8 @@ Usage:
     python -m launderlab demo-world      build a world with crime in it, ready for
                                          the workbench (see launderlab/demo.py)
     python -m launderlab charts          redraw the measured-results charts as SVG
+    python -m launderlab media-experiment  measure whether adverse media earns a
+                                         place in the risk score (workbench/media_experiment.py)
 """
 
 import sys
@@ -30,6 +32,11 @@ def main() -> None:
 
     if args and args[0] == "charts":
         draw_charts(args[1:])
+        return
+
+    if args and args[0] == "media-experiment":
+        from launderlab.workbench.media_experiment import main as run_media_experiment
+        run_media_experiment(args[1:])
         return
 
     conn = connect()

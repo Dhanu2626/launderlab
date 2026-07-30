@@ -35,6 +35,7 @@ from pydantic import BaseModel, Field
 from launderlab.db.ledger import DEFAULT_DB_PATH, connect
 from launderlab.graph import build as graph_build
 from launderlab.graph import motifs
+from launderlab.screening import engine as screening_engine
 from launderlab.workbench import cases, narrative
 from launderlab.workbench.cases import CaseError
 
@@ -113,6 +114,22 @@ class ChainOut(BaseModel):
     ended: datetime
 
 
+class AdverseMediaOut(BaseModel):
+    """Negative news naming this customer. INFORMATIONAL, never scored.
+
+    Slice 7.12 measured adverse media as a risk-score input and it failed: of 21
+    accounts it flagged, exactly one was laundering, and the set of laundering
+    accounts ONLY media reaches was empty -- so no weighting could add a true
+    positive, and every weighting displaced real cases out of the alert budget.
+    It is still exactly what an analyst wants while adjudicating the case in front
+    of them, which is why it appears here and not in `RiskScore.signals`.
+    """
+    article_id: int
+    headline: str
+    category: str
+    score: float
+
+
 class AccountSummary(BaseModel):
     """Totals over the account's WHOLE history, not the window returned below.
 
@@ -142,6 +159,7 @@ class Entity360(BaseModel):
     summary: AccountSummary
     transactions: list[TransactionOut]
     chains: list[ChainOut]
+    adverse_media: list[AdverseMediaOut]
     open_cases: list[int]
 
 
@@ -347,6 +365,9 @@ def entity_360(account_id: str,
         chains = [c for c in motifs.find_chains(graph_build.build_graph(conn))
                   if account_id in c.accounts]
         chain_names = _names_for(conn, sorted({a for c in chains for a in c.accounts}))
+        # Shared helper, not a second matcher: what the analyst reads has to be
+        # what the scorer grades.
+        media = screening_engine.media_for_name(conn, row[2], customer_id=row[1])
         open_case_ids = [r[0] for r in conn.execute(
             "SELECT case_id FROM cases WHERE account_id = ? AND status IN ('open','in_review')"
             " ORDER BY case_id", [account_id]).fetchall()]
@@ -361,6 +382,9 @@ def entity_360(account_id: str,
         transactions=[TransactionOut(
             txn_id=t[0], ts=t[1], direction=t[2], channel=t[3], amount=t[4],
             counterparty_name=t[5], narration=t[6], balance_after=t[7]) for t in txns],
+        adverse_media=[AdverseMediaOut(article_id=h.article_id, headline=h.headline,
+                                       category=h.category, score=h.score)
+                       for h in media],
         chains=[ChainOut(accounts=list(c.accounts),
                          names=[chain_names.get(a) for a in c.accounts],
                          amounts=list(c.amounts),

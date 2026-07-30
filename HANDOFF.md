@@ -37,7 +37,7 @@ valuable thing here — preserve it. Details in §7.
 |---|---|
 | Latest commit | `f40ae75` — "Pre-Phase-8 audit: five claims that were not true" |
 | Working tree | clean, in sync with `origin/main` |
-| Tests | **233 passing**, zero skips (~3-9 min) |
+| Tests | **242 passing**, zero skips (~9 min) |
 | Lint | `ruff` clean |
 | CI | GitHub Actions green on every push — **and since 2026-07-30 it actually runs everything**: installs `[dev,api,mcp]` + CPU torch and **fails if any test skips**. Before that it installed only `[dev]` and ran 178 of 226 tests |
 | Phases complete | 0, 2, 3, 4, 5, 6, **7** fully; 1 core (polish deferred) |
@@ -53,7 +53,7 @@ valuable thing here — preserve it. Details in §7.
 | 4 | Screening | ✅ complete; slice **4.1** open (re-scoped, low value) |
 | 5 | Graph Analytics | ✅ complete |
 | 6 | ML Tournament | ✅ complete — all 6 model families |
-| 7 | Investigator Workbench | ✅ complete — 7.1–7.10, queue → entity 360 → link graph → disposition → SAR draft, all four layers reaching an analyst |
+| 7 | Investigator Workbench | ✅ complete — 7.1–7.12, queue → entity 360 → link graph → disposition → SAR draft, all four layers reaching an analyst |
 | 8 | Red Team co-evolution | ⬜ **not started — this is next** |
 | 8.5 | Multi-bank experiment | ⬜ not started |
 | 9 | Story Mode + launch | ⬜ not started |
@@ -143,6 +143,8 @@ src/launderlab/
   workbench/cases.py    case store — the audit trail (7.2)
   workbench/api.py      FastAPI (7.3) — incl. GET /cases/{id}/narrative
   workbench/narrative.py  SAR narrative draft, template not LLM (7.8)
+  workbench/media_experiment.py  scorer-only: does adverse media earn a weight? (7.12 - no)
+  viz.py                `python -m launderlab charts` - SVG charts from the SCORERS
   workbench/static/index.html   the whole UI: tiered queue (7.4), entity 360 (7.5),
                         link-graph SVG (7.6), disposition workflow (7.7), SAR draft (7.8)
   demo.py               `python -m launderlab demo-world` — world + crime + cases (7.9)
@@ -315,6 +317,12 @@ where that model is weak, and only ground-truth-by-crime-type reveals it.
   Derived from the signal algebra — do not re-fit them to one world's histogram.
 - **The disposition list is served by the API, never hardcoded in the UI**, and a test asserts
   no disposition string appears in the page.
+- **Adverse media is surfaced, never scored** (7.12, measured). `risk.collect(media_mode="off")`
+  is the production default; `"separate"` and `"folded"` exist for the experiment only. Do not
+  give it a weight without re-running `media-experiment` and finding a NON-empty unique-reach set.
+- **`aggregate()` breaks ties on account id.** Not cosmetic: 45 accounts tie at 21.00 and the
+  budget cut falls inside that cluster, so without it the queue's membership — and any
+  budget-capped measurement — is decided by dict insertion order.
 - **`risk.MIN_CASE_SCORE` (17.5) is DERIVED, not chosen**: above the model's 15.0 ceiling (a
   model-only alert has no reason to give an analyst) and at or below the faintest thing any
   control will assert (screening's 0.88 accept threshold × 0.20 = 17.6). A test pins that
@@ -342,7 +350,8 @@ where that model is weak, and only ground-truth-by-crime-type reveals it.
 | Only graph can cite its own rows | Rules emit a reason string, screening answers an identity question, ML emits a score — none records *which* transactions made it fire, so the SAR annex is ranked by value and says so. Making rules record their triggering txn ids would upgrade every narrative |
 | **The model tier cannot fill** | By arithmetic, and deliberately: the ml weight is 0.15, so a model-only case tops out at 15.0 and the opening threshold sits above it, because an alert with no explainable reason should not open a case. The UI says this in the empty tier rather than looking quiet. **Letting it fill is a re-weighting decision — and it is the tier that matters most against a red team that has learned to evade the named scenarios, so Phase 8 will have to face it.** |
 | **Sanctions lose the shared alert budget** | Screening-only hits score 17.6-19.7, the lowest of any control, so under one budget every behavioural case outranks them — 42 of 92 eligible accounts did not fit. Real banks queue screening separately under its own obligation clock; a per-tier budget in `open_from_queue` would model that |
-| Adverse media leg unscored | `demo-world` plants adverse media and the MCP `adverse_media_check` tool reads it, but `risk.collect` only consumes the entity-screening leg, so media hits never reach a case. Deliberately left: Phase 4 measured media precision at 15.8%, so wiring it in without measuring its effect on the queue would be the un-measured change this project avoids |
+| ~~Adverse media leg unscored~~ | **Settled by 7.12: measured and rejected as a scoring signal, weight 0.0.** Of 21 accounts it flags, 1 is laundering, and the set of laundering accounts only media reaches is **empty** — so no weighting can add a true positive, and every weighting displaced real cases. It now surfaces on the entity-360 screen as "context, not evidence". `risk.collect(media_mode=...)` keeps the experiment reproducible; production stays `"off"`. Re-run: `python -m launderlab media-experiment` |
+| **Single-rule cases are all tied** | Every one scores exactly 0.35 × 0.60 = 21.00, so a 27-deposit structuring scheme and an 89-deposit one are indistinguishable to the queue — and on the demo world 45 accounts sit on that value with the budget cut inside the cluster. Ties now break on account id so the queue is at least *reproducible*, but giving rules a magnitude-aware confidence is a real scoring change needing its own measurement |
 | **1.3 world realism** | Weekday/weekend variation, holidays. Open since 2026-07-26, non-blocking, and has blocked nothing across five phases. The only reason Phase 1's roadmap box is unchecked |
 | **4.1 secondary identifiers** | DOB/nationality disambiguation. Re-scoped by 4.2 to a realism item rather than a precision fix |
 | **1.3** | World realism polish — weekday/weekend, holidays. Non-blocking |
@@ -353,7 +362,7 @@ where that model is weak, and only ground-truth-by-crime-type reveals it.
 | `dormant_reactivation` recall | 60% (9/15) — injector's gap parameter sometimes lands too close to normal weekly cadence |
 | Watchlist | **Synthetic**, not real OFAC/UN data. Swap via `LAUNDERLAB_WATCHLIST` |
 | MCP server demo | Fixed by 7.9 + 7.10 — point it at `data/demo.duckdb`: typologies, watchlist entities AND adverse media are all planted, so `run_detection`, `screen_name` and `adverse_media_check` all surface real hits |
-| Test suite runtime | ~3-9 min (226 tests). Do not run two full suites concurrently (once took 72 min). `test_demo.py` is the slowest file — a structuring injection costs ~4s |
+| Test suite runtime | ~9 min (242 tests). Do not run two full suites concurrently (once took 72 min). `test_demo.py` is the slowest file — a structuring injection costs ~4s |
 
 ---
 

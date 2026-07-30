@@ -151,25 +151,21 @@ def adverse_media_check(name: str, threshold: float = matcher.DEFAULT_THRESHOLD)
     something before it counts as adverse. Precision here is genuinely low by
     nature (same name, different human is common), so every hit is a lead.
     """
+    # Shared with the entity-360 endpoint rather than matched again here: two
+    # copies of a screening rule drift, and then what a user is shown stops being
+    # what the scorer grades. Same reason `screen_name` was rewired in Phase 4.
     with _lock:
-        rows = _db().execute(
-            "SELECT article_id, ts, headline, mentioned_name, category FROM adverse_media"
-            " WHERE category != ? ORDER BY ts DESC", [screening_engine.BENIGN_CATEGORY]
-        ).fetchall()
+        conn = _db()
+        found = screening_engine.media_for_name(conn, name, threshold=threshold)
+        searched = len(screening_engine._adverse_articles(conn))
 
-    articles = [
-        {"article_id": article_id, "ts": str(ts), "headline": headline,
-         "mentioned_name": mentioned, "category": category,
-         "score": matcher.similarity(name, mentioned)}
-        for article_id, ts, headline, mentioned, category in rows
-    ]
-    hits = sorted((a for a in articles if a["score"] >= threshold),
-                  key=lambda a: a["score"], reverse=True)
+    hits = [{"article_id": hit.article_id, "headline": hit.headline,
+             "category": hit.category, "score": hit.score} for hit in found]
 
     return {
         "query": name,
         "threshold": threshold,
-        "articles_searched": len(articles),
+        "articles_searched": searched,
         "matches": hits,
         "decision": "REVIEW" if hits else "NO_HIT",
         "note": "Name-matched against news text — a hit is a lead, not a confirmed "

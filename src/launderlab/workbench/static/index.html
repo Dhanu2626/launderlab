@@ -439,6 +439,27 @@ function focusHop(chainIndex, hopIndex) {
       + `Click either account above to open it.`);
 }
 
+// Adverse media is shown here and NOWHERE in the score. Slice 7.12 measured it as
+// a scoring input: of 21 accounts it flagged, one was laundering, and the set of
+// laundering accounts only media reaches was empty — so no weighting could add a
+// true positive, while every weighting pushed real cases out of the alert budget.
+// It is still the first thing an analyst wants when adjudicating, so it belongs on
+// the screen, clearly labelled as context rather than evidence.
+function renderMedia(e) {
+  const items = e.adverse_media || [];
+  if (!items.length) return "";
+  return `<h3>Adverse media (${items.length})</h3>` + items.map(m => `
+    <div class="chain">
+      <div>${esc(m.headline)}</div>
+      <div class="sub">${esc(m.category.replace(/_/g, " "))} ·
+        name match ${esc(m.score.toFixed(2))} · article ${esc(m.article_id)}</div>
+    </div>`).join("")
+    + `<p class="note">Context, not evidence: this does not contribute to the risk
+       score. A name match to a news story is a lead about an <em>identity</em>,
+       and 7.12 measured that it adds no laundering recall — the customer may
+       simply share a name with someone in the news.</p>`;
+}
+
 function renderStatement(e) {
   if (!e.transactions.length) {
     return `<h3>Statement</h3><div class="empty">No transactions on this account.</div>`;
@@ -629,7 +650,7 @@ async function loadEntity(accountId) {
       `/accounts/${encodeURIComponent(accountId)}?transaction_limit=500`);
     current.entity = entity;
     panel.innerHTML = renderProfile(entity) + renderActivity(entity)
-      + renderChains(entity) + renderStatement(entity);
+      + renderChains(entity) + renderMedia(entity) + renderStatement(entity);
   } catch (err) {
     panel.innerHTML = `<h3>Customer</h3>
       <div class="empty err">Could not load the entity view: ${esc(err.message)}</div>`;

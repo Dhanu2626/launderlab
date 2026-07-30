@@ -42,6 +42,65 @@ DEFAULT_WEIGHTS = {
     "ml": 0.15,
 }
 
+# Adverse media is DELIBERATELY ABSENT from the weights above and OFF by default
+# in `collect()`. It is a candidate signal under measurement, not a shipped one.
+#
+# Why it is its own source rather than folded into `screening`: both answer an
+# identity question, but Phase 4 measured entity screening at 75% precision and
+# adverse media at 15.8%. Folding the noisy leg into the clean leg's weight would
+# let it inherit trust it has not earned, and would make the two impossible to
+# separate again. An analyst also needs a different sentence for each -- "the name
+# matches a sanctions list" and "adverse news names this customer" are different
+# claims with different follow-up work.
+#
+# Why off by default: turning it on changes every account's score, which would
+# silently move the numbers every earlier phase published. Media stays opt-in
+# until a measurement says it earns a place. `weights_with_media()` builds the
+# candidate configurations the experiment compares.
+MEDIA_SOURCE = "media"
+
+
+def weights_with_media(media_weight: float,
+                       base: dict[str, float] | None = None) -> dict[str, float]:
+    """`base` plus a media weight, renormalised so the total stays 1.0.
+
+    Renormalising rather than appending: the score is documented as 0-100 and the
+    bands are calibrated against that, so letting the weights sum past 1.0 would
+    push scores over 100 and quietly invalidate every band boundary.
+
+    The catch this creates is real and the experiment has to handle it -- shrinking
+    every other weight also lowers what a lone control can score, and 7.10 showed
+    that a control whose ceiling falls below the case-opening threshold is switched
+    off without anything failing. So the threshold is re-derived per candidate by
+    `derive_min_case_score()` rather than assumed to still be 17.5.
+    """
+    base = dict(base or DEFAULT_WEIGHTS)
+    base[MEDIA_SOURCE] = media_weight
+    total = sum(base.values())
+    return {source: weight / total for source, weight in base.items()}
+
+
+def derive_min_case_score(weights: dict[str, float]) -> tuple[float, float, float]:
+    """(threshold, quietest_control, model_ceiling) for a given weight table.
+
+    Same rule as `MIN_CASE_SCORE`, applied to arbitrary weights so candidate
+    configurations are judged the way the shipped one was: a case opens when any
+    control asserts something, and never on the model alone. Returns the window as
+    well as the number, because a candidate that makes the window empty is
+    disqualified rather than quietly rounded into shape.
+    """
+    from launderlab.graph import motifs
+    from launderlab.screening.matcher import DEFAULT_THRESHOLD
+
+    quietest = min(
+        weights.get("rules", 0.0) * corroboration_strength(1),
+        weights.get("graph", 0.0) * corroboration_strength(motifs.DEFAULT_MIN_HOPS),
+        weights.get("screening", 0.0) * DEFAULT_THRESHOLD,
+    ) * 100
+    ceiling = weights.get("ml", 0.0) * 100
+    # sit just under the quietest control, mirroring 17.5 against 17.6
+    return round(quietest - 0.1, 2), round(quietest, 2), round(ceiling, 2)
+
 # Bands describe how much INDEPENDENT CORROBORATION a case has, because that is
 # what the weighted sum above actually measures.
 #
@@ -173,8 +232,12 @@ def _band(score: float) -> str:
     return next(name for threshold, name in BANDS if score >= threshold)
 
 
+MEDIA_MODES = ("off", "separate", "folded")
+
+
 def collect(conn: duckdb.DuckDBPyConnection,
-            ml_scores: dict[str, float] | None = None) -> dict[str, list[RiskSignal]]:
+            ml_scores: dict[str, float] | None = None,
+            media_mode: str = "off") -> dict[str, list[RiskSignal]]:
     """Run every detection layer and gather its signals per account.
 
     `ml_scores` is passed in rather than computed here: the ML layer needs a
@@ -218,6 +281,37 @@ def collect(conn: duckdb.DuckDBPyConnection,
                                                   f"({hit.list_type}) at {hit.score:.2f}")
     for account_id, (score, detail) in best_match.items():
         add(account_id, RiskSignal("screening", detail, score))
+
+    # Adverse media -- OFF unless asked for. Same shape as the entity leg: the
+    # strongest match is what an analyst adjudicates. Deliberately not corroborated
+    # across articles yet, because the question under measurement is whether media
+    # belongs in this score at all, and tuning its internal shape at the same time
+    # would leave two variables moving in one experiment.
+    # "folded" emits media under the SCREENING source instead of its own. That is
+    # not a cosmetic difference: `aggregate()` keeps only the strongest signal
+    # within a source, so folding caps the total identity contribution at
+    # screening's weight and makes it impossible for a name-list hit and a news
+    # hit about the same name to STACK. Measured because separate sources let
+    # exactly that stacking push confirmed structuring cases out of the queue.
+    if media_mode not in MEDIA_MODES:
+        raise ValueError(f"media_mode must be one of {MEDIA_MODES}, got {media_mode!r}")
+    if media_mode != "off":
+        media_source = MEDIA_SOURCE if media_mode == "separate" else "screening"
+        best_article: dict[str, tuple[float, str]] = {}
+        for hit in screening_engine.screen_media(conn):
+            account = conn.execute(
+                "SELECT account_id FROM accounts WHERE customer_id = ?", [hit.customer_id]
+            ).fetchone()
+            if account is None:
+                continue
+            current = best_article.get(account[0])
+            if current is None or hit.score > current[0]:
+                best_article[account[0]] = (
+                    hit.score,
+                    f"adverse media ({hit.category}) names this customer at "
+                    f"{hit.score:.2f}: {hit.headline}")
+        for account_id, (score, detail) in best_article.items():
+            add(account_id, RiskSignal(media_source, detail, score))
 
     # Phase 5 — graph. Position in a pass-through chain.
     graph = graph_build.build_graph(conn)
@@ -270,11 +364,34 @@ def aggregate(signals: dict[str, list[RiskSignal]],
                                  signals=sorted(account_signals,
                                                 key=lambda s: s.contribution, reverse=True)))
 
-    return sorted(scored, key=lambda r: r.score, reverse=True)
+    # Ties break on account id, deliberately, rather than being left to whatever
+    # order the signals happened to be collected in.
+    #
+    # This is not tidiness. Every single-rule case scores exactly 0.35 x 0.60 =
+    # 21.00, and on the demo world FORTY-FIVE accounts sit on that one value with
+    # the alert budget's cut falling inside the cluster -- so which 24 of 45 an
+    # analyst actually works was decided by dictionary insertion order. It moved
+    # the measured baseline by two true positives between two runs of the same
+    # command, which is how it was noticed at all.
+    #
+    # A stable order does not make the ranking *right* (see the note below), but an
+    # arbitrary one makes every budget-capped measurement partly noise and makes an
+    # analyst's queue reshuffle for no reason between refreshes.
+    #
+    # KNOWN AND UNFIXED: rule strength ignores the rule's own magnitude, so a
+    # 27-deposit structuring scheme and an 89-deposit one both score 21.00. Fixing
+    # that means giving rules a confidence, which is a scoring change that needs its
+    # own measurement rather than a guess bolted on here.
+    return sorted(scored, key=lambda r: (-r.score, r.account_id))
 
 
 def score_accounts(conn: duckdb.DuckDBPyConnection,
                    ml_scores: dict[str, float] | None = None,
-                   weights: dict[str, float] | None = None) -> list[RiskScore]:
-    """Convenience: collect every layer's signals and aggregate them."""
-    return aggregate(collect(conn, ml_scores), weights)
+                   weights: dict[str, float] | None = None,
+                   media_mode: str = "off") -> list[RiskScore]:
+    """Convenience: collect every layer's signals and aggregate them.
+
+    `media_mode` defaults to "off" so every figure published before adverse media
+    was a candidate reproduces unchanged.
+    """
+    return aggregate(collect(conn, ml_scores, media_mode=media_mode), weights)

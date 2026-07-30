@@ -1045,3 +1045,61 @@ them were the source-level tests enforcing my most important invariant, that det
 never reads ground truth. The control was well designed, documented as enforced, and not
 executing. That is a control that passes on paper and does nothing in practice, which is
 precisely what control testing exists to find — so CI now fails if any test skips at all."
+
+
+---
+
+## Phase 7, slice 7.12 — 2026-07-30 (a negative result, and the coin toss under it)
+
+🏦 **FCC:** Adverse media does not belong in a transaction-monitoring risk score, and now I can
+say why with numbers rather than instinct. It is not that the matcher is weak — on this world it
+was right about the person 47.6% of the time with 100% recall, which for name-only matching
+against news text is respectable. It is that **it answers a different question.** Adverse media
+asks "is there negative news about this person?"; the risk score asks "is this account moving
+criminal money?". Of 21 accounts media flagged, one was laundering — and the set of laundering
+accounts that *only* media reached was empty. Every one was already found by a rule or a chain.
+
+That empty set is the whole answer, and it is the cleanest piece of reasoning I have done on this
+project: a signal can only add recall through accounts it alone reaches. If that set is empty,
+no weight, no normalisation and no clever aggregation shape can add a single true positive — the
+signal can only reorder the queue, and reordering a budget-capped queue can only push something
+real out of it. Which is exactly what happened: two confirmed structuring cases dropped out of a
+50-case budget so that sanctions-plus-news name matches could take their seats.
+
+The right home for it is the entity screen. When an analyst is adjudicating a case, "there is a
+corruption story naming this customer" is genuinely the first thing they want. It is context for
+a decision, not evidence for a ranking, and those are different jobs. That is the same
+conclusion 7.1 reached about sanctions screening, one layer further out — and in the real world
+it is why adverse media lives in EDD and periodic review rather than in transaction monitoring.
+
+🔧 **Engineering:** The experiment found something worse than the thing it was measuring. My
+ranking had **no tie-break**, and every single-rule case scores exactly 0.35 × 0.60 = 21.00 — so
+on the demo world 45 accounts sit on that one value with the alert budget's cut falling inside
+the cluster. Which 24 of 45 an analyst actually worked was decided by dictionary insertion
+order. I only noticed because the baseline moved from 44 true positives to 46 between two runs
+of the same command, which is impossible if the pipeline is deterministic. Ties now break on
+account id.
+
+The deeper lesson is about what I then did with the numbers. Once ties were deterministic the
+baseline settled at 39 — not 44, not 46 — because the tie-break picks a different 24. **All
+three numbers were equally arbitrary.** So the report now prints how many accounts are contesting
+how many seats, and the recommendation rests on unique reach, which depends on neither the tie
+order nor the budget nor the weighting. A measurement whose headline moves when you change
+something irrelevant is not a measurement yet, and the fix is not a better tie-break — it is
+finding the statement that does not depend on the arbitrary part.
+
+Also worth its own line: I nearly shipped the "folded into screening" alternative, because at
+budget 50 it looked free — identical to baseline on every figure. The budget sweep killed it. At
+a looser budget it inherits screening's full weight and opens cases on media alone: 11 extra
+reviews, zero extra finds. One budget is not a measurement.
+
+🎯 **Interview line:** "I was asked to add adverse media to my risk score and I measured it
+first, which is how I ended up recommending against it. The matcher was fine — 47.6% precision
+at identifying the right person. But of the twenty-one accounts it flagged, one was actually
+laundering, and the set of laundering accounts that only adverse media reached was empty. That
+single fact decides it regardless of weighting: a signal adds recall only through accounts it
+alone reaches, so with that set empty it can only reorder the queue — and reordering a
+budget-capped queue pushes something real out. It cost two confirmed structuring cases to make
+room for sanctions-plus-news name matches, none of which were laundering. So it ships on the
+entity screen as context for the analyst and carries zero weight in the ranking, which is where
+adverse media actually belongs — enhanced due diligence, not transaction monitoring."

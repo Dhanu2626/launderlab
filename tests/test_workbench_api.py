@@ -354,3 +354,29 @@ def test_ui_explains_a_tier_that_cannot_fill_rather_than_looking_quiet(client):
     ceiling = risk.DEFAULT_WEIGHTS["ml"] * 100
     assert f"{ceiling:.1f} of 100" in html
     assert ceiling < risk.MIN_CASE_SCORE, "the note is only true while this holds"
+
+
+def test_entity_360_surfaces_adverse_media_without_scoring_it(client):
+    """Slice 7.12's merge decision: surface, do not score. Media is what an analyst
+    wants while adjudicating, and measurably useless for ranking — 21 flagged
+    accounts, one launderer, and an empty set of accounts only it reaches."""
+    account_id = client.get("/queue").json()[0]["account_id"]
+    body = client.get(f"/accounts/{account_id}").json()
+
+    assert "adverse_media" in body, "the entity screen must be able to show news"
+    for article in body["adverse_media"]:
+        assert article["headline"] and article["category"]
+        assert 0.0 < article["score"] <= 1.0
+
+    # ...and it must never have become a scoring signal
+    for case in client.get("/queue").json():
+        for signal in case["signals"]:
+            assert signal["source"] != "media"
+            assert not signal["detail"].startswith("adverse media")
+
+
+def test_ui_labels_adverse_media_as_context_not_evidence(client):
+    html = client.get("/").text
+    assert "renderMedia" in html
+    assert "Adverse media" in html
+    assert "Context, not evidence" in html

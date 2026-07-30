@@ -76,17 +76,41 @@ def screen_customers(conn: duckdb.DuckDBPyConnection,
     return hits
 
 
-def screen_media(conn: duckdb.DuckDBPyConnection,
-                 threshold: float = DEFAULT_THRESHOLD) -> list[MediaHit]:
-    """Link adverse news articles to customers by name.
-
-    Benign articles are skipped outright -- an article has to actually allege
-    something before matching a customer to it means anything.
-    """
-    articles = conn.execute(
+def _adverse_articles(conn: duckdb.DuckDBPyConnection) -> list[tuple]:
+    """Every article that actually alleges something. Benign coverage is skipped
+    outright -- matching a customer to ordinary business news means nothing."""
+    return conn.execute(
         "SELECT article_id, mentioned_name, category, headline FROM adverse_media"
         " WHERE category != ? ORDER BY article_id", [BENIGN_CATEGORY]
     ).fetchall()
+
+
+def media_for_name(conn: duckdb.DuckDBPyConnection, name: str,
+                   customer_id: str = "", threshold: float = DEFAULT_THRESHOLD
+                   ) -> list[MediaHit]:
+    """Adverse articles matching ONE name, best first.
+
+    Exists because two callers need exactly this and neither should re-implement
+    it: the entity-360 endpoint showing an analyst the news about the customer in
+    front of them, and the MCP `adverse_media_check` tool. Same rule that had the
+    MCP server's `screen_name` rewired onto the shared matcher in Phase 4 -- two
+    copies of a matching rule drift, and then the number a user sees stops being
+    the number the scorer grades.
+    """
+    hits = [
+        MediaHit(customer_id=customer_id, customer_name=name, article_id=article_id,
+                 category=category, headline=headline, score=score)
+        for article_id, mentioned_name, category, headline in _adverse_articles(conn)
+        if (score := similarity(mentioned_name, name)) >= threshold
+    ]
+    hits.sort(key=lambda h: h.score, reverse=True)
+    return hits
+
+
+def screen_media(conn: duckdb.DuckDBPyConnection,
+                 threshold: float = DEFAULT_THRESHOLD) -> list[MediaHit]:
+    """Link adverse news articles to every customer by name."""
+    articles = _adverse_articles(conn)
     customers = conn.execute(
         "SELECT customer_id, full_name FROM customers ORDER BY customer_id"
     ).fetchall()
