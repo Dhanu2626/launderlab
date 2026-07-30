@@ -35,7 +35,7 @@ valuable thing here — preserve it. Details in §7.
 
 | | |
 |---|---|
-| Latest commit | `f40ae75` — "Pre-Phase-8 audit: five claims that were not true" |
+| Latest commit | `13e58aa` — "Phase 7.12: adverse media measured as a scoring signal, and rejected" |
 | Working tree | clean, in sync with `origin/main` |
 | Tests | **242 passing**, zero skips (~9 min) |
 | Lint | `ruff` clean |
