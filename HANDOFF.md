@@ -35,7 +35,7 @@ valuable thing here — preserve it. Details in §7.
 
 | | |
 |---|---|
-| Latest commit | *(pin after this session's Phase 8 commit lands — see `git log --oneline -1`)* |
+| Latest commit | `99bbac7` — "Phase 8: red team co-evolution engine and the decay benchmark" |
 | Working tree | clean, in sync with `origin/main` |
 | Tests | **258 passing**, zero skips (~8 min) |
 | Lint | `ruff` clean |
