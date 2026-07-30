@@ -317,9 +317,12 @@ where that model is weak, and only ground-truth-by-crime-type reveals it.
   Derived from the signal algebra — do not re-fit them to one world's histogram.
 - **The disposition list is served by the API, never hardcoded in the UI**, and a test asserts
   no disposition string appears in the page.
-- **Adverse media is surfaced, never scored** (7.12, measured). `risk.collect(media_mode="off")`
-  is the production default; `"separate"` and `"folded"` exist for the experiment only. Do not
-  give it a weight without re-running `media-experiment` and finding a NON-empty unique-reach set.
+- **Adverse media is surfaced, never scored — final, confirmed by Dhanush 2026-07-30.** Not a
+  provisional default awaiting revisit: it is architecture. `risk.collect(media_mode="off")` is
+  the production default; `"separate"` and `"folded"` exist for the experiment only, never for
+  production code. Do not give media a weight without re-running `media-experiment` and finding
+  a NON-empty unique-reach set — and even then, that is new evidence for a new decision, not a
+  quiet reversal of this one.
 - **`aggregate()` breaks ties on account id.** Not cosmetic: 45 accounts tie at 21.00 and the
   budget cut falls inside that cluster, so without it the queue's membership — and any
   budget-capped measurement — is decided by dict insertion order.
@@ -350,7 +353,7 @@ where that model is weak, and only ground-truth-by-crime-type reveals it.
 | Only graph can cite its own rows | Rules emit a reason string, screening answers an identity question, ML emits a score — none records *which* transactions made it fire, so the SAR annex is ranked by value and says so. Making rules record their triggering txn ids would upgrade every narrative |
 | **The model tier cannot fill** | By arithmetic, and deliberately: the ml weight is 0.15, so a model-only case tops out at 15.0 and the opening threshold sits above it, because an alert with no explainable reason should not open a case. The UI says this in the empty tier rather than looking quiet. **Letting it fill is a re-weighting decision — and it is the tier that matters most against a red team that has learned to evade the named scenarios, so Phase 8 will have to face it.** |
 | **Sanctions lose the shared alert budget** | Screening-only hits score 17.6-19.7, the lowest of any control, so under one budget every behavioural case outranks them — 42 of 92 eligible accounts did not fit. Real banks queue screening separately under its own obligation clock; a per-tier budget in `open_from_queue` would model that |
-| ~~Adverse media leg unscored~~ | **Settled by 7.12: measured and rejected as a scoring signal, weight 0.0.** Of 21 accounts it flags, 1 is laundering, and the set of laundering accounts only media reaches is **empty** — so no weighting can add a true positive, and every weighting displaced real cases. It now surfaces on the entity-360 screen as "context, not evidence". `risk.collect(media_mode=...)` keeps the experiment reproducible; production stays `"off"`. Re-run: `python -m launderlab media-experiment` |
+| ~~Adverse media leg unscored~~ | **FINAL ARCHITECTURAL DECISION — confirmed by Dhanush 2026-07-30. Do not reopen without a new measurement.** Adverse media stays investigator context on the Entity-360 screen ("context, not evidence") and carries weight 0.0 in the risk score, permanently. 7.12 measured it: of 21 accounts it flags, 1 is laundering, and the set of laundering accounts only media reaches is **empty** — so no weighting can add a true positive, and every weighting tried displaced real cases out of the alert budget. `risk.collect(media_mode=...)` keeps the experiment reproducible; production stays `media_mode="off"`. If a future world or a future analyst ever makes the unique-reach set non-empty, that is new evidence and re-running `python -m launderlab media-experiment` is the correct way to revisit this — but the decision itself does not get re-argued casually. |
 | **Single-rule cases are all tied** | Every one scores exactly 0.35 × 0.60 = 21.00, so a 27-deposit structuring scheme and an 89-deposit one are indistinguishable to the queue — and on the demo world 45 accounts sit on that value with the budget cut inside the cluster. Ties now break on account id so the queue is at least *reproducible*, but giving rules a magnitude-aware confidence is a real scoring change needing its own measurement |
 | **1.3 world realism** | Weekday/weekend variation, holidays. Open since 2026-07-26, non-blocking, and has blocked nothing across five phases. The only reason Phase 1's roadmap box is unchecked |
 | **4.1 secondary identifiers** | DOB/nationality disambiguation. Re-scoped by 4.2 to a realism item rather than a precision fix |
@@ -436,11 +439,12 @@ the adversary highly. Decide the weighting deliberately *before* running the ben
 headline number will be an artefact of the aggregation rather than of detection decay — which
 is exactly the class of mistake §7 is a list of.
 
-**The React question is settled** — Dhanush chose the single page on 2026-07-30. The one
-front-end question still open is whether the SAR narrative should get an LLM *polish* pass on
-top of the template (7.8 deliberately shipped template-only, because a generated figure in a
-regulatory filing is a false statement; polishing prose an analyst then verifies is a different
-and safer feature).
+**The React question is settled** — Dhanush chose the single page on 2026-07-30.
+**The adverse-media question is settled** — Dhanush confirmed 2026-07-30: context on Entity-360,
+weight 0.0 in scoring, permanently (see §8, §9). The one front-end question still open is
+whether the SAR narrative should get an LLM *polish* pass on top of the template (7.8
+deliberately shipped template-only, because a generated figure in a regulatory filing is a false
+statement; polishing prose an analyst then verifies is a different and safer feature).
 
 **To see the workbench with real data:**
 ```
