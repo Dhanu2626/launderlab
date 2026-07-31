@@ -53,9 +53,9 @@ thing here — preserve it.
 
 | | |
 |---|---|
-| Latest commit | `5bfe481` — "HANDOFF: rewrite from scratch as the single authoritative handoff" (last code change: `f263385`) |
+| Last code change | `f263385` — "Fix six defects found auditing Phases 8 and 8.5 before Phase 9". Commits after it are documentation only. Run `git log --oneline -5` for the true head — a doc that pins its own hash is stale the moment it is committed |
 | Working tree | clean, in sync with `origin/main` |
-| Commits | 52 |
+| Commits | 53 |
 | Tests | **274 passing, zero skips** (~5–9 min locally, ~1:16 in CI) |
 | Lint | `ruff` clean |
 | CI | GitHub Actions green on every push, and **actually runs everything** — see §3 |
