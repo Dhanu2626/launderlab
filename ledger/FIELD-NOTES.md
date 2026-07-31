@@ -1230,3 +1230,75 @@ chain deliberately across banks bought almost nothing over placing it carelessly
 a chain needs two consecutive hops inside one bank, which falls off as one over n-squared. Then I
 prototyped co-operation where banks publish only HMAC'd payment references for accounts they'd
 already flagged themselves — no names, no account numbers — and recovered about 80% of the hops."
+
+---
+
+## Phase 9.1 — 2026-07-31 (Story Mode, and "caught" was never one property)
+
+🏦 **FCC:** I set out to build the visual finale — a page where someone who will never open a
+ledger can *watch* a laundering scheme run. Building it forced a question the project had never
+asked, and the answer is the most useful thing I have measured.
+
+Every detection number in this repo — 86.1% recall, 15/15 chains, the whole decay benchmark —
+was scored against the **finished** world. All 39 days of it, graded once, at the end. Written
+down like that it is obviously an assumption, and an indefensible one: it quietly grants the
+bank permission to wait until the crime is over before deciding it happened. No transaction
+monitoring system on earth works that way. They run nightly, against the ledger so far. So the
+real question an FCC team asks is not "was it caught" but **"how long did it run first"**.
+
+Measuring it inverted my intuition twice over. The typology caught *fastest* in days is among
+the worst in practice: `round_tripping` alerts in a median 4 days with **100% of the money
+already moved**. That is not a tuning failure. The `round_trip` rule fires on a debit followed
+by a matching credit — it needs the **return leg to exist** before it has anything to see, and
+the return leg is the last act of the scheme. The rule is structurally incapable of firing while
+a rupee is still stoppable. `dormancy_burst` has the identical shape: it requires the cash-out.
+Two of my six rules can only ever confirm a completed crime.
+
+Meanwhile `structuring` is the *slowest* to detect — 9 days, the worst bar on the latency chart
+— and is caught with **53% of the scheme still to come**, the best on the chart that matters. It
+accumulates, so the alert lands mid-crime, while intervention still means something.
+
+The lesson generalises past this repo. "Detection rate" is one axis and every AML vendor sells
+on it. Whether the alert arrives while the money is still in the building is a completely
+different axis, it is not implied by the first, and for some controls it is fixed by the shape of
+the evidence the rule requires rather than by any threshold you can tune. A control that only
+confirms losses is still worth having — it is how a SAR gets filed and a network gets mapped —
+but calling it *prevention* is a category error, and I could not have told those apart from a
+recall number.
+
+🔧 **Engineering:** The measurement is only trustworthy because the detectors doing it are the
+real ones. The temptation was to write a day-aware version of each rule — "has this account hit
+24 deposits by day N" — which is a second implementation of six rules that would drift from the
+six being graded, and drift silently. Instead I truncate the *world*: a DuckDB view named
+`transactions` shadows the real table through `search_path`, so the SQL every rule already
+contains does the filtering itself and `rules.run_all` runs completely unmodified. Zero lines of
+detection logic were written for this slice.
+
+That mechanism is load-bearing, so I verified it in a scratch database before building on it
+(and learned `asof` is a reserved word). The test that guards it asserts the **row count through
+the view**, not the effect — because the failure mode is so quiet. If shadowing ever stopped
+working, every detector would run against the full 39-day world on every day of the replay and
+report that everything was caught on day one. A flattering number, and nothing would fail.
+
+Two bugs came from *looking at the rendered page*, which is now four for four in this project
+(7.4, 7.5, 7.8b, this). Sorted by typology, the page opened on a `dormant_reactivation` that
+runs for one day — so it loaded with a slider that had a single position, and the one feature
+the page exists for looked broken on arrival. And the fixed-width SVG overflowed its card, which
+pushed the value label off the end of the **longest** bar — the single number a reader most
+wants was the one number they could not see. Both are the same species: nothing throws, the
+artefact just quietly fails at its job. A third I caught by re-reading rather than looking — the
+scrubber built its calendar with browser `Date` arithmetic, where `setDate` steps in local time
+while `toISOString` reads back UTC, so across a DST boundary it would repeat a day. I deleted
+the JavaScript and built the calendar in Python, where real dates already existed.
+
+🎯 **Interview line:** "Every detection number I'd published was scored against the finished
+world — thirty-nine days, graded once at the end. That assumes a bank can wait until the crime
+is over to decide it happened, and no monitoring system works that way. So I replayed each day
+and re-ran the real detectors against a view of the ledger truncated to that day — no second
+copy of a rule, the rule's own SQL does the filtering. Two things inverted. The typology caught
+fastest, round-tripping at four days, was caught with a hundred percent of the money already
+gone — because that rule needs the return leg before it can fire, so it structurally cannot
+alert while anything is stoppable. And structuring, the slowest at nine days, was caught with
+half the scheme still to come. Detection rate is one axis; whether the alert arrives while the
+money is still in the building is a different one, and for some controls it's fixed by the shape
+of the evidence rather than by any threshold you can tune."
