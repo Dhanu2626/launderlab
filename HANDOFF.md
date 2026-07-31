@@ -1,6 +1,6 @@
 # LaunderLab — project handoff
 
-**Written 2026-07-29, updated 2026-07-31 (Phase 8 complete) for a Claude session that has
+**Written 2026-07-29, updated 2026-07-31 (Phase 8.5 complete) for a Claude session that has
 none of the previous conversation.**
 Everything needed to continue is here or is pointed at from here. Read this file first,
 then `PROJECT.md`, then the last entry in `ledger/FIELD-NOTES.md`.
@@ -37,10 +37,10 @@ valuable thing here — preserve it. Details in §7.
 |---|---|
 | Latest commit | `99bbac7` — "Phase 8: red team co-evolution engine and the decay benchmark" |
 | Working tree | clean, in sync with `origin/main` |
-| Tests | **258 passing**, zero skips (~8 min) |
+| Tests | **273 passing**, zero skips (~5-9 min) |
 | Lint | `ruff` clean |
 | CI | GitHub Actions green on every push — installs `[dev,api,mcp]` + CPU torch and **fails if any test skips** |
-| Phases complete | 0, 2, 3, 4, 5, 6, 7, **8** fully; 1 core (polish deferred) |
+| Phases complete | 0, 2, 3, 4, 5, 6, 7, 8, **8.5** fully; 1 core (polish deferred) |
 
 **Phase status at a glance**
 
@@ -55,8 +55,8 @@ valuable thing here — preserve it. Details in §7.
 | 6 | ML Tournament | ✅ complete — all 6 model families |
 | 7 | Investigator Workbench | ✅ complete — 7.1–7.12, queue → entity 360 → link graph → disposition → SAR draft, all four layers reaching an analyst |
 | 8 | Red Team co-evolution | ✅ complete — 8-generation decay benchmark, non-uniform decay across typologies (see §13) |
-| 8.5 | Multi-bank experiment | ⬜ **not started — pick this or Phase 9 next** |
-| 9 | Story Mode + launch | ⬜ not started |
+| 8.5 | Multi-bank experiment | ✅ complete — cross-bank blind spot quantified + privacy-preserving co-operation prototype (see §13) |
+| 9 | Story Mode + launch | ⬜ **not started — this is next, and it is the last one** |
 
 ---
 
@@ -152,6 +152,9 @@ src/launderlab/
   redteam.py            `python -m launderlab redteam` — Phase 8 co-evolution benchmark:
                         one mutating Knob/Genome per typology, `run_decay_benchmark()`,
                         `report()` incl. post-convergence stability
+  multibank.py          `python -m launderlab multibank` — Phase 8.5 cross-bank blind spot:
+                        splits the world into 4 banks as SEPARATE DuckDB files, measures
+                        solo vs pooled vs co-operative reconstruction, HMAC fingerprints
 
   mcp_server.py         AML MCP server — 6 read-only tools, every call audited
 ```
@@ -345,6 +348,21 @@ where that model is weak, and only ground-truth-by-crime-type reveals it.
 - **The demo's ML scores are unsupervised and budgeted** (isolation forest, top 100). One
   world means a supervised model would score the accounts it was fitted on; and scoring
   *every* account gave mid-ranked ones ~7 free points toward the opening threshold.
+- **Each bank in Phase 8.5 gets a SEPARATE DuckDB file, never a `WHERE` clause.** A filter
+  would need every detector to remember to honour it, and one that forgot would silently give
+  a bank sight of another bank's rows — inventing detection ability and inflating the very
+  number the phase measures. Isolation is structural; a test asserts each ledger holds only
+  its own accounts, transactions AND customers.
+- **Banks publish `HMAC(secret, reference)`, never a bare hash.** A plain SHA of a short
+  numeric payment reference is trivially brute-forced back, which would hand every participant
+  a lookup table for payments they were never party to.
+- **`Fingerprint`'s field list IS the privacy boundary** — a test asserts it contains no
+  account id, customer name or balance, so an edit that tries to share more has to change the
+  type and trip the test.
+- **The co-operative view counts intra-bank hops too** (`cooperative_total_hops`). Scoring
+  cross-boundary recoveries alone penalised a carelessly placed chain for hops its own bank
+  already held both legs of, and made a deliberately spread chain look BETTER covered —
+  backwards, which is how the bug was caught.
 
 ---
 
@@ -357,6 +375,9 @@ where that model is weak, and only ground-truth-by-crime-type reveals it.
 | **The model tier cannot fill** | By arithmetic, and deliberately: the ml weight is 0.15, so a model-only case tops out at 15.0 and the opening threshold sits above it, because an alert with no explainable reason should not open a case. The UI says this in the empty tier rather than looking quiet. **Phase 8 confirmed why this matters, concretely rather than hypothetically**: `mule_network` recall fell from 100% to 0% by generation 7 against a real adaptive adversary, and `shell_company` fell from 70% to 0% by generation 2 and stayed there. When rules and graph go quiet like that, the model is the only layer left that could still see something — and at the current weights it cannot open a case alone. **Letting it fill is a re-weighting decision that is now overdue, not hypothetical.** |
 | **Phase 8 measured rules + graph decay only** | Deliberately (see `redteam.py` docstring) — whether a TRAINED model (Phase 6) decays faster or slower than static SQL thresholds against the same adaptive adversary is a real, different question, left open for a later slice |
 | **Phase 8's numbers are from one seed** | `run_decay_benchmark` ran once (seed 41, 8 generations). The generation-of-convergence figures are a real measured data point, not yet a stable population statistic. Average over several seeds before treating a specific generation count as more than an example |
+| **Phase 8.5's co-operation is a prototype, not a protocol proposal** | The coordinator still learns the SHAPE of the inter-bank graph (who transacts with whom, at what volume) even without identities. Making that private too — secure set intersection, differential privacy on volumes — is the real next question and where BIS Project Aurora spends most of its effort |
+| **Phase 8.5 used one seed and exactly 4 banks** | The 1/n² mechanism predicts the blind spot deepens as banks multiply; sweeping `n_banks` would turn a stated mechanism into a measured curve. Cheap to do (`run_arm(n_banks=...)`) and would strengthen the whitepaper |
+| **Phase 8.5 measured mule chains only** | The other five typologies have counterparties outside the bank by construction (Phase 5's finding), so they are already invisible to a graph even in ONE bank — splitting into four changes nothing for them. Stated so nobody re-measures it expecting a result |
 | **Sanctions lose the shared alert budget** | Screening-only hits score 17.6-19.7, the lowest of any control, so under one budget every behavioural case outranks them — 42 of 92 eligible accounts did not fit. Real banks queue screening separately under its own obligation clock; a per-tier budget in `open_from_queue` would model that |
 | ~~Adverse media leg unscored~~ | **FINAL ARCHITECTURAL DECISION — confirmed by Dhanush 2026-07-30. Do not reopen without a new measurement.** Adverse media stays investigator context on the Entity-360 screen ("context, not evidence") and carries weight 0.0 in the risk score, permanently. 7.12 measured it: of 21 accounts it flags, 1 is laundering, and the set of laundering accounts only media reaches is **empty** — so no weighting can add a true positive, and every weighting tried displaced real cases out of the alert budget. `risk.collect(media_mode=...)` keeps the experiment reproducible; production stays `media_mode="off"`. If a future world or a future analyst ever makes the unique-reach set non-empty, that is new evidence and re-running `python -m launderlab media-experiment` is the correct way to revisit this — but the decision itself does not get re-argued casually. |
 | **Single-rule cases are all tied** | Every one scores exactly 0.35 × 0.60 = 21.00, so a 27-deposit structuring scheme and an 89-deposit one are indistinguishable to the queue — and on the demo world 45 accounts sit on that value with the budget cut inside the cluster. Ties now break on account id so the queue is at least *reproducible*, but giving rules a magnitude-aware confidence is a real scoring change needing its own measurement |
@@ -368,7 +389,7 @@ where that model is weak, and only ground-truth-by-crime-type reveals it.
 | `dormant_reactivation` recall | 60% (9/15) — injector's gap parameter sometimes lands too close to normal weekly cadence |
 | Watchlist | **Synthetic**, not real OFAC/UN data. Swap via `LAUNDERLAB_WATCHLIST` |
 | MCP server demo | Fixed by 7.9 + 7.10 — point it at `data/demo.duckdb`: typologies, watchlist entities AND adverse media are all planted, so `run_detection`, `screen_name` and `adverse_media_check` all surface real hits |
-| Test suite runtime | ~8 min (258 tests). Do not run two full suites concurrently (once took 72 min) — also true of running the suite alongside `python -m launderlab redteam`, which cost this run several extra minutes of CPU contention. `test_redteam.py`'s small live run and `test_demo.py` are the slowest files |
+| Test suite runtime | ~5-9 min (273 tests). Do not run two full suites concurrently (once took 72 min) — also true of running the suite alongside `python -m launderlab redteam`, which cost this run several extra minutes of CPU contention. `test_redteam.py`'s small live run and `test_demo.py` are the slowest files |
 
 ---
 
@@ -421,8 +442,19 @@ leak. Report negative results.
 
 ## 13. Exact next steps
 
-**Phase 8 is complete. Next is Phase 8.5 — the multi-bank experiment — or Phase 9 (Story Mode
-+ whitepaper + launch), Dhanush's call.**
+**Phase 8.5 is complete. Next is Phase 9 — Story Mode, whitepaper, demo video and launch —
+and it is the last phase.**
+
+**What Phase 8.5 found**: the blind spot is the NETWORK, not the account. Split across 4 banks
+with separate ledgers, each bank still flags 75-77% of the individual mule accounts on its own
+books (an account's whole history is at its own bank, so `rapid_pass_through` works fine) while
+reconstructing only 0-6% of the chain hops those accounts form. Rebuilding a chain means pairing
+two legs of a transfer, and the second leg is at another institution. **Deliberately spreading a
+chain across banks buys the launderer almost nothing** (6% → 0%) — with n banks the odds of even
+one reportable same-bank stretch fall as 1/n², so the blind spot is already near-total by
+accident. Privacy-preserving co-operation (HMAC'd payment references only, published only for
+accounts a bank already flagged itself) recovers **81% of hops for naive placement, 69% for
+deliberate**. Reproduce: `python -m launderlab multibank` (~1 min; writes `charts/multibank.html`).
 
 **What Phase 8 actually found, in one paragraph**: decay is not uniform across typologies.
 `shell_company` collapses fastest and most completely (70%→0% recall by generation 2, stable
@@ -469,6 +501,11 @@ LAUNDERLAB_DB=data/demo.duckdb .venv/Scripts/python -m uvicorn launderlab.workbe
 .venv/Scripts/python -m launderlab redteam
 ```
 
+**To reproduce the Phase 8.5 multi-bank experiment and its chart:**
+```
+.venv/Scripts/python -m launderlab multibank
+```
+
 **To start a session:**
 1. Read `PROJECT.md` and the last entry of `ledger/FIELD-NOTES.md`
 2. Confirm the tree is clean and CI is green
@@ -476,6 +513,11 @@ LAUNDERLAB_DB=data/demo.duckdb .venv/Scripts/python -m uvicorn launderlab.workbe
 4. Build → test → lint → real-scale proof → docs → commit → push → verify CI
 5. Close with three Field Notes insights
 
-**After Phase 8:** Phase 8.5 (multi-bank experiment — Phase 5 already measured the cross-bank
-blind spot at 1-in-6, which is the setup for this), Phase 9 (Story Mode + whitepaper + demo
-video + launch). Ask Dhanush which one he wants next; both are genuinely open.
+**Phase 9 is the whole remaining scope** (see `../LAUNDERLAB-PLAN.md`): Story Mode (animated
+money-flow Sankey, link graph lighting up as detection closes in, timeline scrubber, red-vs-blue
+evolution chart), a metrics dashboard, the README rewritten as a whitepaper, a 3-minute demo
+video driven by Story Mode, a LinkedIn launch post, and resume bullets into
+`job hunt/db/profile.md` so CareerForge starts using this immediately.
+
+Phase 8.5's chart is the whitepaper's headline per the master plan — `charts/multibank.html`
+already renders it, and `charts/redteam.html` is the Phase 8 companion.

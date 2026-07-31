@@ -1166,3 +1166,67 @@ structurally unfixable, not just weakly tuned. But two other rules never fully c
 eight generations even at extreme, realistic parameter values. Averaging those into one recall
 number, which is what my Phase 3 proof originally did, was hiding that some of my detectors decay
 fast and some don't decay at all — and you cannot tell which is which from an aggregate."
+
+
+---
+
+## Phase 8.5 — 2026-07-31 (the blind spot is the network, not the account)
+
+🏦 **FCC:** I expected to measure "banks can't see cross-bank laundering". What the experiment
+actually says is sharper and more useful: **banks see the accounts perfectly well and cannot see
+the network at all.** Each bank flagged 75-77% of the individual mule accounts sitting on its own
+books — `rapid_pass_through` fires happily on "money arrived and left again within the day",
+because an account's entire history lives at its own bank. What no bank could do was join those
+hops into a chain: reconstructing a chain means pairing the two legs of a transfer, and when the
+counterparty banks elsewhere the second leg is not in your ledger at all. Solo chain
+reconstruction came out at 0-6%.
+
+That distinction matters practically. It means the problem is not that banks lack signals — they
+have them, and they are probably filing individual STRs on these accounts already. It is that
+nobody can see that six separate "suspicious pass-through" alerts at six different banks are one
+laundering operation. Which is exactly the gap FIUs exist to close, and exactly why cross-bank
+intelligence sharing is the live regulatory topic it is.
+
+The second finding surprised me and is the one I would lead with. I built two arms expecting to
+show that a *sophisticated* launderer who deliberately spreads a chain across institutions
+defeats detection. Deliberate placement gave 0% solo reconstruction — but naive placement, where
+the launderer ignores banks entirely, gave 6%. Spreading the chain deliberately buys almost
+nothing, because **the blind spot is already near-total by accident**. With n banks, seeing a
+chain requires two consecutive hops inside one bank, so the odds fall off as 1/n². You do not
+need a clever adversary to get this blind spot; you get it for free from how the banking system
+is partitioned. The case for co-operation does not depend on facing a sophisticated criminal.
+
+🔧 **Engineering:** Two decisions I would defend in review. First, each bank's view is a
+genuinely separate DuckDB file, not a `WHERE` clause. A filter would have been faster and
+simpler, but then every detector in the project — rules, graph build, motifs — would have to
+remember to honour it, and one that forgot would silently give a bank sight of another bank's
+rows. That would invent detection ability that does not exist and inflate the exact number this
+phase is built to produce. With separate files the isolation is structural: the other bank's rows
+are absent, every existing detector runs completely unmodified, and a test asserts each ledger
+holds only its own accounts, transactions and customers.
+
+Second, and this is the mistake I nearly published: my first version scored the co-operative view
+on cross-boundary recoveries ALONE. That penalised the naive arm for intra-bank hops its own bank
+already held both legs of — and produced the absurd result that a chain *deliberately spread
+across banks* looked better covered (69%) than a careless one (50%). Getting a backwards ordering
+out of a metric is the cheapest possible signal that the metric is wrong, and I only caught it
+because I bothered to ask why the numbers ran the wrong way instead of writing them down. The
+co-operative view now counts every hop whose link is known: recovered across a boundary, plus
+intra-bank ones needing no protocol at all. Naive correctly comes out ahead at 81%.
+
+I also made the mechanism behind "0%" a computed number rather than a claim.
+`_solo_reconstructable_runs` counts how many stretches of a chain were even long enough for
+`motifs` to report — if that is 0, a solo bank never had an opportunity, and the 0% that follows
+is explained rather than merely observed. Its own test uses hand-built bank sequences, because a
+version of that function that just returned 0 would have faked the entire headline.
+
+🎯 **Interview line:** "I split a synthetic bank into four institutions with genuinely separate
+ledgers and measured what each could see of a mule chain running through all of them. The finding
+wasn't 'banks are blind' — they flagged three-quarters of the individual mule accounts on their
+own books. What they reconstructed of the chain itself was between zero and six percent. The
+blind spot is the network, not the account: six banks each file a suspicious-activity report and
+nobody can see it's one operation. And it doesn't take a sophisticated launderer — spreading a
+chain deliberately across banks bought almost nothing over placing it carelessly, because seeing
+a chain needs two consecutive hops inside one bank, which falls off as one over n-squared. Then I
+prototyped co-operation where banks publish only HMAC'd payment references for accounts they'd
+already flagged themselves — no names, no account numbers — and recovered about 80% of the hops."

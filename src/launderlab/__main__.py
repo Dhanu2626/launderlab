@@ -13,6 +13,11 @@ Usage:
                                          adversary that mutates its own typology
                                          parameters generation over generation
                                          (see redteam.py). ~8 min at defaults
+    python -m launderlab multibank         run the Phase 8.5 cross-bank blind-spot
+                                         experiment: split the world into 4 banks
+                                         with separate ledgers, measure what each
+                                         sees alone, then what privacy-preserving
+                                         co-operation buys back (see multibank.py)
 """
 
 import sys
@@ -46,6 +51,11 @@ def main() -> None:
     if args and args[0] == "redteam":
         from launderlab.redteam import main as run_redteam
         run_redteam(args[1:])
+        return
+
+    if args and args[0] == "multibank":
+        from launderlab.multibank import main as run_multibank
+        run_multibank(args[1:])
         return
 
     conn = connect()

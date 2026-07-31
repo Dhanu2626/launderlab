@@ -286,6 +286,60 @@ def render(conn: duckdb.DuckDBPyConnection, out_dir: Path = DEFAULT_OUT) -> Path
     return path
 
 
+def multibank_chart(arms) -> tuple[str, str]:
+    """Phase 8.5: what each view reconstructs, per placement arm.
+
+    A grouped bar rather than a line: these are three distinct views of the same
+    fixed set of chains, not a trend over an ordered axis, so `line_chart`'s
+    shape would imply a progression that does not exist.
+    """
+    from launderlab import multibank
+
+    rows, alt = [], set()
+    for placement in multibank.PLACEMENTS:
+        if placement not in arms:
+            continue
+        t = multibank.totals(arms[placement][0])
+        if not t.hops:
+            continue
+        for label, value in (("pooled (central view)", t.pooled),
+                             ("single bank alone", t.solo),
+                             ("privacy-preserving co-op", t.coop)):
+            row = f"{placement}: {label}"
+            rows.append((row, value / t.hops))
+            if label.startswith("privacy"):
+                alt.add(row)
+
+    svg = bar_chart(rows, maximum=1.0, alt=alt)
+    note = ("Share of planted mule-chain hops each view can reconstruct. A single bank "
+            "sees essentially none of the network no matter how the chain was placed - "
+            "rebuilding a chain needs consecutive hops inside one bank, which is rare "
+            "once accounts are spread across institutions. Co-operation recovers most "
+            "of it while sharing only hashed payment references, never customer data.")
+    return svg, note
+
+
+def render_multibank(arms, out_dir: Path = DEFAULT_OUT) -> Path:
+    """Write the Phase 8.5 blind-spot chart as its own self-contained page."""
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    svg, note = multibank_chart(arms)
+
+    page = (f"<!doctype html>\n<meta charset=\"utf-8\">\n"
+            f"<title>LaunderLab — the cross-bank blind spot</title>\n<style>{_CSS}</style>\n"
+            f"<h1>LaunderLab — the cross-bank blind spot (Phase 8.5)</h1>\n"
+            f'<p class="sub">What one bank sees alone, what a central view would see, and '
+            f"what privacy-preserving co-operation buys back. Regenerate with "
+            f"<code>python -m launderlab multibank</code>.</p>\n"
+            f"<h2>Mule-chain hops reconstructed, by view</h2>"
+            f'<div class="card">{svg}</div>'
+            f'<p class="note">{html.escape(note)}</p>\n')
+
+    path = out_dir / "multibank.html"
+    path.write_text(page, encoding="utf-8")
+    return path
+
+
 def render_redteam(results, genomes, out_dir: Path = DEFAULT_OUT) -> Path:
     """Write the Phase 8 decay chart as its own self-contained page.
 

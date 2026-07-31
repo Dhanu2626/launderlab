@@ -17,7 +17,7 @@ RED TEAM ──launders through──► SYNTHETIC BANK ──transactions──
 
 ## Status
 
-✅ **Phases 0–8 complete** — the full AML value chain, end to end, plus the decay benchmark:
+✅ **Phases 0–8.5 complete** — the full AML value chain, end to end, plus both research benchmarks:
 
 | Phase | What it is | Headline |
 |---|---|---|
@@ -29,9 +29,9 @@ RED TEAM ──launders through──► SYNTHETIC BANK ──transactions──
 | 6 | ML tournament | 6 model families on one leaderboard; **they fail differently**, which is the argument for the tournament |
 | 7 | Investigator workbench | Alert queue → entity 360 → link graph → disposition → SAR narrative draft |
 | 8 | Red team decay benchmark | Detection decay is **not uniform** — one rule collapses in 2 generations of adaptation and stays collapsed; two others never fully evade across 8 |
+| 8.5 | Multi-bank blind spot | Banks flag **75-77% of individual mule accounts** and reconstruct **0-6% of the chains** they form. Privacy-preserving co-operation recovers 69-81% |
 
-Next: **Phase 8.5**, the multi-bank experiment — quantifying the cross-bank blind spot Phase 5
-already measured at 1-in-6.
+Next: **Phase 9** — Story Mode, whitepaper, demo video and launch.
 
 ## Quickstart (Windows)
 
@@ -59,6 +59,13 @@ actually reaches an analyst):
 
 ```
 .venv\Scripts\python -m launderlab charts
+```
+
+Run the two research benchmarks (each writes its own chart into `charts/`):
+
+```
+.venv\Scripts\python -m launderlab redteam      detection decay vs an adapting adversary (~8 min)
+.venv\Scripts\python -m launderlab multibank    the cross-bank blind spot (~1 min)
 ```
 
 Smaller pieces:
@@ -275,6 +282,57 @@ replacement when the pool runs low.
 
 Reproduce it: `python -m launderlab redteam` (~8 minutes, writes `charts/redteam.html`).
 
+## The cross-bank blind spot (Phase 8.5)
+
+A mule chain hops through several banks. Each bank sees one hop, privacy law blocks naive data
+sharing, and nobody sees the crime. Central banks run this experiment behind closed doors (BIS
+Project Aurora); this is the open version.
+
+The world is split across four banks written to **genuinely separate ledger files** — not a
+`WHERE` clause. A filter would have been faster, but every detector in the project would then
+have to remember to honour it, and one that forgot would silently give a bank sight of another
+bank's rows: inventing detection ability and inflating the exact number the experiment exists to
+measure. With separate files the isolation is structural and every detector runs unmodified.
+
+**The finding is sharper than "banks are blind".** Each bank still flags **75-77% of the
+individual mule accounts** sitting on its own books — an account's entire history is at its own
+bank, so the pass-through rule fires perfectly well. What no bank can do is join those hops into
+a chain: rebuilding a chain means pairing the two legs of a transfer, and the second leg is at
+another institution. Solo chain reconstruction: **0-6%**.
+
+> The blind spot is the **network**, not the account. Six banks each file a suspicious-activity
+> report and nobody can see it is one operation.
+
+**And it does not take a sophisticated launderer.** Two arms were run: chains placed *naively*
+with no regard to banks, and chains *deliberately* spread so no two consecutive hops share a
+bank. Deliberate placement gave 0% solo reconstruction — but naive placement gave only 6%.
+Spreading a chain across institutions on purpose buys almost nothing, because seeing a chain
+requires two *consecutive* hops inside one bank, and with n banks those odds fall off as 1/n².
+The blind spot is already near-total by accident. The case for co-operation does not rest on
+facing a clever adversary.
+
+**What co-operation buys.** Each bank publishes, only for accounts it already flagged itself,
+`HMAC(shared_secret, payment_reference)` plus direction, amount and timestamp — never a name,
+an account number, a balance, or anything at all about an unflagged account. Matching hashed
+references across banks rebuilds the cross-boundary links pseudonymously:
+
+| view | naive placement | deliberate placement |
+|---|---|---|
+| pooled (hypothetical central view) | 100% | 100% |
+| a single bank alone | 6% | 0% |
+| privacy-preserving co-operation | **81%** | **69%** |
+
+Keyed HMAC rather than a bare hash, deliberately: a plain SHA-256 of a short numeric payment
+reference is trivially brute-forced back to the reference, which would hand every participant a
+lookup table for payments they were never party to.
+
+**The residual disclosure is stated, not glossed.** The coordinator still learns the *shape* of
+the inter-bank graph — who transacts with whom, at what volume — even without identities. That
+is the honest reason this is a prototype rather than a proposal, and it is where the real
+central-bank work spends most of its effort.
+
+Reproduce it: `python -m launderlab multibank` (~1 minute, writes `charts/multibank.html`).
+
 ## What gets built
 
 | Subsystem | Purpose |
@@ -284,6 +342,7 @@ Reproduce it: `python -m launderlab redteam` (~8 minutes, writes `charts/redteam
 | S3 Blue Team | Rules engine, sanctions/PEP fuzzy screening, graph analytics, explainable ML |
 | S4 Investigator Workbench | Alert queue → entity 360 → link graph → disposition → SAR draft |
 | S5 Red Team | Adversary that mutates its schemes each generation to evade detection |
+| S5.5 Multi-bank | Four separate bank ledgers, the cross-bank blind spot, privacy-preserving co-operation |
 | S6 Metrics | Detection rate, false-positive rate, alert-to-SAR conversion, cost per alert |
 | S7 Story Mode | Visual finale: animated money-flow maps, scheme replay, red-vs-blue evolution |
 

@@ -125,6 +125,26 @@ def test_redteam_chart_draws_a_series_per_typology(redteam_run):
     assert "high_risk_geography" in note
 
 
+def test_multibank_chart_shows_every_view_for_every_arm(tmp_path):
+    """Phase 8.5's chart. Built from a real small run, so it draws from what the
+    experiment actually returns rather than a hand-made shape."""
+    multibank = pytest.importorskip("launderlab.multibank")
+    outcomes, privacy, _mapping = multibank.run_arm(
+        "naive", customers=150, days=10, seed=19, n_schemes=2, hops=3,
+        work_dir=tmp_path / "run")
+    arms = {"naive": (outcomes, privacy)}
+
+    svg, note = viz.multibank_chart(arms)
+    for view in ("pooled", "single bank alone", "privacy-preserving co-op"):
+        assert view in svg
+    assert "hashed payment references" in note
+
+    path = viz.render_multibank(arms, tmp_path / "charts")
+    assert path.name == "multibank.html"
+    page = path.read_text(encoding="utf-8")
+    assert "http://" not in page and "https://" not in page
+
+
 def test_redteam_page_is_self_contained_and_separate_from_the_main_charts(redteam_run, tmp_path):
     """Must not force `charts/index.html` to depend on an 8-generation benchmark
     result, and must never reach out to a CDN — same rule every other page in
