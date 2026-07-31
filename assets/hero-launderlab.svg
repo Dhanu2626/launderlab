@@ -1,0 +1,22 @@
+<svg width="1200" height="300" viewBox="0 0 1200 300" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+          <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stop-color="#0A0B0D"/>
+                  <stop offset="100%" stop-color="#111318"/>
+          </linearGradient>
+    </defs>
+    <rect width="1200" height="300" fill="url(#bg)"/>
+    <rect width="1200" height="4" fill="#EF4444"/>
+    <text x="60" y="140" font-family="Inter, sans-serif" font-size="46" font-weight="700" fill="#F5F6F7">LaunderLab</text>
+    <text x="60" y="178" font-family="Inter, sans-serif" font-size="18" fill="#9CA3AF">An open adversarial simulation range for AML detection</text>
+    <text x="1140" y="50" font-family="JetBrains Mono, monospace" font-size="13" fill="#6B7280" text-anchor="end">[ DHANUSH LABS / AML-RESEARCH ]</text>
+    <g stroke="#EF4444" stroke-width="1.5" fill="none" opacity="0.85">
+          <circle cx="1050" cy="220" r="6"/>
+          <circle cx="1090" cy="180" r="6"/>
+          <circle cx="1110" cy="240" r="6"/>
+          <circle cx="1000" cy="250" r="6"/>
+          <line x1="1050" y1="220" x2="1090" y2="180"/>
+          <line x1="1050" y1="220" x2="1110" y2="240"/>
+          <line x1="1050" y1="220" x2="1000" y2="250"/>
+    </g>
+</svg>
