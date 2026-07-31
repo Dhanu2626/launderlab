@@ -326,9 +326,12 @@ Keyed HMAC rather than a bare hash, deliberately: a plain SHA-256 of a short num
 reference is trivially brute-forced back to the reference, which would hand every participant a
 lookup table for payments they were never party to.
 
-**The residual disclosure is stated, not glossed.** The coordinator still learns the *shape* of
-the inter-bank graph — who transacts with whom, at what volume — even without identities. That
-is the honest reason this is a prototype rather than a proposal, and it is where the real
+**The residual disclosures are stated, not glossed.** The coordinator still learns the *shape*
+of the inter-bank graph — who transacts with whom, at what volume — even without identities. And
+a flagged account's *entire* payment history is fingerprinted, not just its suspicious legs:
+unavoidable, since which leg is the laundering hop is the very thing reconstruction exists to
+find, but it means the disclosure covers innocent payments of a suspected customer. Those are the
+honest reasons this is a prototype rather than a proposal, and they are where the real
 central-bank work spends most of its effort.
 
 Reproduce it: `python -m launderlab multibank` (~1 minute, writes `charts/multibank.html`).

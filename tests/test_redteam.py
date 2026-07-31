@@ -73,12 +73,12 @@ def test_partition_refuses_a_pool_too_small_to_stay_disjoint():
 def test_mutation_steps_toward_the_bound_and_clips_there():
     genome = rt.Genome("shell_company", {"n_invoices": 5})
     for generation in range(20):
-        genome = rt._mutate(genome, generation)
+        genome = rt._mutate(genome)
     assert genome.values["n_invoices"] == rt.TYPOLOGY_KNOBS["shell_company"][0].bound
 
     genome = rt.Genome("structuring", {"deposit_ceiling": 95_000})
     for generation in range(3):
-        genome = rt._mutate(genome, generation)
+        genome = rt._mutate(genome)
     knob = rt.TYPOLOGY_KNOBS["structuring"][0]
     assert genome.values["deposit_ceiling"] == pytest.approx(95_000 + 3 * knob.step)
     assert genome.values["deposit_ceiling"] <= knob.bound
@@ -86,7 +86,7 @@ def test_mutation_steps_toward_the_bound_and_clips_there():
 
 def test_a_converged_genome_stops_mutating():
     genome = rt.Genome("shell_company", {"n_invoices": 2}, converged_at=1)
-    mutated = rt._mutate(genome, 2)
+    mutated = rt._mutate(genome)
     assert mutated.values == genome.values
 
 

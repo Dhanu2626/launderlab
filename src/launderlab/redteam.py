@@ -188,10 +188,16 @@ def _initial_genomes() -> dict[str, Genome]:
             for name, knobs in TYPOLOGY_KNOBS.items()}
 
 
-def _mutate(genome: Genome, generation: int) -> Genome:
+def _mutate(genome: Genome) -> Genome:
     """One step toward evasion for every knob this typology has. Frozen once
     the genome has fully converged -- there is no reason for a rational
-    adversary to keep pushing past the point that already works."""
+    adversary to keep pushing past the point that already works.
+
+    Takes no generation number on purpose: mutation is a fixed step, and an
+    unused `generation` parameter (which this had) advertises schedule-dependent
+    behaviour that does not exist. Add it back only alongside a step size that
+    actually varies with it.
+    """
     if genome.converged_at is not None:
         return genome
     knobs = TYPOLOGY_KNOBS[genome.typology]
@@ -366,7 +372,7 @@ def run_decay_benchmark(customers: int = 450, days: int = 21, seed: int = 41,
                 if result.recall == 0.0 and genome.converged_at is None:
                     genome.converged_at = generation
                 if genome.converged_at is None:
-                    genomes[result.typology] = _mutate(genome, generation)
+                    genomes[result.typology] = _mutate(genome)
     finally:
         shutil.rmtree(db_dir, ignore_errors=True)
 

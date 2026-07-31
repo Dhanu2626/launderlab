@@ -196,6 +196,26 @@ def test_privacy_notes_record_what_was_shared_and_what_leaked(arm):
         assert never in privacy.never_shared
     assert privacy.residual_disclosures, (
         "a privacy prototype that claims no residual disclosure is not being honest")
+    assert privacy.fingerprints_published > 0
+    assert privacy.banks_participating > 0
+
+
+def test_privacy_counts_cover_cross_bank_links_only(arm):
+    """These two counted ALL hops until this was checked, including intra-bank
+    ones that need no protocol and no second bank's co-operation at all -- so
+    they overstated both what co-operation had to achieve and what it failed to.
+    The report had stopped printing them by then, which is exactly why the wrong
+    numbers survived: a number nobody looks at is a number nobody checks."""
+    outcomes, privacy, _mapping = arm
+    total_hops = sum(len(o.accounts) - 1 for o in outcomes)
+    same_bank = sum(o.same_bank_hops for o in outcomes)
+    recovered = sum(o.cooperative_hops_seen for o in outcomes)
+
+    assert privacy.cross_bank_links_needing_both_sides == total_hops - same_bank
+    assert privacy.cross_bank_links_lost_to_one_sided_flagging == (
+        total_hops - same_bank - recovered)
+    assert privacy.cross_bank_links_lost_to_one_sided_flagging >= 0, (
+        "co-operation cannot recover more cross-bank links than exist")
 
 
 def test_plant_chains_rejects_an_unknown_placement(tmp_path):

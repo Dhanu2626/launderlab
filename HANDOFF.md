@@ -37,7 +37,7 @@ valuable thing here — preserve it. Details in §7.
 |---|---|
 | Latest commit | `99bee2d` — "Phase 8.5: the cross-bank blind spot, quantified" |
 | Working tree | clean, in sync with `origin/main` |
-| Tests | **273 passing**, zero skips (~5-9 min) |
+| Tests | **274 passing**, zero skips (~5-9 min) |
 | Lint | `ruff` clean |
 | CI | GitHub Actions green on every push — installs `[dev,api,mcp]` + CPU torch and **fails if any test skips** |
 | Phases complete | 0, 2, 3, 4, 5, 6, 7, 8, **8.5** fully; 1 core (polish deferred) |
@@ -389,7 +389,7 @@ where that model is weak, and only ground-truth-by-crime-type reveals it.
 | `dormant_reactivation` recall | 60% (9/15) — injector's gap parameter sometimes lands too close to normal weekly cadence |
 | Watchlist | **Synthetic**, not real OFAC/UN data. Swap via `LAUNDERLAB_WATCHLIST` |
 | MCP server demo | Fixed by 7.9 + 7.10 — point it at `data/demo.duckdb`: typologies, watchlist entities AND adverse media are all planted, so `run_detection`, `screen_name` and `adverse_media_check` all surface real hits |
-| Test suite runtime | ~5-9 min (273 tests). Do not run two full suites concurrently (once took 72 min) — also true of running the suite alongside `python -m launderlab redteam`, which cost this run several extra minutes of CPU contention. `test_redteam.py`'s small live run and `test_demo.py` are the slowest files |
+| Test suite runtime | ~5-9 min (274 tests). Do not run two full suites concurrently (once took 72 min) — also true of running the suite alongside `python -m launderlab redteam`, which cost this run several extra minutes of CPU contention. `test_redteam.py`'s small live run and `test_demo.py` are the slowest files |
 
 ---
 

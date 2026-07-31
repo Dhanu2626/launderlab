@@ -150,8 +150,14 @@ class PrivacyNotes:
     banks_participating: int = 0
     fields_shared: tuple[str, ...] = ()
     never_shared: tuple[str, ...] = ()
-    links_needing_both_sides_flagged: int = 0
-    links_lost_to_one_sided_flagging: int = 0
+    # CROSS-BANK hops only. An intra-bank hop needs no protocol and no flagging
+    # by anybody else -- the bank already holds both legs -- so counting it here
+    # (which the first version did, via a bare `total_hops`) overstated both what
+    # co-operation had to achieve and what it failed to achieve. The report had
+    # stopped printing these by then, so the wrong numbers were silent, which is
+    # exactly why they survived.
+    cross_bank_links_needing_both_sides: int = 0
+    cross_bank_links_lost_to_one_sided_flagging: int = 0
     residual_disclosures: tuple[str, ...] = ()
 
 
@@ -172,10 +178,6 @@ def assign_banks(conn: duckdb.DuckDBPyConnection, n_banks: int = 4,
     conn.executemany("UPDATE accounts SET ifsc = ? WHERE account_id = ?",
                      [(f"{bank}0000001", account) for account, bank in mapping.items()])
     return mapping
-
-
-def bank_of(mapping: dict[str, str], account_id: str) -> str:
-    return mapping[account_id]
 
 
 def split_into_banks(pooled_path: Path, mapping: dict[str, str],
@@ -223,22 +225,20 @@ def split_into_banks(pooled_path: Path, mapping: dict[str, str],
 
 
 def _chain_hops_seen(chains: list, accounts: list[str]) -> int:
-    """How many consecutive hops of `accounts` any reconstructed chain covers."""
+    """How many consecutive hops of `accounts` any one reconstructed chain covers.
+
+    A hop counts only when the two planted accounts are ALSO adjacent in the
+    reconstructed chain -- a chain that happens to contain both endpoints via
+    some other route has not reconstructed that hop.
+    """
     best = 0
-    wanted = list(accounts)
     for chain in chains:
-        found = [a for a in chain.accounts if a in wanted]
-        # count consecutive pairs of the planted path this chain actually links
-        hops = 0
-        for a, b in zip(wanted, wanted[1:]):
-            if a in chain.accounts and b in chain.accounts:
-                idx_a = list(chain.accounts).index(a)
-                idx_b = list(chain.accounts).index(b)
-                if idx_b == idx_a + 1:
-                    hops += 1
+        # position lookup built once per chain rather than rebuilt per endpoint
+        position = {account: i for i, account in enumerate(chain.accounts)}
+        hops = sum(
+            1 for a, b in zip(accounts, accounts[1:])
+            if a in position and b in position and position[b] == position[a] + 1)
         best = max(best, hops)
-        if not found:
-            continue
     return best
 
 
@@ -408,20 +408,25 @@ def measure(conn: duckdb.DuckDBPyConnection, mapping: dict[str, str],
         ))
 
     total_hops = sum(len(a) - 1 for _s, a in planted)
+    cross_bank_hops = total_hops - sum(o.same_bank_hops for o in outcomes)
     privacy = PrivacyNotes(
         fingerprints_published=len(fingerprints),
         banks_participating=len({f.bank for f in fingerprints}),
         fields_shared=("HMAC(reference)", "direction", "amount", "timestamp"),
         never_shared=("customer name", "account id", "balance", "KYC data",
                       "anything about an unflagged account"),
-        links_needing_both_sides_flagged=total_hops,
-        links_lost_to_one_sided_flagging=total_hops - sum(
+        cross_bank_links_needing_both_sides=cross_bank_hops,
+        cross_bank_links_lost_to_one_sided_flagging=cross_bank_hops - sum(
             o.cooperative_hops_seen for o in outcomes),
         residual_disclosures=(
             "the coordinator learns the shape of the inter-bank graph (which banks "
             "transact with which, and at what volume) even without identities",
             "a bank that already knows a reference can confirm another bank was in "
             "that payment -- though it was the counterparty, so it already knew",
+            "a flagged account's ENTIRE payment history is fingerprinted, not just "
+            "its suspicious legs -- unavoidable, since which leg is the laundering "
+            "hop is the very thing reconstruction exists to find, but it means the "
+            "disclosure covers innocent payments of a suspected customer",
         ),
     )
     return outcomes, privacy
@@ -647,17 +652,23 @@ def report(arms: dict[str, tuple[list[ChainOutcome], PrivacyNotes]]) -> str:
         "",
         "  Bounded above by local recall: a cross-bank link needs BOTH banks to have",
         "  flagged their own side, so co-operation multiplies existing detection rather",
-        "  than replacing it. Missed hops by arm:",
+        "  than replacing it.",
     ]
     for placement in PLACEMENTS:
         if placement not in arms:
             continue
         t = totals(arms[placement][0])
-        lines.append(f"    {placement:<12} {t.hops - t.coop}/{t.hops} hops still unknown")
+        pn = arms[placement][1]
+        lines.append(
+            f"    {placement:<12} {t.hops - t.coop}/{t.hops} hops still unknown; of the "
+            f"{pn.cross_bank_links_needing_both_sides} cross-bank links, "
+            f"{pn.cross_bank_links_lost_to_one_sided_flagging} lost to one-sided flagging")
 
     privacy = next(p for _o, p in arms.values())
     lines += [
         "", "WHAT WAS SHARED, AND WHAT WAS NOT", "-" * 78,
+        f"  {privacy.fingerprints_published} fingerprints published by "
+        f"{privacy.banks_participating} banks.",
         "  Shared:       " + ", ".join(privacy.fields_shared),
         "  Never shared: " + ", ".join(privacy.never_shared),
         "",
