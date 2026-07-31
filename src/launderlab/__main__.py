@@ -18,6 +18,11 @@ Usage:
                                          with separate ledgers, measure what each
                                          sees alone, then what privacy-preserving
                                          co-operation buys back (see multibank.py)
+    python -m launderlab metrics           Phase 9.2: the FCC operating KPIs —
+                                         detection rate, false-positive rate,
+                                         alert-to-SAR conversion, reviews per
+                                         true find (see metrics.py). Reads
+                                         LAUNDERLAB_DB; `charts` renders these too
     python -m launderlab story             Phase 9 Story Mode: replay each injected
                                          scheme day by day and measure how long it
                                          ran before any detector could see it
@@ -67,6 +72,16 @@ def main() -> None:
     if args and args[0] == "story":
         from launderlab.story import main as run_story
         run_story(args[1:])
+        return
+
+    if args and args[0] == "metrics":
+        from launderlab.metrics import main as run_metrics
+        run_metrics(args[1:])
+        return
+
+    if args and args[0] == "publish":
+        from launderlab.publish import main as run_publish
+        run_publish(args[1:])
         return
 
     conn = connect()

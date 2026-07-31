@@ -26,6 +26,21 @@ def connect(db_path: str | Path | None = None) -> duckdb.DuckDBPyConnection:
     return conn
 
 
+def connect_configured() -> duckdb.DuckDBPyConnection:
+    """Open the world named by `LAUNDERLAB_DB`, else the default ledger.
+
+    Every entry point that reads an existing world needs this, and each one that
+    wrote its own copy of it was one more chance to forget. `charts` DID forget:
+    it called `connect()` bare, so it silently drew against the 25-customer seed
+    ledger instead of whatever world the operator had selected, and published a
+    page reading "detection rate 0.0%" -- a true statement about a world with no
+    crime in it, presented as a measurement of the detection stack.
+    """
+    import os
+
+    return connect(os.environ.get("LAUNDERLAB_DB") or DEFAULT_DB_PATH)
+
+
 def _schema_sql() -> str:
     return resources.files("launderlab.db").joinpath("schema.sql").read_text(encoding="utf-8")
 

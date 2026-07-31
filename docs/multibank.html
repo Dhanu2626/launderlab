@@ -1,0 +1,32 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>LaunderLab — the cross-bank blind spot</title>
+<style>
+:root { --bg:#fbfbfa; --panel:#fff; --ink:#14140f; --muted:#6b6b63; --line:#e3e2da;
+        --bar:#185fa5; --bar2:#0f6e56; --miss:#c9c7bd; --warn:#a32d2d;
+        --l1:#185fa5; --l2:#0f6e56; --l3:#b45309; --l4:#7a3ea3; --l5:#a32d2d; }
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#161614; --panel:#1e1e1b; --ink:#f2f1ea; --muted:#9d9c92;
+          --line:#32312c; --bar:#6ea8e6; --bar2:#4fb59a; --miss:#3a3934;
+          --l1:#6ea8e6; --l2:#4fb59a; --l3:#e0a458; --l4:#c398e8; --l5:#e08080; } }
+* { box-sizing:border-box; }
+body { margin:0; padding:30px 28px 60px; background:var(--bg); color:var(--ink);
+       font:15px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif; max-width:900px; }
+h1 { font-size:20px; margin:0 0 4px; }
+h2 { font-size:14px; margin:34px 0 4px; }
+p.sub { color:var(--muted); font-size:13px; margin:0 0 12px; }
+.card { background:var(--panel); border:1px solid var(--line); border-radius:9px;
+        padding:14px 16px; overflow-x:auto; }
+.bar { fill:var(--bar); } .bar.alt { fill:var(--bar2); } .bar.miss { fill:var(--miss); }
+.lbl { font-size:11.5px; fill:var(--ink); }
+.val { font-size:11px; fill:var(--muted); }
+.axis { stroke:var(--line); stroke-width:1; }
+.note { color:var(--muted); font-size:12.5px; margin:10px 0 0; }
+.warn { color:var(--warn); }
+.legend { display:flex; flex-wrap:wrap; gap:12px 18px; margin-top:8px; font-size:12.5px; }
+.legend span { display:inline-flex; align-items:center; gap:6px; }
+.legend i { width:11px; height:11px; border-radius:2px; display:inline-block; }
+</style>
+<h1>LaunderLab — the cross-bank blind spot (Phase 8.5)</h1>
+<p class="sub">What one bank sees alone, what a central view would see, and what privacy-preserving co-operation buys back. Regenerate with <code>python -m launderlab multibank</code>.</p>
+<h2>Mule-chain hops reconstructed, by view</h2><div class="card"><svg viewBox="0 0 760 170" width="760" height="170" role="img" aria-label="bar chart of 6 values"><text class="lbl" x="182" y="19" text-anchor="end">deliberate: pooled (central view)</text><rect class="bar" x="190" y="8" width="512.0" height="16" rx="2"></rect><text class="val" x="708.0" y="19">100%</text><text class="lbl" x="182" y="45" text-anchor="end">deliberate: single bank alone</text><text class="val" x="196.0" y="45">0%</text><text class="lbl" x="182" y="71" text-anchor="end">deliberate: privacy-preserving co-op</text><rect class="bar alt" x="190" y="60" width="355.6" height="16" rx="2"></rect><text class="val" x="551.6" y="71">69%</text><text class="lbl" x="182" y="97" text-anchor="end">naive: pooled (central view)</text><rect class="bar" x="190" y="86" width="512.0" height="16" rx="2"></rect><text class="val" x="708.0" y="97">100%</text><text class="lbl" x="182" y="123" text-anchor="end">naive: single bank alone</text><rect class="bar" x="190" y="112" width="28.4" height="16" rx="2"></rect><text class="val" x="224.4" y="123">6%</text><text class="lbl" x="182" y="149" text-anchor="end">naive: privacy-preserving co-op</text><rect class="bar alt" x="190" y="138" width="412.4" height="16" rx="2"></rect><text class="val" x="608.4" y="149">81%</text><line class="axis" x1="190" y1="2" x2="190" y2="164"></line></svg></div><p class="note">Share of planted mule-chain hops each view can reconstruct. A single bank sees essentially none of the network no matter how the chain was placed - rebuilding a chain needs consecutive hops inside one bank, which is rare once accounts are spread across institutions. Co-operation recovers most of it while sharing only hashed payment references, never customer data.</p>

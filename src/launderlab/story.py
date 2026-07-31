@@ -639,12 +639,10 @@ def render(conn: duckdb.DuckDBPyConnection, out_dir: Path = DEFAULT_OUT,
 
 
 def main(argv: list[str]) -> None:  # pragma: no cover - CLI wiring
-    import os
-
-    from launderlab.db.ledger import DEFAULT_DB_PATH, connect
+    from launderlab.db.ledger import connect_configured
 
     out = Path(argv[0]) if argv and not argv[0].startswith("-") else DEFAULT_OUT
-    conn = connect(os.environ.get("LAUNDERLAB_DB") or DEFAULT_DB_PATH)
+    conn = connect_configured()
     try:
         stories = build_stories(conn, limit_per_typology=None)
         report = latency_report(stories)

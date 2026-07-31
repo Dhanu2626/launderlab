@@ -55,11 +55,11 @@ thing here — preserve it.
 |---|---|
 | Last code change | `f263385` — "Fix six defects found auditing Phases 8 and 8.5 before Phase 9". Commits after it are documentation only. Run `git log --oneline -5` for the true head — a doc that pins its own hash is stale the moment it is committed |
 | Working tree | clean, in sync with `origin/main` |
-| Commits | 55 |
-| Tests | **289 passing, zero skips** (~9 min locally, ~1:16 in CI) |
+| Commits | 57 |
+| Tests | **302 passing, zero skips** (~4-9 min locally, ~2:30 in CI) |
 | Lint | `ruff` clean |
 | CI | GitHub Actions green on every push, and **actually runs everything** — see §3 |
-| Phases complete | 0, 2, 3, 4, 5, 6, 7, 8, 8.5; **1 core** (slice 1.3 deferred, non-blocking) |
+| Phases complete | 0, 2, 3, 4, 5, 6, 7, 8, 8.5, **9**; **1 core** (slice 1.3 deferred, non-blocking). **All phases done.** |
 
 | Phase | Name | Status |
 |---|---|---|
@@ -73,7 +73,7 @@ thing here — preserve it.
 | 7 | Investigator Workbench | ✅ complete — 7.1–7.12 |
 | 8 | Red Team co-evolution | ✅ complete — decay benchmark |
 | 8.5 | Multi-bank experiment | ✅ complete — blind spot + co-operation prototype |
-| 9 | Story Mode + launch | 🟡 **in progress — 9.1 done (Story Mode + detection latency); 9.2–9.5 open, see §13** |
+| 9 | Story Mode + launch | ✅ **complete — 9.1 Story Mode, 9.2 metrics, 9.3 whitepaper+docs/, 9.4–9.6 launch assets drafted. Recording and posting are Dhanush's, see §13** |
 
 ---
 
@@ -109,7 +109,8 @@ is no legitimate reason to skip, so a skip now means a dependency stopped resolv
 .venv/Scripts/python -m launderlab statement A001    # render a bank statement
 .venv/Scripts/python -m launderlab demo-world        # 1200 accts + 6 typologies + entities
                                                      # + media + detection + 50 cases (~21s)
-.venv/Scripts/python -m launderlab charts            # Phase 3/5/7 charts -> charts/index.html
+.venv/Scripts/python -m launderlab charts            # KPIs + Phase 3/5/7 -> charts/index.html
+                                                     # (honours LAUNDERLAB_DB)
 .venv/Scripts/python -m launderlab media-experiment  # 7.12: does adverse media earn a weight?
 .venv/Scripts/python -m launderlab redteam           # Phase 8 decay benchmark (~8 min)
 .venv/Scripts/python -m launderlab multibank         # Phase 8.5 blind spot (~1 min)
@@ -117,6 +118,9 @@ is no legitimate reason to skip, so a skip now means a dependency stopped resolv
 LAUNDERLAB_DB=data/demo.duckdb \
     .venv/Scripts/python -m launderlab story         # 9.1 Story Mode -> charts/story.html
                                                      # (~1 min; reads LAUNDERLAB_DB)
+
+.venv/Scripts/python -m launderlab metrics           # 9.2 the FCC operating KPIs (text)
+.venv/Scripts/python -m launderlab publish           # 9.3 collect pages -> docs/ (files only)
 
 LAUNDERLAB_DB=data/demo.duckdb .venv/Scripts/python -m uvicorn \
     launderlab.workbench.api:app --port 8787         # workbench UI on that world
@@ -186,6 +190,10 @@ src/launderlab/
   demo.py               `demo-world` — world + crime + entities + media + cases (7.9)
   viz.py                `charts` — SVG from the SCORERS; also render_redteam() and
                         render_multibank() for the two benchmark pages
+  metrics.py            Phase 9.2 — the four FCC operating KPIs; conversion reported as
+                        NOT MEASURABLE rather than 0% when nothing has been worked
+  publish.py            Phase 9.3 — copies the generated pages into docs/ for GitHub
+                        Pages. Writes files ONLY: never commits, pushes or changes settings
   story.py              Phase 9.1 — Story Mode: replays each scheme day by day against
                         the UNMODIFIED detectors (a `transactions` view shadowed via
                         search_path), measures detection latency + moved_before_alert
@@ -212,7 +220,7 @@ src/launderlab/
 
 If a detector could see the answer key, every precision and recall number this project has
 produced would be meaningless — and it would fail silently. Enforced by **source-level regex
-tests** in eleven places:
+tests** in twelve places:
 
 | Test | Guards |
 |---|---|
@@ -228,6 +236,7 @@ tests** in eleven places:
 | `test_redteam.py::test_redteam_never_reads_ground_truth` | Phase 8 |
 | `test_multibank.py::test_multibank_never_reads_ground_truth` | Phase 8.5 |
 | `test_story.py::test_detection_comes_from_the_detectors_not_the_answer_key` | Phase 9.1 |
+| `test_metrics.py::test_metrics_read_ground_truth_only_through_the_scorers` | Phase 9.2 |
 
 **Never weaken these.** Two of them were not executing in CI for eight days and nobody noticed
 (§7, finding 8) — which is exactly why the no-skips guard exists now.
@@ -415,6 +424,16 @@ those odds fall as 1/n².
     is the *slowest* to detect (9 days) and the best on the chart that matters (53% still to
     come). "Caught" was never one property.
 
+17. **Phase 9.2 — `charts` published "detection rate 0.0%".** It called `connect()` bare while
+    `story` and `metrics` honoured `LAUNDERLAB_DB`, so it drew against the 25-customer seed
+    ledger, which has no crime in it. Arithmetically true, and a statement about nothing: 0 of 0
+    schemes caught reads as a totally failed detection stack. Found by publishing the page and
+    then reading it. Root cause was four call sites each writing their own env lookup, one of
+    which forgot — there is one `ledger.connect_configured()` now. The first guard only covered
+    the KPI section and left the Phase 3 chart still publishing "0.0% recall across 0 schemes",
+    so the guard moved to the single point every ground-truth chart passes through — and the
+    project's own boundary test caught that guard doing its own `SELECT scheme_labels`.
+
 **The pattern, named:** most of these surfaced by *rendering a number where a person had to
 read it next to a decision*. Detection metrics grade a detector against ground truth; nothing
 grades whether its output is usable. Finding 16 extends it: a metric can also be graded on the
@@ -492,6 +511,27 @@ wrong *axis* entirely, and be perfectly measured on that one.
 - **`mcp` is capped `<2`.** `mcp_server.py` uses the 1.x `mcp.server.fastmcp` path. Lift the cap
   only when the code is migrated.
 - **CI fails on ANY skipped test.** Do not relax this to make a dependency problem go away.
+
+**Metrics and publishing (9.2–9.3)**
+- **Observed and hypothetical conversion never share a field.** `observed_conversion` is `None`
+  when nothing has been worked, never `0.0` — "unreviewed" and "reviewed and cleared" are
+  opposite facts. Do not "fix" the None away.
+- **`ceiling_conversion` is deliberately identical to `queue_precision`.** The equality IS the
+  finding: the industry's headline analyst KPI reduces, at best, to a property of the queue.
+  Keeping one property would hide it.
+- **`reviews_per_true_find` needs no assumption; `review_hours` is one and says so everywhere.**
+  Never convert to money — that needs a loaded salary figure this project cannot source.
+- **Every entry point opens the world via `ledger.connect_configured()`.** Four call sites each
+  wrote their own `LAUNDERLAB_DB` lookup and `charts` forgot, publishing a 0.0% detection rate
+  against a crime-free ledger (§7, finding 17). One lookup now; a test pins it.
+- **`render()` refuses to draw anything when the ledger has no schemes.** A rate over an empty
+  denominator is not a measurement. The guard sits at the one point all four ground-truth
+  charts pass through, and takes its count from the *scorer*, never its own label query.
+- **`publish.py` writes files and nothing else.** No commit, no push, no repo settings — a test
+  asserts no `subprocess`/`git`/network reference. Going public stays a human decision.
+- **`docs/index.html` is the landing page; the charts page publishes as `charts.html`.** Both
+  wanted `index.html` and one silently destroyed the other, with a working link to the wrong
+  page.
 
 **Story Mode (9.1)**
 - **The replay truncates with a VIEW, never a second copy of a rule.** `transactions` is
@@ -588,65 +628,76 @@ decision** — that is what caught most of §7.
 | `ledger/GLOSSARY.md` | ~50 FCC terms decoded |
 | `ledger/FCC-PRIMER.md` | The three laundering stages mapped to subsystems |
 | `ledger/PITCH.md` | How to explain the project to any audience |
-| `README.md` | Public face — status table, quickstart, MCP, Phases 4/5/7/8.5 with caveats |
+| `README.md` | **The whitepaper** — abstract, three research questions answered, per-phase results with caveats, the honesty thread, explicit limitations |
+| `ledger/DEMO-SCRIPT.md` | 3-minute demo video script + shot list (**recording is Dhanush's**) |
+| `ledger/LAUNCH-POST.md` | Two LinkedIn drafts + pre-post checklist (**posting is Dhanush's**) |
 | `../LAUNDERLAB-PLAN.md` | The 18-week master plan, research thesis, all phases |
+| `../job hunt/db/profile.md` | LaunderLab resume bullets, Tracks 1/2/4 |
 
-Generated artifacts (gitignored): `charts/index.html`, `charts/redteam.html`,
-`charts/multibank.html`, `data/demo.duckdb`.
+Generated artifacts (gitignored): `charts/*.html`, `data/demo.duckdb`.
+**Committed** artifacts: `docs/*.html` — the published copies, written by
+`python -m launderlab publish`. Regenerate and re-publish whenever a number changes, or the
+public pages silently drift from the measured ones.
 
 ---
 
-## 13. Exact next steps — Phase 9, the last one
+## 13. Where this stands, and what is left
 
-**Everything through Phase 8.5 is complete. 9.1 is done. 9.2–9.5 are the remaining scope.**
+**Every phase is complete.** 0 through 9. The remaining items are things only Dhanush can do,
+plus a short list of deliberate deferrals that have never blocked anything.
 
-✅ **9.1 — Story Mode (S7), done 2026-07-31.** `python -m launderlab story` writes a
-self-contained `charts/story.html`: a scheme picker, a day scrubber that replays any injected
-scheme, accounts that light up only when a real detector actually fires, the scheme's own
-transactions, and two new charts. It measures **detection latency** and **share already moved
-at first alert** — see §7 finding 16 and §8. Deliberately deferred from 9.1, all cheap and none
-blocking: the animated Sankey (the flow row covers the same ground), the red-vs-blue chart
-(already `charts/redteam.html`), and one-click "view statement" (needs a running API, which
-this page's whole audience does not have — the scheme's own rows are shown inline instead).
+### Handed over — these need a human, not a session
 
-Remaining, from `../LAUNDERLAB-PLAN.md`:
+1. **Enable GitHub Pages.** Repo → Settings → Pages → Deploy from a branch → `main` / `docs`.
+   The pages are committed and the landing page links resolve; nothing is public until this is
+   flipped. **Verify the URL in a private window before the launch post goes out** — the
+   README already links to `https://dhanu2626.github.io/launderlab/`, so that link is dead
+   until Pages is on.
+2. **Record the demo video.** Script, timings and shot list are in `ledger/DEMO-SCRIPT.md`. The
+   slider drag at 1:25 is the shot that carries it.
+3. **Post the launch.** Two drafts in `ledger/LAUNCH-POST.md`; option A is the stronger one.
+   Read it in his own voice first — he has to defend every sentence in an interview.
+4. **Put the resume bullets on the actual resume.** They are staged in
+   `../job hunt/db/profile.md` under project 5, split by track. Not yet on the PDF.
 
-2. **Metrics dashboard** — detection rate, false-positive rate, alert-to-SAR conversion, cost
-   per alert. `viz.render()` already draws three of the inputs; `cases` holds dispositions for
-   the conversion number.
-3. **README as a whitepaper** — "An Open Adversarial Range for AML Detection Testing".
-   Phase 8.5's chart is the headline per the master plan; `charts/multibank.html` renders it and
-   `charts/redteam.html` is the Phase 8 companion. **`charts/` is gitignored**, so decide how
-   the pages reach a reader who will not clone the repo — GitHub Pages is the obvious answer and
-   nothing is committed for it yet. That is a real gap between Story Mode existing and Story
-   Mode being seen.
-4. **3-minute demo video** driven by Story Mode.
-5. **LinkedIn launch post.**
-6. **Resume bullets into `job hunt/db/profile.md`** so CareerForge starts using this in tailored
-   resumes immediately.
+### Still deliberately open — none of it blocking
 
-**Build on what exists.** `viz.py` has `bar_chart`, `line_chart` and `page()` — the shared
-self-contained page shell all four pages now use. `story.py` shows the pattern for a page with
-inlined data and no server. The API is the contract for anything interactive.
+Everything in §9 stands. The two worth restating:
 
-**One decision Phase 9 should probably force:** the model-tier weighting (§9). Phase 8 showed
-rules and graph going to 0% recall against a real adversary; at current weights the model still
-cannot open a case alone. If Story Mode is going to visualise "detection closing in", that gap
-is worth resolving deliberately — and measured the way 7.10 and 7.12 measured theirs.
+- **The model-tier weighting decision (§9).** Phase 8 showed rules and graph going to 0% recall
+  against a real adversary; at current weights a model-only alert still cannot open a case. It
+  deserves its own measurement slice, the way 7.10 and 7.12 got theirs — not a rider on another
+  slice. This is the most substantive open question in the project.
+- **Slice 1.3** (weekday/weekend, holidays) and **4.1** (secondary identifiers). Open since
+  Phase 1 and 4 respectively, and have blocked nothing across nine phases.
 
-**To start a session:**
-1. Read this file, `PROJECT.md`, and the last entry of `ledger/FIELD-NOTES.md`
-2. Confirm the tree is clean and CI is green
-3. Agree ONE slice
-4. Build → test → lint → real-scale proof → docs → commit → push → **verify CI**
-5. Close with three Field Notes insights
+### If the project continues
+
+The cheapest real extensions, in order of value per hour:
+
+1. **Sweep `n_banks` in Phase 8.5.** The 1/n² mechanism predicts the blind spot deepens with
+   more banks; sweeping it turns a stated mechanism into a measured curve. Cheap, and it
+   strengthens the whitepaper's headline chart.
+2. **Average Phase 8 over several seeds.** The convergence generations are one seed's
+   realisation. A distribution would let the decay finding carry a publishable claim rather
+   than a portfolio one.
+3. **Measure whether a *trained* model decays faster or slower** than static thresholds against
+   the same adversary. Phase 8 measured rules and graph only, and the module docstring says so.
+4. **Work some cases to disposition** so alert-to-SAR conversion becomes measurable at all —
+   right now `metrics` correctly reports it as unmeasurable, and it will keep doing so until a
+   human adjudicates a queue.
 
 **To see the whole thing working:**
 ```
 .venv/Scripts/python -m launderlab demo-world
-LAUNDERLAB_DB=data/demo.duckdb .venv/Scripts/python -m uvicorn launderlab.workbench.api:app --port 8787
-.venv/Scripts/python -m launderlab charts
+LAUNDERLAB_DB=data/demo.duckdb .venv/Scripts/python -m launderlab metrics
+LAUNDERLAB_DB=data/demo.duckdb .venv/Scripts/python -m launderlab charts
 LAUNDERLAB_DB=data/demo.duckdb .venv/Scripts/python -m launderlab story
 .venv/Scripts/python -m launderlab multibank
 .venv/Scripts/python -m launderlab redteam
+.venv/Scripts/python -m launderlab publish
+LAUNDERLAB_DB=data/demo.duckdb .venv/Scripts/python -m uvicorn launderlab.workbench.api:app --port 8787
 ```
+
+**Session discipline, unchanged:** agree ONE slice → build → test → lint → real-scale proof →
+docs → commit → push → **verify CI** → three Field Notes insights.

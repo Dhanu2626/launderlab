@@ -276,13 +276,115 @@ def redteam_decay_chart(results, genomes) -> tuple[str, str]:
     return svg, note
 
 
+def kpi_dashboard(conn: duckdb.DuckDBPyConnection, snapshot=None) -> tuple[str, str]:
+    """The four numbers an FCC function reports upward (Phase 9.2).
+
+    Rendered as a definition list rather than a chart: these are five unrelated
+    scalars in three different units, and a bar chart comparing a percentage to
+    a review count would be decoration pretending to be analysis.
+    """
+    from launderlab import metrics as metrics_mod
+
+    m = metrics_mod.collect(conn) if snapshot is None else snapshot
+    if not m.schemes_total:
+        # The guard that would have caught the real bug regardless of which
+        # ledger got opened: `charts` read the crime-free seed world and
+        # published "detection rate 0.0%" -- arithmetically true, and a
+        # statement about nothing. A rate over an empty denominator is not a
+        # measurement of a detector, and must never be rendered as one.
+        raise ValueError(
+            "this ledger has no injected schemes, so detection rate, precision "
+            "and conversion are undefined rather than zero. Point LAUNDERLAB_DB "
+            "at a world with crime in it: python -m launderlab demo-world")
+    rows = [
+        ("detection rate", f"{m.recall:.1%}",
+         f"{m.schemes_detected} of {m.schemes_total} injected schemes caught"),
+        ("alert precision", f"{m.precision:.1%}",
+         f"false-positive rate {m.false_positive_rate:.1%}"),
+        ("queue precision", f"{m.queue_precision:.1%}",
+         f"{m.cases_on_dirty} of {m.cases_total} opened cases sit on an account "
+         "genuinely in a scheme"),
+    ]
+    if m.conversion_is_measurable:
+        rows.append(("alert-to-SAR conversion", f"{m.observed_conversion:.1%}",
+                     f"observed: {m.sars_filed} SARs from {m.cases_closed} closed cases"))
+    else:
+        # Never 0% -- see metrics.py. "Unreviewed" and "reviewed and cleared"
+        # are opposite facts and a zero would merge them.
+        rows.append(("alert-to-SAR conversion", "not measurable",
+                     "no case has been worked to a disposition yet; the ceiling if "
+                     f"every analyst call were perfect is {m.ceiling_conversion:.1%}, "
+                     "which is queue precision by definition"))
+
+    workload = [r for r in m.budgets if r.reviews_per_true_find is not None]
+    if workload:
+        row = workload[-1]
+        rows.append(("reviews per true find", f"{row.reviews_per_true_find:.2f}",
+                     f"at an alert budget of {row.budget}: "
+                     f"{row.true_finds} real in {row.worked} worked "
+                     f"(~{row.hours_per_true_find():.1f}h at "
+                     f"{metrics_mod.DEFAULT_REVIEW_HOURS}h per review, an assumption)"))
+
+    items = "".join(
+        f'<div class="kpi"><b>{html.escape(value)}</b>'
+        f'<span class="k">{html.escape(label)}</span>'
+        f'<span class="d">{html.escape(detail)}</span></div>'
+        for label, value, detail in rows)
+    note = ("Detection rate and precision come from the rules scorer, so they cannot "
+            "drift from the figures published elsewhere. Conversion is reported as "
+            "measurable or not, never as zero: an unworked queue and a queue whose "
+            "every alert was cleared are opposite facts. Its ceiling equals queue "
+            "precision exactly — which means the industry's headline analyst KPI "
+            "reduces, at best, to a property of the queue rather than of the analyst.")
+    return f'<div class="kpis">{items}</div>', note
+
+
+_KPI_CSS = """
+.kpis { display:grid; gap:10px; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); }
+.kpi { border:1px solid var(--line); border-radius:8px; padding:10px 12px; background:var(--bg); }
+.kpi b { display:block; font-size:22px; font-variant-numeric:tabular-nums; }
+.kpi .k { display:block; font-size:12.5px; font-weight:600; margin-top:2px; }
+.kpi .d { display:block; font-size:12px; color:var(--muted); margin-top:4px; }
+"""
+
+
 def render(conn: duckdb.DuckDBPyConnection, out_dir: Path = DEFAULT_OUT) -> Path:
     """Write every chart as one self-contained page. Returns its path."""
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
+    # ONE guard, at the only point every ground-truth chart passes through.
+    # Every section here divides by something ground truth supplies, so against
+    # a crime-free ledger they all render a confident 0.0% -- "0 of 0 schemes
+    # caught" reads as a total failure of the detection stack rather than as an
+    # empty world. Guarding each builder separately would be four chances to
+    # add a fifth chart that forgets.
+    #
+    # The count comes from the SCORER, not a label query here: viz.py is held to
+    # reading ground truth only through the scoring modules, and the boundary
+    # test caught the first version of this guard doing its own SELECT. Computed
+    # once and handed to the KPI section, which would otherwise recompute it.
+    from launderlab import metrics as metrics_mod
+
+    snapshot = metrics_mod.collect(conn)
+    if not snapshot.schemes_total:
+        path = out_dir / "index.html"
+        path.write_text(page(
+            "LaunderLab — measured results",
+            "Regenerate with <code>python -m launderlab charts</code>.",
+            '<p class="note warn">This ledger has no injected schemes in it, so every '
+            "figure on this page would be a rate over an empty denominator — 0 of 0 "
+            "schemes caught, which reads as a failed detection stack rather than as an "
+            "empty world. No chart is drawn rather than a misleading one. Build a world "
+            "with crime in it and point <code>LAUNDERLAB_DB</code> at it: "
+            "<code>python -m launderlab demo-world</code>.</p>"),
+            encoding="utf-8")
+        return path
+
     sections = []
     for title, builder in (
+        ("Operating metrics — what the stack costs to run (Phase 9.2)",
+         lambda c: kpi_dashboard(c, snapshot)),
         ("Rules engine — recall by typology (Phase 3)", rules_recall_by_typology),
         ("Graph analytics — what a single bank can see (Phase 5)", graph_visibility),
         ("Workbench queue — which layer reaches an analyst (Phase 7)", queue_composition),
@@ -303,7 +405,7 @@ def render(conn: duckdb.DuckDBPyConnection, out_dir: Path = DEFAULT_OUT) -> Path
         "LaunderLab — measured results",
         "Drawn from the ledger this ran against, scored against ground truth. "
         "Regenerate with <code>python -m launderlab charts</code>.",
-        "\n".join(sections)), encoding="utf-8")
+        "\n".join(sections), extra_css=_KPI_CSS), encoding="utf-8")
     return path
 
 
@@ -386,10 +488,10 @@ def render_redteam(results, genomes, out_dir: Path = DEFAULT_OUT) -> Path:
 
 
 def main(argv: list[str]) -> None:  # pragma: no cover - CLI wiring
-    from launderlab.db.ledger import connect
+    from launderlab.db.ledger import connect_configured
 
     out = Path(argv[0]) if argv and not argv[0].startswith("-") else DEFAULT_OUT
-    conn = connect()
+    conn = connect_configured()
     try:
         path = render(conn, out)
     finally:

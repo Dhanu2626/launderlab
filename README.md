@@ -1,11 +1,63 @@
 # LaunderLab
 
-**An open adversarial simulation range for AML detection.**
+### An Open Adversarial Range for AML Detection Testing
 
-A self-contained synthetic bank where an automated red team invents money-laundering
-schemes and a detection stack has to catch them — and both sides evolve against each other.
-Cyber ranges exist for security teams; nothing like them exists for financial-crime teams.
-LaunderLab is that missing range: the bank, the criminal, and the investigator in one loop.
+**A self-contained synthetic bank where an automated red team invents money-laundering
+schemes and a four-layer detection stack has to catch them — and both sides evolve against
+each other.** Cyber ranges exist for security teams; nothing equivalent exists for
+financial-crime teams. LaunderLab is that missing range: the bank, the criminal, and the
+investigator in one loop.
+
+**Because the injector records ground truth, every detector is scored on real precision and
+recall — something no production bank can do, because no bank knows what it missed.** That
+single property is what makes the numbers below measurements rather than claims.
+
+**▶ [See it running](https://dhanu2626.github.io/launderlab/)** — replay a laundering scheme
+day by day, watch detection close in, and read every measured result. No install.
+
+<sub>Built by Dhanush Jangadi. All data synthetic; all typologies from public FATF / FinCEN /
+RBI advisories.</sub>
+
+---
+
+## Abstract
+
+Anti-money-laundering detection is evaluated almost entirely in private. Vendors publish
+recall figures against proprietary datasets, banks cannot measure what their stacks missed,
+and the one experiment that matters most — what happens when the adversary adapts — is run,
+if at all, behind closed doors. LaunderLab is an attempt to do that evaluation in the open.
+
+It generates a synthetic retail bank (10,000 customers, 630,755 transactions in 31 seconds),
+injects six laundering typologies drawn from public advisories while recording ground truth
+for every transaction, and runs four detection layers over the result: a rules engine,
+sanctions/PEP screening, graph analytics, and a six-family ML tournament. Alerts flow into a
+working investigator workbench that ends in a SAR narrative draft. A red team then mutates its
+own typology parameters generation over generation, and the whole world is finally partitioned
+across four banks with genuinely separate ledgers.
+
+Three findings are the substance of it, and each contradicted the expectation that preceded it.
+**Detection decay is not uniform** — one rule collapses within two generations of adaptation
+and stays collapsed, while two others never fully evade across eight. **The cross-bank blind
+spot is the network, not the account** — banks flag 75–77% of the individual mule accounts on
+their own books and reconstruct 0–6% of the chains those accounts form, and a launderer gains
+almost nothing by spreading a chain deliberately, because the blind spot is already near-total
+by accident. And **"caught" was never one property**: the typology this stack detects fastest
+is caught with 100% of the money already moved, because the rule that catches it structurally
+cannot fire until the crime has completed.
+
+An equally important result is negative. Combining four detection layers into one risk score
+does **not** rank better than the best single layer; adverse media, measured as a scoring
+signal, adds no true positive at any weight and was rejected. Both are reported here rather
+than buried, and §*The honesty thread* below lists sixteen occasions where a flattering number
+turned out to be an artefact and was corrected.
+
+### The three research questions
+
+| | Question | Answer |
+|---|---|---|
+| 1 | **Detection decay** — how fast does a stack rot against an adapting adversary? | **Non-uniformly.** `shell_company` collapses to 0% recall by generation 2 and stays there; `structuring` and `round_tripping` never fully evade across 8. A single aggregate recall number could not have shown this. |
+| 2 | **False-positive economics** — what does a true alert actually cost? | Measured for every config, never guessed. On the demo world the **top 25 alerts are 100% real**; the next 25 cost 10 false positives — 1.25 reviews per true find at a budget of 50. |
+| 3 | **The cross-bank blind spot** — what can one bank not see? | Banks flag **75–77%** of individual mule accounts and reconstruct **0–6%** of the chains. Privacy-preserving co-operation on HMAC'd payment references recovers **69–81%** of hops without sharing customer data. |
 
 ```
 RED TEAM ──launders through──► SYNTHETIC BANK ──transactions──► BLUE TEAM
@@ -17,7 +69,8 @@ RED TEAM ──launders through──► SYNTHETIC BANK ──transactions──
 
 ## Status
 
-✅ **Phases 0–8.5 complete** — the full AML value chain, end to end, plus both research benchmarks:
+✅ **Phases 0–9 complete** — the full AML value chain, end to end, plus both research benchmarks
+and the visual layer:
 
 | Phase | What it is | Headline |
 |---|---|---|
@@ -30,10 +83,7 @@ RED TEAM ──launders through──► SYNTHETIC BANK ──transactions──
 | 7 | Investigator workbench | Alert queue → entity 360 → link graph → disposition → SAR narrative draft |
 | 8 | Red team decay benchmark | Detection decay is **not uniform** — one rule collapses in 2 generations of adaptation and stays collapsed; two others never fully evade across 8 |
 | 8.5 | Multi-bank blind spot | Banks flag **75-77% of individual mule accounts** and reconstruct **0-6% of the chains** they form. Privacy-preserving co-operation recovers 69-81% |
-
-| 9.1 | Story Mode | Replay any scheme day by day. **Detection latency and usefulness are nearly inverted** — see below |
-
-Next: the rest of **Phase 9** — metrics dashboard, whitepaper, demo video and launch.
+| 9 | Story Mode + metrics | Replay any scheme day by day. **Detection latency and usefulness are nearly inverted** — see below |
 
 ### The newest finding: "caught" was never one property
 
@@ -368,6 +418,55 @@ central-bank work spends most of its effort.
 
 Reproduce it: `python -m launderlab multibank` (~1 minute, writes `charts/multibank.html`).
 
+## The honesty thread
+
+The most valuable property of this project is not any single number — it is that repeatedly a
+flattering number turned out to be an artefact, and each time it was measured, corrected and
+**written down** rather than quietly kept. A representative sample:
+
+| What looked true | What was actually happening |
+|---|---|
+| Screening's 29.4% precision proved AML's false-positive crisis | **86% of it was collision density** in the generated names. A controlled two-arm experiment moved it to 75.0% |
+| Gradient boosting scored a perfect 1.000 average precision | The legitimate world emitted **zero cash transactions**, so the model had learned "cash = crime" |
+| The rules engine had 100% precision | That was a property of a world where nobody legitimately banked cash. Fixing it took `structuring_burst` from **0 to 24 false positives**, and two rules were re-tuned |
+| Unsupervised models were strong (SVM 0.910) | They had learned "anomalous = large", which held only while honest traffic had no upper tail. Adding realistic large payments **collapsed them to 0.219** |
+| CI was green on every push | It was running **178 of 226 tests** — three modules skipped on a missing dependency, including **two of the boundary-rule enforcers**. A skipped *module* counts as one skip, so 48 missing tests hid behind the number "3" |
+| The workbench combined four detection layers | It combined two. Screening's ceiling was *exactly* the opening threshold, so **14 of 15 planted entities never reached an analyst** |
+| Risk bands ran low → critical | Every case in the bank was low or medium and the highest score achievable was 43.5. **`high` and `critical` described nothing**, until a SAR narrative printed "low band" for a confirmed structuring scheme |
+| Adverse media should obviously be scored | Of 21 accounts it flags, 1 is laundering, and the set it *uniquely* reaches is **empty** — so no weighting can add a true positive. Rejected on measurement |
+| Every detection figure was honestly measured | They were all scored against the **finished** world, which assumes a bank may wait until the crime is over to decide it happened (Phase 9.1) |
+
+The pattern behind most of them: they surfaced by **rendering a number where a person had to
+read it next to a decision**. Detection metrics grade a detector against ground truth; nothing
+grades whether its output is usable — or whether it is being graded on the right axis at all.
+
+## Limitations
+
+Stated plainly, because a range whose limits are unclear is worse than no range.
+
+- **The world is synthetic, and its realism bounds every number here.** Four of the findings
+  above are corrections to artefacts of *this* generator. Others certainly remain.
+- **The watchlist is synthetic**, not OFAC/UN/EU data. Point `LAUNDERLAB_WATCHLIST` at the real
+  thing before drawing any real conclusion from a hit.
+- **The red team benchmark is one seed.** Convergence generations are a real measured example,
+  not a population statistic. Averaging over seeds is future work.
+- **The red team measured rules and graph only.** Whether a *trained* model decays faster or
+  slower against the same adversary is a real, different, open question.
+- **The multi-bank experiment used one seed and exactly four banks**, and measured mule chains
+  only — the other five typologies leave no internal edge even inside a single bank.
+- **The co-operation prototype is not a protocol proposal.** The coordinator still learns the
+  shape of the inter-bank graph, and a flagged account's *entire* payment history is
+  fingerprinted, not just its suspicious legs. Making those private is where BIS Project Aurora
+  spends most of its effort.
+- **`counterparty_concentration` knowingly produces false positives** and was measured as
+  unfixable by threshold: shell schemes sit inside the legitimate range.
+- **Small structuring is a documented blind spot** — genuinely indistinguishable from a shop
+  banking its takings, which is precisely why real structuring works.
+- **Detection latency covers rules and graph only.** Screening answers an identity question
+  with no firing day; ML emits a ranking, not an event.
+- **Alert-to-SAR conversion is not measurable here** — no case has been worked to a
+  disposition, and that is reported as unmeasurable rather than as zero.
+
 ## What gets built
 
 | Subsystem | Purpose |
@@ -379,7 +478,25 @@ Reproduce it: `python -m launderlab multibank` (~1 minute, writes `charts/multib
 | S5 Red Team | Adversary that mutates its schemes each generation to evade detection |
 | S5.5 Multi-bank | Four separate bank ledgers, the cross-bank blind spot, privacy-preserving co-operation |
 | S6 Metrics | Detection rate, false-positive rate, alert-to-SAR conversion, cost per alert |
-| S7 Story Mode | Visual finale: animated money-flow maps, scheme replay, red-vs-blue evolution |
+| S7 Story Mode | Scheme replay with a day scrubber, detection latency, and what had already moved |
+
+## Reproduce every figure in this document
+
+```
+.venv\Scripts\python -m launderlab demo-world        build the world (~20s)
+set LAUNDERLAB_DB=data\demo.duckdb
+.venv\Scripts\python -m launderlab metrics           the operating KPIs
+.venv\Scripts\python -m launderlab charts            recall, blind spot, queue, KPIs
+.venv\Scripts\python -m launderlab story             scheme replay + detection latency
+.venv\Scripts\python -m launderlab redteam           decay benchmark (~8 min)
+.venv\Scripts\python -m launderlab multibank         cross-bank blind spot (~1 min)
+.venv\Scripts\python -m launderlab publish           collect the pages into docs/
+```
+
+Every page is built **on the scoring modules**, so a published figure cannot drift from the one
+the scorers grade. The test suite (302 tests, zero skips) enforces the boundary that makes all
+of it meaningful: **no detection code may read ground truth**, checked by source-level tests in
+twelve places.
 
 ## Ethics
 
