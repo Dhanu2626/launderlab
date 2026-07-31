@@ -31,7 +31,31 @@ RED TEAM ──launders through──► SYNTHETIC BANK ──transactions──
 | 8 | Red team decay benchmark | Detection decay is **not uniform** — one rule collapses in 2 generations of adaptation and stays collapsed; two others never fully evade across 8 |
 | 8.5 | Multi-bank blind spot | Banks flag **75-77% of individual mule accounts** and reconstruct **0-6% of the chains** they form. Privacy-preserving co-operation recovers 69-81% |
 
-Next: **Phase 9** — Story Mode, whitepaper, demo video and launch.
+| 9.1 | Story Mode | Replay any scheme day by day. **Detection latency and usefulness are nearly inverted** — see below |
+
+Next: the rest of **Phase 9** — metrics dashboard, whitepaper, demo video and launch.
+
+### The newest finding: "caught" was never one property
+
+Every detection number above was scored against the *finished* world — graded once, at the end.
+That quietly assumes a bank may wait until the crime is over before deciding it happened. Real
+monitoring runs nightly against the ledger so far, so `python -m launderlab story` replays each
+day and re-runs the **unmodified** detectors against a view of the ledger truncated to that day.
+
+| typology | caught | median days to first alert | share already moved by then |
+|---|---|---|---|
+| dormant_reactivation | 3/5 | 0 | **100%** |
+| high_risk_geography | 5/5 | 0 | 60% |
+| layering | 8/8 | 1 | 46% |
+| round_tripping | 5/5 | 4 | **100%** |
+| shell_company | 5/5 | 6 | 58% |
+| structuring | 8/8 | **9** | 47% |
+
+`round_tripping` is caught in four days with all of the money already moved, because the rule
+needs the *return* leg before it can fire — it is structurally incapable of alerting while
+anything is stoppable, and no threshold changes that. `structuring` is the slowest to detect and
+among the best on the column that matters. Reporting latency alone would have been the
+flattering half of the truth.
 
 ## Quickstart (Windows)
 
@@ -59,6 +83,14 @@ actually reaches an analyst):
 
 ```
 .venv\Scripts\python -m launderlab charts
+```
+
+Replay the crime itself — a scheme picker, a day scrubber, and accounts that light up only when
+a real detector actually fires on them (never because they are in the answer key):
+
+```
+set LAUNDERLAB_DB=data\demo.duckdb
+.venv\Scripts\python -m launderlab story
 ```
 
 Run the two research benchmarks (each writes its own chart into `charts/`):

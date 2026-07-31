@@ -55,8 +55,8 @@ thing here — preserve it.
 |---|---|
 | Last code change | `f263385` — "Fix six defects found auditing Phases 8 and 8.5 before Phase 9". Commits after it are documentation only. Run `git log --oneline -5` for the true head — a doc that pins its own hash is stale the moment it is committed |
 | Working tree | clean, in sync with `origin/main` |
-| Commits | 53 |
-| Tests | **274 passing, zero skips** (~5–9 min locally, ~1:16 in CI) |
+| Commits | 55 |
+| Tests | **289 passing, zero skips** (~9 min locally, ~1:16 in CI) |
 | Lint | `ruff` clean |
 | CI | GitHub Actions green on every push, and **actually runs everything** — see §3 |
 | Phases complete | 0, 2, 3, 4, 5, 6, 7, 8, 8.5; **1 core** (slice 1.3 deferred, non-blocking) |
@@ -73,7 +73,7 @@ thing here — preserve it.
 | 7 | Investigator Workbench | ✅ complete — 7.1–7.12 |
 | 8 | Red Team co-evolution | ✅ complete — decay benchmark |
 | 8.5 | Multi-bank experiment | ✅ complete — blind spot + co-operation prototype |
-| 9 | Story Mode + launch | ⬜ **not started — this is next, and it is the last one** |
+| 9 | Story Mode + launch | 🟡 **in progress — 9.1 done (Story Mode + detection latency); 9.2–9.5 open, see §13** |
 
 ---
 
@@ -113,6 +113,10 @@ is no legitimate reason to skip, so a skip now means a dependency stopped resolv
 .venv/Scripts/python -m launderlab media-experiment  # 7.12: does adverse media earn a weight?
 .venv/Scripts/python -m launderlab redteam           # Phase 8 decay benchmark (~8 min)
 .venv/Scripts/python -m launderlab multibank         # Phase 8.5 blind spot (~1 min)
+
+LAUNDERLAB_DB=data/demo.duckdb \
+    .venv/Scripts/python -m launderlab story         # 9.1 Story Mode -> charts/story.html
+                                                     # (~1 min; reads LAUNDERLAB_DB)
 
 LAUNDERLAB_DB=data/demo.duckdb .venv/Scripts/python -m uvicorn \
     launderlab.workbench.api:app --port 8787         # workbench UI on that world
@@ -182,6 +186,9 @@ src/launderlab/
   demo.py               `demo-world` — world + crime + entities + media + cases (7.9)
   viz.py                `charts` — SVG from the SCORERS; also render_redteam() and
                         render_multibank() for the two benchmark pages
+  story.py              Phase 9.1 — Story Mode: replays each scheme day by day against
+                        the UNMODIFIED detectors (a `transactions` view shadowed via
+                        search_path), measures detection latency + moved_before_alert
   redteam.py            Phase 8 — Knob/Genome per typology, run_decay_benchmark(), report()
   multibank.py          Phase 8.5 — 4 banks as SEPARATE DuckDB files, blind spot,
                         HMAC fingerprint co-operation prototype
@@ -220,11 +227,12 @@ tests** in eleven places:
 | `test_mcp_server.py::test_server_exposes_no_generic_sql_tool` | MCP |
 | `test_redteam.py::test_redteam_never_reads_ground_truth` | Phase 8 |
 | `test_multibank.py::test_multibank_never_reads_ground_truth` | Phase 8.5 |
+| `test_story.py::test_detection_comes_from_the_detectors_not_the_answer_key` | Phase 9.1 |
 
 **Never weaken these.** Two of them were not executing in CI for eight days and nobody noticed
 (§7, finding 8) — which is exactly why the no-skips guard exists now.
 
-**Three legitimate exceptions, each documented at its site:**
+**Four legitimate exceptions, each documented at its site:**
 1. `ml/dataset.py` — supervised ML must train on labels, as a real bank trains on past
    confirmed SARs. The requirement becomes **no test-set leakage**, enforced by returning
    train/test as separate objects. The three unsupervised models never see a label.
@@ -232,6 +240,11 @@ tests** in eleven places:
 3. `redteam.py` knows which accounts it planted **because it planted them**, held in local
    memory in the same function call. It never looks them up in a ground-truth table, and never
    reads a rule's tuned constants.
+4. `story.py` — narrating what really happened next to what detection said IS its job, so it
+   reads `scheme_labels` in exactly one function. The invariant runs the **other** direction and
+   has its own test: the *caught* side comes only from `rules.run_all()` and
+   `motifs.find_chains()`. An account lit up for appearing in the answer key would animate a
+   detection that never happened — the most flattering artefact this project could ship.
 
 ---
 
@@ -392,9 +405,20 @@ those odds fall as 1/n².
     a number nobody checks. Plus dead code, an unused `generation` parameter advertising
     behaviour that did not exist, and a silently dropped disclosure-volume line.
 
+16. **Phase 9.1 — every published detection number was scored against the finished world.**
+    Recall, precision, the decay benchmark, the blind spot: all graded once, at the end, over
+    all 39 days. That silently assumes a bank may wait until the crime is over before deciding
+    it happened. Replaying day by day showed **latency and usefulness are nearly inverted
+    orderings**: `round_tripping` is caught in a median 4 days with **100% of its value already
+    moved**, because `round_trip` needs the return leg before it can fire — structurally
+    incapable of alerting while anything is stoppable, and no threshold fixes it. `structuring`
+    is the *slowest* to detect (9 days) and the best on the chart that matters (53% still to
+    come). "Caught" was never one property.
+
 **The pattern, named:** most of these surfaced by *rendering a number where a person had to
 read it next to a decision*. Detection metrics grade a detector against ground truth; nothing
-grades whether its output is usable.
+grades whether its output is usable. Finding 16 extends it: a metric can also be graded on the
+wrong *axis* entirely, and be perfectly measured on that one.
 
 ---
 
@@ -468,6 +492,25 @@ grades whether its output is usable.
 - **`mcp` is capped `<2`.** `mcp_server.py` uses the 1.x `mcp.server.fastmcp` path. Lift the cap
   only when the code is migrated.
 - **CI fails on ANY skipped test.** Do not relax this to make a dependency problem go away.
+
+**Story Mode (9.1)**
+- **The replay truncates with a VIEW, never a second copy of a rule.** `transactions` is
+  shadowed by `replay.transactions` through `search_path='replay,main'`, so the SQL every rule
+  already contains does the filtering. A day-aware reimplementation could drift from the rule
+  actually being graded. `search_path` is restored in a `finally` — leaving it set would give
+  every later query in the process a quietly truncated world.
+- **A test asserts the row count THROUGH the view, not its effect.** If shadowing ever stopped
+  working the detectors would run against the full world every day and report everything caught
+  on day one — flattering, and nothing would fail.
+- **`moved_before_alert` ships wherever latency does, and a test enforces it.** Latency alone
+  says `round_tripping` is caught in 4 days; it omits that 100% of the money is gone. Never
+  publish one without the other.
+- **"Never caught" is reported as never, not as a 0-day median.** They are opposite findings.
+- **Story Mode is a static self-contained page, not an API view.** Its audience is explicitly
+  someone who will never run a server; the workbench already serves the analyst.
+- **Latency covers rules + graph only.** Screening answers an identity question with no firing
+  day; ML emits a ranking, not an event, and re-fitting it 39 times would measure the model's
+  own instability. Phase 8 drew the same line.
 
 ---
 
@@ -555,27 +598,36 @@ Generated artifacts (gitignored): `charts/index.html`, `charts/redteam.html`,
 
 ## 13. Exact next steps — Phase 9, the last one
 
-**Everything through Phase 8.5 is complete. Phase 9 is the whole remaining scope.**
+**Everything through Phase 8.5 is complete. 9.1 is done. 9.2–9.5 are the remaining scope.**
 
-From `../LAUNDERLAB-PLAN.md`:
-1. **Story Mode (S7)** — an interactive dashboard where anyone can *watch* what happened:
-   animated money-flow (Sankey) map of a scheme, link graph where the mule ring lights up as
-   detection closes in, timeline scrubber to replay any scheme day by day, red-vs-blue
-   evolution chart across generations, one-click "view statement" for any account.
+✅ **9.1 — Story Mode (S7), done 2026-07-31.** `python -m launderlab story` writes a
+self-contained `charts/story.html`: a scheme picker, a day scrubber that replays any injected
+scheme, accounts that light up only when a real detector actually fires, the scheme's own
+transactions, and two new charts. It measures **detection latency** and **share already moved
+at first alert** — see §7 finding 16 and §8. Deliberately deferred from 9.1, all cheap and none
+blocking: the animated Sankey (the flow row covers the same ground), the red-vs-blue chart
+(already `charts/redteam.html`), and one-click "view statement" (needs a running API, which
+this page's whole audience does not have — the scheme's own rows are shown inline instead).
+
+Remaining, from `../LAUNDERLAB-PLAN.md`:
+
 2. **Metrics dashboard** — detection rate, false-positive rate, alert-to-SAR conversion, cost
-   per alert.
+   per alert. `viz.render()` already draws three of the inputs; `cases` holds dispositions for
+   the conversion number.
 3. **README as a whitepaper** — "An Open Adversarial Range for AML Detection Testing".
-   Phase 8.5's chart is the headline per the master plan; `charts/multibank.html` already
-   renders it and `charts/redteam.html` is the Phase 8 companion.
+   Phase 8.5's chart is the headline per the master plan; `charts/multibank.html` renders it and
+   `charts/redteam.html` is the Phase 8 companion. **`charts/` is gitignored**, so decide how
+   the pages reach a reader who will not clone the repo — GitHub Pages is the obvious answer and
+   nothing is committed for it yet. That is a real gap between Story Mode existing and Story
+   Mode being seen.
 4. **3-minute demo video** driven by Story Mode.
 5. **LinkedIn launch post.**
 6. **Resume bullets into `job hunt/db/profile.md`** so CareerForge starts using this in tailored
    resumes immediately.
 
-**Build on what exists.** `viz.py` already has `bar_chart`, `line_chart` and self-contained-SVG
-conventions; `workbench/static/index.html` already proves the no-build single-page approach
-works and holds a hand-written link-graph SVG that Story Mode can extend. The API is the
-contract for anything interactive.
+**Build on what exists.** `viz.py` has `bar_chart`, `line_chart` and `page()` — the shared
+self-contained page shell all four pages now use. `story.py` shows the pattern for a page with
+inlined data and no server. The API is the contract for anything interactive.
 
 **One decision Phase 9 should probably force:** the model-tier weighting (§9). Phase 8 showed
 rules and graph going to 0% recall against a real adversary; at current weights the model still
@@ -594,6 +646,7 @@ is worth resolving deliberately — and measured the way 7.10 and 7.12 measured 
 .venv/Scripts/python -m launderlab demo-world
 LAUNDERLAB_DB=data/demo.duckdb .venv/Scripts/python -m uvicorn launderlab.workbench.api:app --port 8787
 .venv/Scripts/python -m launderlab charts
+LAUNDERLAB_DB=data/demo.duckdb .venv/Scripts/python -m launderlab story
 .venv/Scripts/python -m launderlab multibank
 .venv/Scripts/python -m launderlab redteam
 ```

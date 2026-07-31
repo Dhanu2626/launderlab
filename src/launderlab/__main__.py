@@ -18,6 +18,10 @@ Usage:
                                          with separate ledgers, measure what each
                                          sees alone, then what privacy-preserving
                                          co-operation buys back (see multibank.py)
+    python -m launderlab story             Phase 9 Story Mode: replay each injected
+                                         scheme day by day and measure how long it
+                                         ran before any detector could see it
+                                         (see story.py). Reads LAUNDERLAB_DB
 """
 
 import sys
@@ -56,6 +60,13 @@ def main() -> None:
     if args and args[0] == "multibank":
         from launderlab.multibank import main as run_multibank
         run_multibank(args[1:])
+        return
+
+    # Before connect(), like demo-world: story opens the world named by
+    # LAUNDERLAB_DB itself, and DuckDB locks per file.
+    if args and args[0] == "story":
+        from launderlab.story import main as run_story
+        run_story(args[1:])
         return
 
     conn = connect()

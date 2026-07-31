@@ -41,7 +41,7 @@ DEFAULT_OUT = Path("charts")
 
 # Colours come through as CSS variables so one SVG reads correctly in both
 # themes; the fallbacks keep it sane if the file is opened standalone.
-_CSS = """
+CSS = """
 :root { --bg:#fbfbfa; --panel:#fff; --ink:#14140f; --muted:#6b6b63; --line:#e3e2da;
         --bar:#185fa5; --bar2:#0f6e56; --miss:#c9c7bd; --warn:#a32d2d;
         --l1:#185fa5; --l2:#0f6e56; --l3:#b45309; --l4:#7a3ea3; --l5:#a32d2d; }
@@ -74,6 +74,23 @@ _PAD_R = 58
 _WIDTH = 760
 
 
+def page(title: str, subtitle: str, body: str, *, heading: str | None = None,
+         extra_css: str = "") -> str:
+    """One self-contained HTML page — no CDN, no build step, readable in both themes.
+
+    Four pages now share this shell (the three charts and Phase 9's Story Mode),
+    so the alternative is four copies of a doctype and a stylesheet drifting apart.
+    `subtitle` is inserted as HTML, not escaped: every caller passes a sentence
+    containing a `<code>` command, which is the point of it.
+    """
+    return (f'<!doctype html>\n<meta charset="utf-8">\n'
+            f'<meta name="viewport" content="width=device-width,initial-scale=1">\n'
+            f"<title>{html.escape(title)}</title>\n<style>{CSS}{extra_css}</style>\n"
+            f"<h1>{html.escape(heading or title)}</h1>\n"
+            + (f'<p class="sub">{subtitle}</p>\n' if subtitle else "")
+            + body + "\n")
+
+
 def bar_chart(rows: list[tuple[str, float]], *, maximum: float | None = None,
               fmt: str = "{:.0%}", alt: set[str] | None = None) -> str:
     """Horizontal bars. `rows` is [(label, value)]; longest label sets the gutter."""
@@ -85,7 +102,13 @@ def bar_chart(rows: list[tuple[str, float]], *, maximum: float | None = None,
     plot = _WIDTH - _PAD_L - _PAD_R
     height = len(rows) * _ROW_H + 14
 
-    parts = [f'<svg viewBox="0 0 {_WIDTH} {height}" width="{_WIDTH}" height="{height}" '
+    # Scales to its container instead of a fixed 760px. Measured in a browser:
+    # at a 717px body the fixed width overflowed the card and pushed the LONGEST
+    # bar's value label off-screen -- so the one number a reader most wants was
+    # the one number they could not see, on a page whose entire job is being read
+    # by someone who will not open the data.
+    parts = [f'<svg viewBox="0 0 {_WIDTH} {height}" width="100%" '
+             f'style="max-width:{_WIDTH}px" '
              f'role="img" aria-label="bar chart of {len(rows)} values">']
     for i, (label, value) in enumerate(rows):
         y = i * _ROW_H + 6
@@ -191,7 +214,8 @@ def line_chart(series: dict[str, list[float]], *, y_max: float = 1.0,
         y = _LINE_PAD + plot_h * (1 - min(value / y_max, 1.0))
         return x, y
 
-    parts = [f'<svg viewBox="0 0 {_LINE_W} {_LINE_H}" width="{_LINE_W}" height="{_LINE_H}" '
+    parts = [f'<svg viewBox="0 0 {_LINE_W} {_LINE_H}" width="100%" '
+             f'style="max-width:{_LINE_W}px" '
              f'role="img" aria-label="line chart, {len(series)} series over '
              f'{n_points} points">']
     # axes + y gridlines at 0/25/50/75/100%
@@ -274,15 +298,12 @@ def render(conn: duckdb.DuckDBPyConnection, out_dir: Path = DEFAULT_OUT) -> Path
             f'<div class="card">{svg}</div>'
             + (f'<p class="note">{html.escape(note)}</p>' if note else ""))
 
-    page = (f"<!doctype html>\n<meta charset=\"utf-8\">\n"
-            f"<title>LaunderLab — measured results</title>\n<style>{_CSS}</style>\n"
-            f"<h1>LaunderLab — measured results</h1>\n"
-            f'<p class="sub">Drawn from the ledger this ran against, scored against ground '
-            f"truth. Regenerate with <code>python -m launderlab charts</code>.</p>\n"
-            + "\n".join(sections) + "\n")
-
     path = out_dir / "index.html"
-    path.write_text(page, encoding="utf-8")
+    path.write_text(page(
+        "LaunderLab — measured results",
+        "Drawn from the ledger this ran against, scored against ground truth. "
+        "Regenerate with <code>python -m launderlab charts</code>.",
+        "\n".join(sections)), encoding="utf-8")
     return path
 
 
@@ -325,18 +346,16 @@ def render_multibank(arms, out_dir: Path = DEFAULT_OUT) -> Path:
     out_dir.mkdir(parents=True, exist_ok=True)
     svg, note = multibank_chart(arms)
 
-    page = (f"<!doctype html>\n<meta charset=\"utf-8\">\n"
-            f"<title>LaunderLab — the cross-bank blind spot</title>\n<style>{_CSS}</style>\n"
-            f"<h1>LaunderLab — the cross-bank blind spot (Phase 8.5)</h1>\n"
-            f'<p class="sub">What one bank sees alone, what a central view would see, and '
-            f"what privacy-preserving co-operation buys back. Regenerate with "
-            f"<code>python -m launderlab multibank</code>.</p>\n"
-            f"<h2>Mule-chain hops reconstructed, by view</h2>"
-            f'<div class="card">{svg}</div>'
-            f'<p class="note">{html.escape(note)}</p>\n')
-
     path = out_dir / "multibank.html"
-    path.write_text(page, encoding="utf-8")
+    path.write_text(page(
+        "LaunderLab — the cross-bank blind spot",
+        "What one bank sees alone, what a central view would see, and what "
+        "privacy-preserving co-operation buys back. Regenerate with "
+        "<code>python -m launderlab multibank</code>.",
+        f"<h2>Mule-chain hops reconstructed, by view</h2>"
+        f'<div class="card">{svg}</div>'
+        f'<p class="note">{html.escape(note)}</p>',
+        heading="LaunderLab — the cross-bank blind spot (Phase 8.5)"), encoding="utf-8")
     return path
 
 
@@ -354,18 +373,15 @@ def render_redteam(results, genomes, out_dir: Path = DEFAULT_OUT) -> Path:
     out_dir.mkdir(parents=True, exist_ok=True)
     svg, note = redteam_decay_chart(results, genomes)
 
-    page = (f"<!doctype html>\n<meta charset=\"utf-8\">\n"
-            f"<title>LaunderLab — red team decay benchmark</title>\n<style>{_CSS}</style>\n"
-            f"<h1>LaunderLab — red team decay benchmark (Phase 8)</h1>\n"
-            f'<p class="sub">Recall of a static rules engine against an adversary that '
-            f"mutates its own parameters. Regenerate with "
-            f"<code>python -m launderlab redteam</code>.</p>\n"
-            f"<h2>Recall by typology, generation over generation</h2>"
-            f'<div class="card">{svg}</div>'
-            f'<p class="note">{html.escape(note)}</p>\n')
-
     path = out_dir / "redteam.html"
-    path.write_text(page, encoding="utf-8")
+    path.write_text(page(
+        "LaunderLab — red team decay benchmark",
+        "Recall of a static rules engine against an adversary that mutates its own "
+        "parameters. Regenerate with <code>python -m launderlab redteam</code>.",
+        f"<h2>Recall by typology, generation over generation</h2>"
+        f'<div class="card">{svg}</div>'
+        f'<p class="note">{html.escape(note)}</p>',
+        heading="LaunderLab — red team decay benchmark (Phase 8)"), encoding="utf-8")
     return path
 
 
