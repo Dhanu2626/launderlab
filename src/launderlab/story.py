@@ -60,7 +60,8 @@ import duckdb
 from launderlab.detect import rules
 from launderlab.graph import build as graph_build
 from launderlab.graph import motifs
-from launderlab.viz import DEFAULT_OUT, bar_chart, page
+from launderlab import web
+from launderlab.viz import DEFAULT_OUT, bar_chart
 
 # The schema whose `transactions` view shadows the real table while replaying.
 _REPLAY_SCHEMA = "replay"
@@ -464,177 +465,477 @@ def most_illustrative(stories: list[SchemeStory]) -> int:
 
 
 _STORY_CSS = """
-.picker { display:flex; flex-wrap:wrap; gap:6px; margin:10px 0 18px; }
-.picker button { font:inherit; font-size:12.5px; padding:5px 10px; cursor:pointer;
-  background:var(--panel); color:var(--ink); border:1px solid var(--line); border-radius:6px; }
-.picker button.on { background:var(--bar); border-color:var(--bar); color:#fff; }
-.scrub { display:flex; align-items:center; gap:12px; margin:4px 0 14px; }
-.scrub input { flex:1; }
-.day { font-variant-numeric:tabular-nums; font-weight:600; min-width:200px; }
-.flow { display:flex; align-items:stretch; gap:8px; overflow-x:auto; padding:4px 0; }
-.node { flex:0 0 auto; min-width:150px; border:1px solid var(--line); border-radius:8px;
-  padding:8px 10px; background:var(--bg); }
-.node.lit { border-color:var(--warn); box-shadow:0 0 0 2px color-mix(in srgb,var(--warn) 25%,transparent); }
-.node .who { font-size:12.5px; font-weight:600; }
-.node .id { font-size:11px; color:var(--muted); font-variant-numeric:tabular-nums; }
-.node .amt { font-size:12px; margin-top:4px; font-variant-numeric:tabular-nums; }
-.arrow { flex:0 0 auto; align-self:center; color:var(--muted); font-size:18px; }
-.det { display:flex; gap:8px; align-items:baseline; padding:5px 0;
-  border-bottom:1px solid var(--line); font-size:13px; }
+.stage { display:grid; gap:16px; grid-template-columns:1fr 340px; align-items:start; }
+@media (max-width:960px){ .stage { grid-template-columns:1fr; } }
+.picker { display:flex; flex-wrap:wrap; gap:7px; margin-bottom:20px; }
+.picker button {
+  font:inherit; font-size:.8rem; padding:6px 12px; cursor:pointer; color:var(--ink-dim);
+  background:var(--surface); border:1px solid var(--line); border-radius:99px;
+  transition:background .16s, color .16s, border-color .16s;
+}
+.picker button:hover { color:var(--ink); border-color:var(--line-strong); }
+.picker button.on { background:var(--accent); border-color:var(--accent); color:#04070d;
+                    font-weight:600; }
+.picker .ty { opacity:.7; }
+.scrub { display:flex; align-items:center; gap:16px; margin:2px 0 18px; flex-wrap:wrap; }
+.scrub input[type=range] {
+  flex:1; min-width:200px; -webkit-appearance:none; appearance:none; height:5px;
+  border-radius:99px; background:var(--surface-3); outline:none; cursor:pointer;
+}
+.scrub input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance:none; width:17px; height:17px; border-radius:99px;
+  background:var(--accent); border:3px solid var(--bg); cursor:grab;
+  box-shadow:0 0 0 1px var(--accent);
+}
+.scrub input[type=range]::-moz-range-thumb {
+  width:14px; height:14px; border-radius:99px; background:var(--accent);
+  border:3px solid var(--bg); cursor:grab;
+}
+.daylab { font-family:var(--mono); font-size:.9rem; color:var(--ink); min-width:210px; }
+.daylab .d2 { color:var(--ink-faint); font-size:.76rem; display:block; margin-top:2px;
+              font-family:var(--sans); }
+.playbtn {
+  font:inherit; font-size:.8rem; padding:7px 15px; border-radius:8px; cursor:pointer;
+  background:var(--surface-2); color:var(--ink); border:1px solid var(--line-strong);
+  transition:background .16s;
+}
+.playbtn:hover { background:var(--surface-3); }
+.flow { display:flex; align-items:stretch; gap:6px; overflow-x:auto; padding:8px 2px 12px; }
+.node {
+  flex:0 0 auto; min-width:156px; border:1px solid var(--line); border-radius:11px;
+  padding:11px 13px; background:var(--surface); position:relative;
+  transition:border-color .35s var(--ease), box-shadow .35s var(--ease),
+             background .35s var(--ease);
+}
+.node.lit {
+  border-color:var(--rose); background:rgba(248,113,113,.07);
+  box-shadow:0 0 0 1px rgba(248,113,113,.28), 0 0 26px -6px rgba(248,113,113,.4);
+}
+.node .who { font-size:.83rem; font-weight:620; color:var(--ink); line-height:1.35; }
+.node .id { font-family:var(--mono); font-size:.7rem; color:var(--ink-faint); margin-top:2px; }
+.node .amt { font-family:var(--mono); font-size:.75rem; margin-top:7px; color:var(--ink-dim); }
+.node .amt b { color:var(--ink); font-weight:600; }
+.node .flag {
+  position:absolute; top:-8px; right:9px; font-size:.62rem; font-family:var(--mono);
+  background:var(--rose); color:#1a0505; padding:2px 7px; border-radius:99px;
+  font-weight:700; opacity:0; transform:translateY(-3px); transition:all .3s var(--ease);
+}
+.node.lit .flag { opacity:1; transform:none; }
+.arrow { flex:0 0 auto; align-self:center; color:var(--ink-faint); font-size:15px; }
+.det { display:flex; gap:11px; align-items:flex-start; padding:11px 0;
+       border-bottom:1px solid var(--line); }
 .det:last-child { border-bottom:0; }
-.det .pill { flex:0 0 auto; font-size:11px; padding:1px 7px; border-radius:99px;
-  border:1px solid var(--line); color:var(--muted); }
-.det.fired .pill { background:var(--warn); border-color:var(--warn); color:#fff; }
-.det .what { font-weight:600; }
-.det .why { color:var(--muted); }
-table.txns { border-collapse:collapse; width:100%; font-size:12.5px;
-  font-variant-numeric:tabular-nums; }
-table.txns th { text-align:left; color:var(--muted); font-weight:500;
-  border-bottom:1px solid var(--line); padding:4px 8px 4px 0; }
-table.txns td { padding:3px 8px 3px 0; border-bottom:1px solid var(--line); }
-table.txns td.dr { color:var(--warn); } table.txns td.cr { color:var(--bar2); }
-.stat { display:flex; flex-wrap:wrap; gap:22px; margin:2px 0 14px; }
-.stat div { font-size:12.5px; color:var(--muted); }
-.stat b { display:block; font-size:17px; color:var(--ink); font-variant-numeric:tabular-nums; }
+.det .when {
+  flex:0 0 auto; font-family:var(--mono); font-size:.67rem; padding:3px 8px;
+  border-radius:99px; border:1px solid var(--line); color:var(--ink-faint);
+  background:var(--surface-2); white-space:nowrap; transition:all .3s var(--ease);
+}
+.det.fired .when { background:var(--rose); border-color:var(--rose); color:#1a0505;
+                   font-weight:700; }
+.det .dw { font-family:var(--mono); font-size:.82rem; font-weight:600; color:var(--ink-dim); }
+.det.fired .dw { color:var(--rose); }
+.det .dd { font-size:.79rem; color:var(--ink-faint); margin-top:3px; line-height:1.5; }
+.narr {
+  font-size:.92rem; color:var(--ink-dim); border-left:2px solid var(--accent);
+  padding:4px 0 4px 15px; margin:0; line-height:1.62;
+}
+.narr b { color:var(--ink); }
+.susp { display:flex; align-items:center; gap:11px; margin-top:15px; }
+.susp .bars { display:flex; gap:4px; flex:1; }
+.susp .bars i { height:6px; flex:1; border-radius:99px; background:var(--surface-3);
+                transition:background .35s var(--ease); }
+.susp .bars i.on { background:var(--amber); }
+.susp .bars i.on.hot { background:var(--rose); }
+.susp .lab { font-family:var(--mono); font-size:.71rem; color:var(--ink-faint);
+             white-space:nowrap; }
+/* Both axes explicitly: the cells are nowrap, and relying on the spec's
+   "if one axis is not visible the other computes to auto" is a subtlety to
+   depend on for whether a table can push the whole card wider than the page. */
+.txr { max-height:330px; overflow:auto; }
+.txr table { width:100%; border-collapse:collapse; }
+.txr th { position:sticky; top:0; background:var(--surface); text-align:left;
+          font-size:.66rem; letter-spacing:.07em; text-transform:uppercase;
+          color:var(--ink-faint); font-weight:700; padding:7px 10px 7px 0;
+          border-bottom:1px solid var(--line); }
+.txr td { padding:6px 10px 6px 0; border-bottom:1px solid var(--line);
+          color:var(--ink-dim); font-family:var(--mono); font-size:.745rem;
+          white-space:nowrap; }
+.txr td.dr { color:var(--rose); } .txr td.cr { color:var(--green); }
+.txr td.na { font-family:var(--sans); color:var(--ink-dim); white-space:normal; }
+.txr tr.new td { animation:rowIn .45s var(--ease) both; }
+@keyframes rowIn { from { opacity:0; transform:translateX(-6px); } to { opacity:1; transform:none; } }
+.side .card { margin-bottom:14px; }
+.side .card:last-child { margin-bottom:0; }
+.sh { font-size:.7rem; letter-spacing:.11em; text-transform:uppercase;
+      color:var(--ink-faint); font-family:var(--mono); margin:0 0 11px; font-weight:700; }
+.kv { display:flex; justify-content:space-between; gap:12px; padding:7px 0;
+      border-bottom:1px solid var(--line); font-size:.82rem; }
+.kv:last-child { border-bottom:0; }
+.kv .k { color:var(--ink-faint); }
+.kv .v { color:var(--ink); font-family:var(--mono); text-align:right;
+         font-variant-numeric:tabular-nums; }
+@media (prefers-reduced-motion:reduce) { .txr tr.new td { animation:none; } }
 """
 
 _STORY_JS = """
-const fmt = n => 'Rs ' + Math.round(n).toLocaleString('en-IN');
+(function(){
+  var RM = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var fmt = function(n){ return 'Rs ' + Math.round(n).toLocaleString('en-IN'); };
+  var cur = STORIES[0], cal = [], at = 0, timer = null, prevRows = -1;
+  var $ = function(id){ return document.getElementById(id); };
 
-let current = STORIES[0], calendar = [], at = 0;
+  function pick(i){
+    stop();
+    cur = STORIES[i]; cal = cur.calendar; at = cal.length - 1; prevRows = -1;
+    document.querySelectorAll('.picker button').forEach(function(b,j){
+      b.classList.toggle('on', i === j);
+      b.setAttribute('aria-pressed', i === j ? 'true' : 'false');
+    });
+    var s = $('scrub'); s.max = cal.length - 1; s.value = at;
+    $('profile').innerHTML = profile(cur);
+    draw();
+  }
 
-function pick(i) {
-  current = STORIES[i]; calendar = current.calendar; at = calendar.length - 1;
-  document.querySelectorAll('.picker button').forEach((b,j) => b.classList.toggle('on', i===j));
-  const slider = document.getElementById('scrub');
-  slider.max = calendar.length - 1; slider.value = at;
-  draw();
-}
+  function profile(s){
+    var rows = [
+      ['Scheme', s.scheme_id],
+      ['Typology', s.typology],
+      ['Accounts', s.accounts.length],
+      ['Ran for', s.ran_days + (s.ran_days === 1 ? ' day' : ' days')],
+      ['First alert', s.latency === null ? 'never' : 'day ' + (s.latency + 1)],
+      ['Reached an analyst', s.cases.length
+        ? s.cases.map(function(c){ return '#' + c.case_id + ' (' + c.band + ')'; }).join(', ')
+        : 'no']
+    ];
+    return rows.map(function(r){
+      return '<div class="kv"><span class="k">' + r[0] + '</span>' +
+             '<span class="v">' + r[1] + '</span></div>';
+    }).join('');
+  }
 
-function draw() {
-  const s = current, today = calendar[at];
-  const upto = s.txns.filter(t => t.day <= today);
-  document.getElementById('day').textContent =
-    today + '  (day ' + (at+1) + ' of ' + calendar.length + ')';
+  /* The one honest rule of this screen: an account is only ever lit because a
+     REAL detector fired on it by the day being viewed -- never because it
+     appears in ground truth. It is in ground truth the entire time. */
+  function draw(){
+    var s = cur, today = cal[at];
+    var upto = s.txns.filter(function(t){ return t.day <= today; });
+    var fired = s.detections.filter(function(d){ return d.day <= today; });
+    var lit = {}; fired.forEach(function(d){ lit[d.account_id] = 1; });
 
-  const moved = upto.reduce((a,t) => a + t.amount, 0);
-  document.getElementById('stats').innerHTML =
-    '<div><b>' + s.scheme_id + '</b>' + s.typology + '</div>' +
-    '<div><b>' + upto.length + ' / ' + s.txns.length + '</b>labelled transactions</div>' +
-    '<div><b>' + fmt(moved) + '</b>moved so far</div>' +
-    '<div><b>' + (s.latency === null ? 'never' : s.latency + ' days')
-      + '</b>ran before first alert</div>' +
-    '<div><b>' + (s.moved_before_alert === null ? '—'
-      : Math.round(s.moved_before_alert * 100) + '%')
-      + '</b>had moved by then</div>';
+    $('daynum').textContent = today;
+    $('dayoff').textContent = 'Day ' + (at + 1) + ' of ' + cal.length + ' \\u00b7 ' +
+      upto.length + ' of ' + s.txns.length + ' labelled transactions posted';
 
-  // Nodes light up only when a REAL detector has fired on them by `today`.
-  const lit = new Set(s.detections.filter(d => d.day <= today).map(d => d.account_id));
-  document.getElementById('flow').innerHTML = s.accounts.map((a, i) => {
-    const mine = upto.filter(t => t.account_id === a);
-    const cr = mine.filter(t => t.direction === 'CR').reduce((x,t) => x+t.amount, 0);
-    const dr = mine.filter(t => t.direction === 'DR').reduce((x,t) => x+t.amount, 0);
-    return (i ? '<div class="arrow">&#8594;</div>' : '') +
-      '<div class="node' + (lit.has(a) ? ' lit' : '') + '">' +
-      '<div class="who">' + (s.names[a] || a) + '</div>' +
-      '<div class="id">' + a + '</div>' +
-      '<div class="amt">in ' + fmt(cr) + '</div>' +
-      '<div class="amt">out ' + fmt(dr) + '</div></div>';
-  }).join('');
+    var moved = upto.reduce(function(a,t){ return a + t.amount; }, 0);
+    var total = s.txns.reduce(function(a,t){ return a + t.amount; }, 0);
+    $('kmoved').textContent = fmt(moved);
+    $('kshare').textContent = total ? Math.round(moved / total * 100) + '%' : '0%';
+    $('kfired').textContent = fired.length + ' of ' + s.detections.length;
 
-  const rows = s.detections.map(d => {
-    const fired = d.day <= today;
-    return '<div class="det' + (fired ? ' fired' : '') + '">' +
-      '<span class="pill">' + (fired ? d.day : 'day ' + d.day) + '</span>' +
-      '<span><span class="what">' + d.detector + '</span> on ' + d.account_id +
-      '<br><span class="why">' + d.detail + '</span></span></div>';
+    /* "Evidence" is what the STACK holds -- how many independent detectors have
+       fired by today. It is not a new risk score and nothing here reads a label. */
+    var n = fired.length, cap = Math.max(s.detections.length, 3), bars = '';
+    for (var i = 0; i < cap; i++)
+      bars += '<i class="' + (i < n ? 'on' + (n >= 2 ? ' hot' : '') : '') + '"></i>';
+    $('suspbars').innerHTML = bars;
+    $('susplab').textContent = n === 0 ? 'no signal'
+      : (n === 1 ? '1 detector' : n + ' detectors \\u00b7 corroborated');
+
+    $('flow').innerHTML = s.accounts.map(function(a,i){
+      var mine = upto.filter(function(t){ return t.account_id === a; });
+      var cr = mine.filter(function(t){ return t.direction === 'CR'; })
+                   .reduce(function(x,t){ return x + t.amount; }, 0);
+      var dr = mine.filter(function(t){ return t.direction === 'DR'; })
+                   .reduce(function(x,t){ return x + t.amount; }, 0);
+      return (i ? '<div class="arrow">&#8594;</div>' : '') +
+        '<div class="node' + (lit[a] ? ' lit' : '') + '">' +
+        '<span class="flag">ALERT</span>' +
+        '<div class="who">' + (s.names[a] || a) + '</div>' +
+        '<div class="id">' + a + '</div>' +
+        '<div class="amt">in <b>' + fmt(cr) + '</b></div>' +
+        '<div class="amt">out <b>' + fmt(dr) + '</b></div></div>';
+    }).join('');
+
+    $('dets').innerHTML = s.detections.length ? s.detections.map(function(d){
+      var on = d.day <= today;
+      return '<div class="det' + (on ? ' fired' : '') + '">' +
+        '<span class="when">' + (on ? d.day : 'pending') + '</span>' +
+        '<div><div class="dw">' + d.detector + '</div>' +
+        '<div class="dd">' + (on ? d.detail : 'has not fired yet') +
+        ' &middot; ' + d.account_id + '</div></div></div>';
+    }).join('') : '<p class="dd">No detector ever fired on this scheme. It ran to ' +
+      'completion unseen &mdash; and it is in the answer key the whole time.</p>';
+
+    $('narr').innerHTML = narrate(s, today, upto, fired, moved, total);
+
+    var rows = upto.slice().reverse();
+    $('txns').innerHTML = '<tr><th>Day</th><th>Account</th><th>Dir</th><th>Channel</th>' +
+      '<th>Amount</th><th>Role</th><th>Narration</th></tr>' +
+      rows.map(function(t,i){
+        var isNew = !RM && prevRows >= 0 && i < rows.length - prevRows;
+        return '<tr' + (isNew ? ' class="new"' : '') + '><td>' + t.day + '</td>' +
+          '<td>' + t.account_id + '</td>' +
+          '<td class="' + t.direction.toLowerCase() + '">' + t.direction + '</td>' +
+          '<td>' + t.channel + '</td><td>' + fmt(t.amount) + '</td>' +
+          '<td class="na">' + (t.role || '') + '</td>' +
+          '<td class="na">' + t.narration + '</td></tr>';
+      }).join('');
+    prevRows = rows.length;
+  }
+
+  /* Narration is assembled only from facts already on this page: the day, what
+     has posted, what has fired. It asserts nothing the data does not show. */
+  function narrate(s, today, upto, fired, moved, total){
+    if (!upto.length)
+      return '<b>Nothing has posted yet.</b> The scheme begins on ' + s.started + '.';
+    var pct = total ? Math.round(moved / total * 100) : 0, out;
+    if (!fired.length) {
+      out = '<b>Still invisible.</b> ' + upto.length + ' of ' + s.txns.length +
+        ' scheme transactions have posted and <b>' + pct + '%</b> of the value has ' +
+        'moved, but no detector has fired. These accounts are in the answer key right ' +
+        'now &mdash; the stack simply has no evidence yet.';
+      if (s.latency === null)
+        out += ' It never will: no detector fires on this scheme at any point.';
+    } else if (fired.length === 1 && fired[0].day === today) {
+      out = '<b>First alert.</b> <b>' + fired[0].detector + '</b> fires on ' +
+        fired[0].account_id + ' today &mdash; day ' + (s.latency + 1) + ' of the scheme. ' +
+        '<b>' + pct + '%</b> of the value had already moved by the time the evidence ' +
+        'this rule needs came into existence.';
+    } else if (fired.length === 1) {
+      out = '<b>One detector is holding this case.</b> <b>' + fired[0].detector +
+        '</b> fired on ' + fired[0].day + '. A single signal is the weakest kind of ' +
+        'case &mdash; it names a scenario, but nothing corroborates it.';
+    } else {
+      out = '<b>Corroborated.</b> ' + fired.length + ' independent detectors have now ' +
+        'fired. Two layers agreeing is what separates a case worth an analyst&rsquo;s ' +
+        'day from a single-signal alert.';
+    }
+    if (pct >= 100 && fired.length)
+      out += ' <b>All of the money had already moved</b> &mdash; whatever happens next, ' +
+        'nothing here was stoppable.';
+    return out;
+  }
+
+  function stop(){
+    if (timer) { clearInterval(timer); timer = null; $('play').textContent = 'Replay'; }
+  }
+  function play(){
+    if (timer) { stop(); return; }
+    if (at >= cal.length - 1) { at = 0; $('scrub').value = 0; draw(); }
+    $('play').textContent = 'Pause';
+    timer = setInterval(function(){
+      if (at >= cal.length - 1) { stop(); return; }
+      at++; $('scrub').value = at; draw();
+    }, RM ? 10 : 470);
+  }
+
+  $('scrub').addEventListener('input', function(e){ stop(); at = +e.target.value; draw(); });
+  $('play').addEventListener('click', play);
+  document.querySelectorAll('.picker button').forEach(function(b,i){
+    b.addEventListener('click', function(){ pick(i); });
   });
-  document.getElementById('dets').innerHTML = rows.length ? rows.join('') :
-    '<p class="note">No detector ever fired on this scheme. It ran to completion unseen.</p>';
-
-  const seats = s.cases.length
-    ? s.cases.map(c => 'case #' + c.case_id + ' (' + c.band + ' band)').join(', ')
-    : 'never reached an analyst';
-  document.getElementById('outcome').textContent = 'Outcome: ' + seats + '.';
-  if (s.prior.length) {
-    document.getElementById('prior').innerHTML = '<p class="note">' + s.prior.length +
-      ' detector hit(s) on these accounts predate the scheme and are excluded from ' +
-      'the latency above: ' + s.prior.map(d => d.detector + ' on ' + d.account_id +
-      ' (' + d.day + ')').join(', ') + '.</p>';
-  } else { document.getElementById('prior').innerHTML = ''; }
-
-  document.getElementById('txns').innerHTML =
-    '<tr><th>day</th><th>account</th><th>dir</th><th>channel</th>' +
-    '<th>amount</th><th>role</th><th>narration</th></tr>' +
-    upto.slice().reverse().map(t => '<tr><td>' + t.day + '</td><td>' + t.account_id +
-      '</td><td class="' + t.direction.toLowerCase() + '">' + t.direction +
-      '</td><td>' + t.channel + '</td><td>' + fmt(t.amount) + '</td><td>' +
-      (t.role || '') + '</td><td>' + t.narration + '</td></tr>').join('');
-}
-
-document.getElementById('scrub').addEventListener('input', e => {
-  at = +e.target.value; draw();
-});
-document.querySelectorAll('.picker button').forEach((b, i) =>
-  b.addEventListener('click', () => pick(i)));
-pick(OPEN_ON);
+  pick(OPEN_ON);
+})();
 """
+
+
+def _stage() -> str:
+    """The replay itself: flow, scrubber, narrative, evidence, transactions."""
+    return (
+        '<div class="stage">'
+        '<div>'
+        '<div class="card pad-lg" data-rv="0">'
+        '<div class="scrub">'
+        '<span class="daylab"><span id="daynum">&mdash;</span>'
+        '<span class="d2" id="dayoff"></span></span>'
+        '<input type="range" id="scrub" min="0" value="0" step="1" '
+        'aria-label="Replay day">'
+        '<button class="playbtn" id="play" type="button">Replay</button>'
+        '</div>'
+        '<div class="flow" id="flow"></div>'
+        '<div class="susp"><span class="lab">Evidence</span>'
+        '<span class="bars" id="suspbars"></span>'
+        '<span class="lab" id="susplab"></span></div>'
+        '<p class="narr" id="narr" style="margin-top:16px" aria-live="polite"></p>'
+        '</div>'
+        '<div class="card pad-lg" style="margin-top:14px" data-rv="1">'
+        '<p class="sh">Transaction explorer</p>'
+        '<div class="txr"><table id="txns"></table></div>'
+        '</div></div>'
+        '<div class="side" data-rv="1">'
+        '<div class="card"><p class="sh">Account profile</p><div id="profile"></div></div>'
+        '<div class="card"><p class="sh">Investigation panel</p>'
+        '<div class="kv"><span class="k">Value posted</span>'
+        '<span class="v" id="kmoved">&mdash;</span></div>'
+        '<div class="kv"><span class="k">Share of scheme</span>'
+        '<span class="v" id="kshare">&mdash;</span></div>'
+        '<div class="kv"><span class="k">Detectors fired</span>'
+        '<span class="v" id="kfired">&mdash;</span></div>'
+        '</div>'
+        '<div class="card"><p class="sh">Detector reasoning</p><div id="dets"></div></div>'
+        '</div></div>')
 
 
 def render(conn: duckdb.DuckDBPyConnection, out_dir: Path = DEFAULT_OUT,
            limit_per_typology: int | None = 3) -> Path:
-    """Write Story Mode as one self-contained page. Returns its path."""
+    """Write Story Mode as one self-contained investigation replay."""
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
+    path = out_dir / "story.html"
     stories = build_stories(conn, limit_per_typology=limit_per_typology)
 
     if not stories:
-        body = ('<p class="note warn">No injected schemes in this ledger, so there is '
-                "no story to tell. Build a world with crime in it first: "
-                "<code>python -m launderlab demo-world</code>.</p>")
-        path = out_dir / "story.html"
-        path.write_text(page("LaunderLab — Story Mode", "", body), encoding="utf-8")
+        path.write_text(web.shell(
+            title="LaunderLab — Story Mode",
+            description="Replay an injected money-laundering scheme day by day.",
+            active="story.html",
+            body=web.hero(
+                eyebrow="Story Mode", title="No story to tell",
+                lede="This ledger has <strong>no injected schemes</strong> in it, so there "
+                     "is nothing to replay.")
+            + web.section(
+                sid="fix", eyebrow="Fix", title="Build a world with crime in it",
+                body=web.box("warn", "Next step",
+                             "<p>Run <code>python -m launderlab demo-world</code>, then "
+                             "point <code>LAUNDERLAB_DB</code> at it and re-run "
+                             "<code>python -m launderlab story</code>.</p>"))),
+            encoding="utf-8")
         return path
 
-    report = latency_report(build_stories(conn, limit_per_typology=None))
+    everything = build_stories(conn, limit_per_typology=None)
+    report = latency_report(everything)
     svg, note = latency_chart(report)
     exposure_svg, exposure_note = exposure_chart(report)
 
     buttons = "".join(
-        f'<button type="button">{html.escape(s.scheme_id)} · '
-        f'{html.escape(s.typology)}</button>' for s in stories)
-    payload = json.dumps([_story_json(s) for s in stories])
+        f'<button type="button" aria-pressed="false">{html.escape(s.scheme_id)}'
+        f'<span class="ty"> · {html.escape(s.typology)}</span></button>' for s in stories)
+    payload = json.dumps([_story_json(s) for s in stories], separators=(",", ":"))
+
+    caught = sum(1 for s in everything if s.latency_days is not None)
+    medians, moved = report.median_days, report.median_moved
+    slowest = max(medians, key=medians.get) if medians else None
+    worst = max(moved, key=moved.get) if moved else None
 
     body = (
-        f'<div class="picker">{buttons}</div>'
-        '<div class="card">'
-        '<div class="stat" id="stats"></div>'
-        '<div class="scrub"><span class="day" id="day"></span>'
-        '<input type="range" id="scrub" min="0" value="0" step="1"></div>'
-        '<div class="flow" id="flow"></div>'
-        '</div>'
-        '<h2>What the detection stack saw</h2>'
-        '<div class="card" id="dets"></div>'
-        '<p class="note" id="outcome"></p><div id="prior"></div>'
-        '<h2>The scheme\'s own transactions, up to the day above</h2>'
-        '<div class="card"><table class="txns" id="txns"></table></div>'
-        '<h2>Detection latency — how long a scheme runs before anything fires</h2>'
-        f'<div class="card">{svg}</div>'
-        f'<p class="note">{html.escape(note)}</p>'
-        '<h2>How much had already moved when the alert fired</h2>'
-        f'<div class="card">{exposure_svg}</div>'
-        f'<p class="note">{html.escape(exposure_note)}</p>'
-        f"<script>const STORIES = {payload};"
-        f"const OPEN_ON = {most_illustrative(stories)};{_STORY_JS}</script>"
+        web.hero(
+            eyebrow="Story Mode · Phase 9.1", tone="teal",
+            title="Watch the detection stack close in",
+            lede="Scrub a day at a time through a <strong>real injected scheme</strong>. An "
+                 "account outlines in red only when a real detector has actually fired on "
+                 "it by that day &mdash; never because it is in the answer key. It is in "
+                 "the answer key the entire time; that is exactly the point.",
+            meta=[(f"{len(everything)}", "schemes replayed"),
+                  (f"{caught}/{len(everything)}", "ever caught"),
+                  ("nightly", "re-detection cadence")])
+        + web.section(
+            sid="replay", eyebrow="Investigation replay",
+            title="Pick a scheme. Drag the day. Watch what an analyst would have seen.",
+            lede="Every frame re-runs the <em>unmodified</em> rules engine and graph "
+                 "detector against a view of the ledger truncated to that day. There is no "
+                 "second, day-aware copy of a rule that could disagree with the one being "
+                 "graded.",
+            tone="teal",
+            body='<div class="picker" role="group" aria-label="Choose a scheme to replay">'
+                 f'{buttons}</div>' + _stage())
+        + web.section(
+            sid="latency", eyebrow="The measurement",
+            title="How long a scheme runs before anything fires",
+            lede="Every detection figure this project had published was scored against the "
+                 "<em>finished</em> world &mdash; which quietly assumes a bank may wait "
+                 "until the crime is over before deciding it happened. Real monitoring runs "
+                 "nightly against the ledger so far. Nothing here had ever answered how "
+                 "long that takes.",
+            body=web.kpis([
+                (f"{medians.get(slowest, 0):.0f}d", "Slowest to detect",
+                 f"<code>{web.esc(slowest or '—')}</code> needs the longest to accumulate "
+                 "enough evidence to fire at all", "amber"),
+                (f"{moved.get(worst, 0):.0%}", "Worst exposure at first alert",
+                 f"<code>{web.esc(worst or '—')}</code> is caught with this share of its "
+                 "value already moved", "rose"),
+                (f"{caught}/{len(everything)}", "Schemes ever caught",
+                 "The rest ran to completion with no detector firing at any point",
+                 "violet"),
+            ], "g3")
+            + '<div style="height:18px"></div>'
+            + web.chart_card(svg, caption=web.esc(note))
+            + '<div style="height:16px"></div>'
+            + web.chart_card(exposure_svg, caption=web.esc(exposure_note))
+            + web.box("finding", "Latency and usefulness are nearly inverted",
+                      "<p><code>round_tripping</code> is caught in a median of four days "
+                      "&mdash; fast &mdash; with <strong>100% of the money already "
+                      "moved</strong>, every time. That is not a tuning problem. The rule "
+                      "fires on money leaving and coming back, so it needs the return leg "
+                      "to exist before it has anything to see, and the return leg is the "
+                      "last act of the scheme. It is structurally incapable of alerting "
+                      "while a rupee is still stoppable. Meanwhile <code>structuring</code> "
+                      "&mdash; the slowest, the worst bar on the latency chart &mdash; is "
+                      "caught with roughly half the scheme still to come.</p>")
+            + web.box("why", "Why this is a different axis, not a better number",
+                      "<p>Detection rate asks <em>whether</em> a control fires. This asks "
+                      "<em>when</em> &mdash; and then whether that was soon enough to "
+                      "matter. A control can score perfectly on the first and be worthless "
+                      "on the second, and no amount of threshold tuning moves it: the shape "
+                      "of the evidence the rule requires is what decides it.</p>")
+            + web.expandable(
+                "Engineering note: how the day-by-day re-detection works",
+                "<p>A DuckDB view named <code>transactions</code> shadows the real table "
+                "through <code>search_path</code>, so the SQL every rule already contains "
+                "does the filtering for free. The detectors are the real ones, called "
+                "exactly as they are everywhere else. A test asserts the truncation really "
+                "truncates by counting rows through the view &mdash; because if the "
+                "shadowing ever silently stopped working, every scheme would report as "
+                "detected on day one, which is a flattering number with nothing failing.</p>")
+            + web.expandable(
+                "Why screening and ML are excluded from this measurement",
+                "<p>Screening asks an identity question: a customer is on a watchlist on "
+                "day 0 and on day 39, so &ldquo;when did it fire&rdquo; has no meaning for "
+                "it. The ML layer emits a ranking rather than an event, and re-fitting an "
+                "unsupervised model once per day would measure the model&rsquo;s day-to-day "
+                "instability rather than the scheme&rsquo;s visibility. The red team "
+                "benchmark drew the same boundary for the same reason.</p>"))
+        + web.section(
+            sid="limits", eyebrow="Limitations", title="What this replay does not show",
+            tone="amber",
+            body='<div class="grid g2" data-rv="0">'
+                 + web.card("Latency can under-report, never over-report",
+                            "A rule that never fires reports no latency at all rather than "
+                            "a flattering one. A detection dated before the scheme's own "
+                            "first transaction would mean the replay leaked future rows, "
+                            "and a test asserts it never does.", hover=False)
+                 + web.card("Exposure counts transaction value, not loss",
+                            "A round trip's departure and return are both labelled, so the "
+                            "same money is counted twice. It is a fair progress measure "
+                            "through a scheme; the rupee figure underneath it is not a loss "
+                            "number and is never presented as one.", hover=False)
+                 + web.card("Alerts predating a scheme are excluded",
+                            "A scheme is injected into an account that already has a life. "
+                            "Crediting a pre-existing alert to the scheme would report a "
+                            "detection the scheme did not cause, and could even produce a "
+                            "negative latency.", hover=False)
+                 + web.card("Nightly is an assumption about cadence",
+                            "This models a stack re-run once a day. A bank running intraday "
+                            "monitoring would see shorter latencies; one running weekly "
+                            "batches would see longer ones.", hover=False)
+                 + "</div>")
+        + web.section(
+            sid="next", eyebrow="Next", title="Continue",
+            body=web.next_link("results.html", "Measured results",
+                               "Every detector, graded against the answer key",
+                               "Detection rate, precision, queue composition, and what the "
+                               "stack costs to run."))
     )
-    subtitle = ("Scrub the day slider to replay a real injected scheme. An account "
-                "outlines in red only when a real detector has actually fired on it "
-                "by that day — never because it is in the answer key. Regenerate with "
-                "<code>python -m launderlab story</code>.")
 
-    path = out_dir / "story.html"
-    path.write_text(page("LaunderLab — Story Mode", subtitle, body,
-                         extra_css=_STORY_CSS), encoding="utf-8")
+    path.write_text(web.shell(
+        title="LaunderLab — Story Mode",
+        description="Replay a real money-laundering scheme day by day and watch a "
+                    "four-layer AML detection stack close in on it. Detection latency "
+                    "measured by re-running the real detectors against day-truncated "
+                    "views of the same ledger.",
+        active="story.html", body=body, extra_css=_STORY_CSS,
+        extra_js=f"const STORIES = {payload};"
+                 f"const OPEN_ON = {most_illustrative(stories)};{_STORY_JS}"),
+        encoding="utf-8")
     return path
 
 

@@ -1,32 +1,443 @@
 <!doctype html>
+<html lang="en">
+<head>
 <meta charset="utf-8">
-<title>LaunderLab — red team decay benchmark</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LaunderLab — Red team decay benchmark</title>
+<meta name="description" content="A static AML detection stack versus an adversary that mutates its own parameters each generation. Decay is not uniform: some rules collapse in two generations, others never fully evade.">
+<meta name="theme-color" content="#08090a">
+<meta property="og:title" content="LaunderLab — Red team decay benchmark">
+<meta property="og:description" content="A static AML detection stack versus an adversary that mutates its own parameters each generation. Decay is not uniform: some rules collapse in two generations, others never fully evade.">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
 <style>
-:root { --bg:#fbfbfa; --panel:#fff; --ink:#14140f; --muted:#6b6b63; --line:#e3e2da;
-        --bar:#185fa5; --bar2:#0f6e56; --miss:#c9c7bd; --warn:#a32d2d;
-        --l1:#185fa5; --l2:#0f6e56; --l3:#b45309; --l4:#7a3ea3; --l5:#a32d2d; }
-@media (prefers-color-scheme: dark) {
-  :root { --bg:#161614; --panel:#1e1e1b; --ink:#f2f1ea; --muted:#9d9c92;
-          --line:#32312c; --bar:#6ea8e6; --bar2:#4fb59a; --miss:#3a3934;
-          --l1:#6ea8e6; --l2:#4fb59a; --l3:#e0a458; --l4:#c398e8; --l5:#e08080; } }
-* { box-sizing:border-box; }
-body { margin:0; padding:30px 28px 60px; background:var(--bg); color:var(--ink);
-       font:15px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif; max-width:900px; }
-h1 { font-size:20px; margin:0 0 4px; }
-h2 { font-size:14px; margin:34px 0 4px; }
-p.sub { color:var(--muted); font-size:13px; margin:0 0 12px; }
-.card { background:var(--panel); border:1px solid var(--line); border-radius:9px;
-        padding:14px 16px; overflow-x:auto; }
-.bar { fill:var(--bar); } .bar.alt { fill:var(--bar2); } .bar.miss { fill:var(--miss); }
-.lbl { font-size:11.5px; fill:var(--ink); }
-.val { font-size:11px; fill:var(--muted); }
-.axis { stroke:var(--line); stroke-width:1; }
-.note { color:var(--muted); font-size:12.5px; margin:10px 0 0; }
-.warn { color:var(--warn); }
-.legend { display:flex; flex-wrap:wrap; gap:12px 18px; margin-top:8px; font-size:12.5px; }
-.legend span { display:inline-flex; align-items:center; gap:6px; }
-.legend i { width:11px; height:11px; border-radius:2px; display:inline-block; }
+:root {
+  color-scheme: dark;
+  --bg:#08090a; --bg-soft:#0c0e10; --surface:#111417; --surface-2:#161a1e;
+  --surface-3:#1c2126; --line:#222930; --line-strong:#2f3841;
+  --ink:#e9ecef; --ink-dim:#9aa3ab; --ink-faint:#6b747c;
+  --accent:#4c8dff; --accent-soft:#1b3a63;
+  --accent-glow:rgba(76,141,255,.14);
+  --teal:#2dd4bf; --violet:#a78bfa; --amber:#f0b429; --rose:#f87171;
+  --green:#4ade80;
+  --c1:#4c8dff; --c2:#2dd4bf; --c3:#f0b429; --c4:#a78bfa; --c5:#f87171;
+  --radius:14px; --radius-sm:9px; --radius-lg:20px;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 28px -12px rgba(0,0,0,.7);
+  --shadow-lg:0 2px 4px rgba(0,0,0,.4), 0 24px 60px -20px rgba(0,0,0,.85);
+  --mono:ui-monospace,"SF Mono","JetBrains Mono","Cascadia Mono",Menlo,Consolas,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+  --ease:cubic-bezier(.16,1,.3,1);
+  --maxw:1120px;
+}
+
+*,*::before,*::after { box-sizing:border-box; }
+html { -webkit-text-size-adjust:100%; scroll-behavior:smooth; }
+body {
+  margin:0; background:var(--bg); color:var(--ink);
+  font:400 16px/1.65 var(--sans);
+  -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+  overflow-x:hidden;
+}
+body::before {
+  content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+  background:
+    radial-gradient(900px 500px at 12% -8%, rgba(76,141,255,.10), transparent 60%),
+    radial-gradient(760px 420px at 92% 4%, rgba(167,139,250,.07), transparent 62%);
+}
+main,header,footer { position:relative; z-index:1; }
+h1,h2,h3,h4 { margin:0; font-weight:640; letter-spacing:-.021em; line-height:1.18; }
+h1 { font-size:clamp(2.1rem,5.2vw,3.5rem); letter-spacing:-.033em; }
+h2 { font-size:clamp(1.45rem,2.9vw,2rem); letter-spacing:-.026em; }
+h3 { font-size:1.075rem; letter-spacing:-.014em; }
+p { margin:0 0 1em; color:var(--ink-dim); }
+p:last-child { margin-bottom:0; }
+a { color:var(--accent); text-decoration:none; }
+a:hover { text-decoration:underline; text-underline-offset:3px; }
+strong,b { color:var(--ink); font-weight:620; }
+code,.mono { font-family:var(--mono); font-size:.875em; }
+code {
+  background:var(--surface-2); border:1px solid var(--line);
+  padding:.13em .42em; border-radius:5px; color:var(--ink);
+}
+.num { font-family:var(--mono); font-variant-numeric:tabular-nums; }
+.wrap { width:100%; max-width:var(--maxw); margin:0 auto; padding:0 24px; }
+.narrow { max-width:760px; }
+:focus-visible { outline:2px solid var(--accent); outline-offset:3px; border-radius:4px; }
+.skip {
+  position:absolute; left:-9999px; top:0; background:var(--accent); color:#04070d;
+  padding:10px 18px; border-radius:0 0 8px 0; font-weight:600; z-index:100;
+}
+.skip:focus { left:0; }
+.sr { position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+      overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
+
+.nav {
+  position:sticky; top:0; z-index:50;
+  background:rgba(8,9,10,.76); backdrop-filter:blur(14px) saturate(150%);
+  -webkit-backdrop-filter:blur(14px) saturate(150%);
+  border-bottom:1px solid var(--line);
+}
+.nav-in { display:flex; align-items:center; gap:8px; height:58px;
+          max-width:var(--maxw); margin:0 auto; padding:0 24px; }
+.brand { display:flex; align-items:center; gap:9px; font-weight:660;
+         letter-spacing:-.02em; color:var(--ink); margin-right:6px; font-size:.97rem; }
+.brand:hover { text-decoration:none; }
+.brand .dot { width:9px; height:9px; border-radius:3px;
+  background:linear-gradient(140deg,var(--accent),var(--teal)); flex:0 0 auto; }
+.nav-links { display:flex; gap:2px; margin-left:auto; align-items:center;
+             overflow-x:auto; scrollbar-width:none; }
+.nav-links::-webkit-scrollbar { display:none; }
+.nav-links a {
+  color:var(--ink-dim); font-size:.855rem; font-weight:500; padding:7px 11px;
+  border-radius:8px; white-space:nowrap; transition:color .16s, background .16s;
+}
+.nav-links a:hover { color:var(--ink); background:var(--surface-2); text-decoration:none; }
+.nav-links a[aria-current="page"] { color:var(--ink); background:var(--surface-3); }
+.nav-links a.ext { color:var(--ink-faint); }
+@media (max-width:720px){ .nav-in { padding:0 14px; } .brand span.full { display:none; } }
+
+.hero { padding:76px 0 44px; }
+.eyebrow {
+  display:inline-flex; align-items:center; gap:8px; font-family:var(--mono);
+  font-size:.72rem; letter-spacing:.13em; text-transform:uppercase;
+  color:var(--accent); background:var(--accent-glow);
+  border:1px solid rgba(76,141,255,.24); padding:5px 11px; border-radius:99px;
+  margin-bottom:20px;
+}
+.eyebrow.teal { color:var(--teal); background:rgba(45,212,191,.1);
+                border-color:rgba(45,212,191,.24); }
+.eyebrow.violet { color:var(--violet); background:rgba(167,139,250,.1);
+                  border-color:rgba(167,139,250,.24); }
+.eyebrow.amber { color:var(--amber); background:rgba(240,180,41,.1);
+                 border-color:rgba(240,180,41,.24); }
+.hero h1 { max-width:16ch; }
+.hero .grad {
+  background:linear-gradient(96deg,var(--ink) 18%,var(--accent) 62%,var(--teal) 96%);
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+}
+.lede { font-size:clamp(1.03rem,1.7vw,1.2rem); color:var(--ink-dim);
+        max-width:66ch; margin-top:20px; line-height:1.62; }
+.lede strong { color:var(--ink); }
+.hero-meta { display:flex; flex-wrap:wrap; gap:9px; margin-top:26px; }
+.chip {
+  display:inline-flex; align-items:center; gap:7px; font-size:.79rem;
+  color:var(--ink-dim); background:var(--surface); border:1px solid var(--line);
+  padding:6px 12px; border-radius:99px; font-family:var(--mono);
+}
+.chip b { color:var(--ink); font-weight:600; }
+section { padding:52px 0; }
+section + section { border-top:1px solid var(--line); }
+.sec-head { margin-bottom:28px; max-width:74ch; }
+.sec-head h2 { margin-bottom:12px; }
+.sec-head p { font-size:1rem; }
+.grid { display:grid; gap:16px; }
+.g2 { grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); }
+.g3 { grid-template-columns:repeat(auto-fit,minmax(232px,1fr)); }
+.g4 { grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); }
+.split { display:grid; gap:22px; grid-template-columns:1.35fr .95fr; align-items:start; }
+@media (max-width:860px){ .split { grid-template-columns:1fr; } }
+footer.ft { border-top:1px solid var(--line); padding:38px 0 56px; margin-top:26px;
+            color:var(--ink-faint); font-size:.86rem; }
+.ft-in { display:flex; flex-wrap:wrap; gap:18px; justify-content:space-between; }
+.ft a { color:var(--ink-dim); }
+
+.card {
+  background:linear-gradient(180deg,var(--surface) 0%,var(--bg-soft) 100%);
+  border:1px solid var(--line); border-radius:var(--radius); padding:20px 22px;
+  transition:border-color .22s var(--ease), transform .22s var(--ease),
+             box-shadow .22s var(--ease);
+}
+.card.pad-lg { padding:26px 28px; }
+.card.hover:hover { border-color:var(--line-strong); transform:translateY(-3px);
+                    box-shadow:var(--shadow-lg); }
+a.card { display:block; color:inherit; }
+a.card:hover { text-decoration:none; }
+.card h3 { margin-bottom:7px; }
+.card p { font-size:.92rem; }
+.kpi { background:var(--surface); border:1px solid var(--line);
+       border-radius:var(--radius); padding:18px 20px; position:relative;
+       overflow:hidden; }
+.kpi::after { content:''; position:absolute; left:0; top:0; bottom:0; width:2px;
+              background:linear-gradient(180deg,var(--accent),transparent); opacity:.55; }
+.kpi .v { font-family:var(--mono); font-variant-numeric:tabular-nums;
+          font-size:clamp(1.5rem,3.1vw,1.95rem); font-weight:600;
+          letter-spacing:-.03em; color:var(--ink); line-height:1.1; }
+.kpi .v.sm { font-size:1.16rem; letter-spacing:-.01em; }
+.kpi .k { font-size:.79rem; font-weight:600; color:var(--ink); margin-top:8px;
+          letter-spacing:-.005em; }
+.kpi .d { font-size:.77rem; color:var(--ink-faint); margin-top:5px; line-height:1.5; }
+.kpi.teal::after   { background:linear-gradient(180deg,var(--teal),transparent); }
+.kpi.violet::after { background:linear-gradient(180deg,var(--violet),transparent); }
+.kpi.amber::after  { background:linear-gradient(180deg,var(--amber),transparent); }
+.kpi.rose::after   { background:linear-gradient(180deg,var(--rose),transparent); }
+.note {
+  border-left:2px solid var(--line-strong); padding:2px 0 2px 16px;
+  color:var(--ink-dim); font-size:.9rem; margin:16px 0 0;
+}
+.box {
+  border:1px solid var(--line); border-radius:var(--radius-sm);
+  padding:15px 17px; margin:16px 0 0; background:var(--surface);
+  font-size:.91rem; color:var(--ink-dim);
+}
+.box .bt {
+  display:flex; align-items:center; gap:8px; font-size:.71rem; font-weight:700;
+  letter-spacing:.11em; text-transform:uppercase; margin-bottom:8px;
+  font-family:var(--mono);
+}
+.box.finding    { border-color:rgba(76,141,255,.3);  background:rgba(76,141,255,.045); }
+.box.finding .bt{ color:var(--accent); }
+.box.why        { border-color:rgba(45,212,191,.3);  background:rgba(45,212,191,.04); }
+.box.why .bt    { color:var(--teal); }
+.box.limit      { border-color:rgba(240,180,41,.3);  background:rgba(240,180,41,.04); }
+.box.limit .bt  { color:var(--amber); }
+.box.warn       { border-color:rgba(248,113,113,.32); background:rgba(248,113,113,.045); }
+.box.warn .bt   { color:var(--rose); }
+.box.method     { border-color:rgba(167,139,250,.3); background:rgba(167,139,250,.04); }
+.box.method .bt { color:var(--violet); }
+.box b, .box strong { color:var(--ink); }
+details.exp {
+  border:1px solid var(--line); border-radius:var(--radius-sm); margin:16px 0 0;
+  background:var(--surface); overflow:hidden;
+}
+details.exp > summary {
+  cursor:pointer; padding:13px 17px; font-size:.87rem; font-weight:600;
+  color:var(--ink); list-style:none; display:flex; align-items:center; gap:10px;
+  transition:background .16s;
+}
+details.exp > summary::-webkit-details-marker { display:none; }
+details.exp > summary::before {
+  content:'+'; font-family:var(--mono); color:var(--accent); font-weight:700;
+  font-size:1rem; width:14px; flex:0 0 auto; transition:transform .2s var(--ease);
+}
+details.exp[open] > summary::before { content:'\2212'; }
+details.exp > summary:hover { background:var(--surface-2); }
+details.exp .exp-body {
+  padding:2px 17px 16px; font-size:.89rem; color:var(--ink-dim);
+  border-top:1px solid var(--line);
+}
+details.exp .exp-body > :first-child { margin-top:13px; }
+.tbl { width:100%; border-collapse:collapse; font-size:.87rem; }
+.tbl th {
+  text-align:left; font-weight:600; color:var(--ink-faint); font-size:.72rem;
+  letter-spacing:.08em; text-transform:uppercase; padding:0 14px 9px 0;
+  border-bottom:1px solid var(--line); white-space:nowrap;
+}
+.tbl td { padding:9px 14px 9px 0; border-bottom:1px solid var(--line);
+          color:var(--ink-dim); vertical-align:top; }
+.tbl tr:last-child td { border-bottom:0; }
+.tbl td.n { font-family:var(--mono); font-variant-numeric:tabular-nums; color:var(--ink); }
+.tbl tr.hi td { background:rgba(76,141,255,.05); }
+.scroll-x { overflow-x:auto; margin:0 -22px; padding:0 22px; }
+.pill { display:inline-block; font-family:var(--mono); font-size:.71rem;
+        padding:2.5px 8px; border-radius:99px; border:1px solid var(--line);
+        color:var(--ink-dim); background:var(--surface-2); white-space:nowrap; }
+.pill.on   { background:rgba(74,222,128,.13); color:var(--green);
+             border-color:rgba(74,222,128,.3); }
+.pill.off  { background:rgba(248,113,113,.12); color:var(--rose);
+             border-color:rgba(248,113,113,.3); }
+.pill.wait { background:rgba(240,180,41,.12); color:var(--amber);
+             border-color:rgba(240,180,41,.28); }
+.tl { position:relative; padding-left:26px; }
+.tl::before { content:''; position:absolute; left:6px; top:5px; bottom:5px;
+              width:1px; background:var(--line); }
+.tl-i { position:relative; padding-bottom:20px; }
+.tl-i:last-child { padding-bottom:0; }
+.tl-i::before {
+  content:''; position:absolute; left:-24px; top:6px; width:9px; height:9px;
+  border-radius:99px; background:var(--surface-3); border:2px solid var(--line-strong);
+}
+.tl-i.done::before { background:var(--accent); border-color:var(--accent); }
+.tl-i .tl-h { font-size:.9rem; font-weight:620; color:var(--ink); }
+.tl-i .tl-d { font-size:.84rem; color:var(--ink-dim); margin-top:3px; }
+.tl-i .tl-t { font-family:var(--mono); font-size:.71rem; color:var(--ink-faint); }
+.btn {
+  display:inline-flex; align-items:center; gap:9px; padding:11px 19px;
+  border-radius:10px; font-size:.9rem; font-weight:600; border:1px solid transparent;
+  transition:transform .18s var(--ease), background .18s, border-color .18s;
+}
+.btn:hover { text-decoration:none; transform:translateY(-1.5px); }
+.btn.pri { background:var(--accent); color:#04070d; }
+.btn.pri:hover { background:#6ba1ff; }
+.btn.sec { background:var(--surface-2); color:var(--ink); border-color:var(--line-strong); }
+.btn.sec:hover { background:var(--surface-3); }
+.btn-row { display:flex; flex-wrap:wrap; gap:11px; margin-top:30px; }
+.next {
+  display:flex; align-items:center; justify-content:space-between; gap:18px;
+  padding:22px 24px; border:1px solid var(--line); border-radius:var(--radius);
+  background:linear-gradient(100deg,var(--surface),var(--bg-soft));
+  transition:border-color .22s, transform .22s var(--ease);
+}
+.next:hover { border-color:var(--accent); transform:translateY(-2px); text-decoration:none; }
+.next .nx-k { font-family:var(--mono); font-size:.71rem; letter-spacing:.11em;
+              text-transform:uppercase; color:var(--ink-faint); }
+.next .nx-t { font-size:1.06rem; font-weight:620; color:var(--ink); margin-top:5px; }
+.next .nx-d { font-size:.87rem; color:var(--ink-dim); margin-top:4px; }
+.next .arw { color:var(--accent); font-size:1.3rem; flex:0 0 auto; }
+
+.chart-wrap { position:relative; }
+.chart-wrap svg { display:block; width:100%; height:auto; overflow:visible; }
+.c-lbl  { font-family:var(--sans); font-size:12.5px; fill:var(--ink-dim); }
+.c-lbl.k{ fill:var(--ink); font-weight:560; }
+.c-val  { font-family:var(--mono); font-size:12px; fill:var(--ink);
+          font-variant-numeric:tabular-nums; }
+.c-ax   { stroke:var(--line); stroke-width:1; }
+.c-grid { stroke:var(--line); stroke-width:1; stroke-dasharray:2 5; opacity:.65; }
+.c-bar  { rx:4; transform-origin:left center; transition:opacity .18s; }
+.c-row  { cursor:default; }
+.c-row:hover .c-bar { opacity:.82; }
+.c-row.dim { opacity:.28; }
+.c-hit  { fill:transparent; }
+.reveal .c-bar { animation:barIn .85s var(--ease) both; }
+.reveal .c-line { animation:lineIn 1.15s var(--ease) both; }
+.reveal .c-dot { animation:dotIn .4s var(--ease) both; }
+@keyframes barIn { from { transform:scaleX(0); } to { transform:scaleX(1); } }
+@keyframes lineIn { from { stroke-dashoffset:var(--len); } to { stroke-dashoffset:0; } }
+@keyframes dotIn { from { opacity:0; transform:scale(.3); } to { opacity:1; transform:scale(1); } }
+.c-line { fill:none; stroke-width:2.25; stroke-linecap:round; stroke-linejoin:round;
+          stroke-dasharray:var(--len); }
+.legend { display:flex; flex-wrap:wrap; gap:7px; margin-top:16px; }
+.legend button {
+  display:inline-flex; align-items:center; gap:7px; font:inherit; font-size:.79rem;
+  color:var(--ink-dim); background:var(--surface-2); border:1px solid var(--line);
+  padding:5px 11px; border-radius:99px; cursor:pointer;
+  transition:background .16s, color .16s, opacity .16s;
+}
+.legend button:hover { color:var(--ink); background:var(--surface-3); }
+.legend button[aria-pressed="false"] { opacity:.4; }
+.legend i { width:9px; height:9px; border-radius:3px; flex:0 0 auto; }
+.tip {
+  position:fixed; pointer-events:none; opacity:0; z-index:80;
+  background:var(--surface-3); border:1px solid var(--line-strong);
+  border-radius:9px; padding:9px 12px; font-size:.8rem; color:var(--ink);
+  box-shadow:var(--shadow-lg); transition:opacity .13s; max-width:280px;
+  line-height:1.5;
+}
+.tip.show { opacity:1; }
+.tip .tt { font-weight:640; margin-bottom:3px; }
+.tip .td { color:var(--ink-dim); font-size:.76rem; }
+
+/* Scoped to .js, which a one-line inline script in <head> adds. With JavaScript
+   disabled or broken the rule never applies and every section is simply visible.
+   Hiding content unconditionally and relying on script to reveal it would make a
+   scroll animation load-bearing for whether the page has any content at all. */
+.js [data-rv] { opacity:0; transform:translateY(14px);
+                transition:opacity .62s var(--ease), transform .62s var(--ease); }
+.js [data-rv].in { opacity:1; transform:none; }
+@media (prefers-reduced-motion:reduce) {
+  html { scroll-behavior:auto; }
+  *,*::before,*::after { animation-duration:.001ms !important;
+    animation-iteration-count:1 !important; transition-duration:.001ms !important; }
+  .js [data-rv] { opacity:1; transform:none; }
+  .reveal .c-bar,.reveal .c-line,.reveal .c-dot { animation:none; }
+  .c-line { stroke-dasharray:none; }
+}
 </style>
-<h1>LaunderLab — red team decay benchmark (Phase 8)</h1>
-<p class="sub">Recall of a static rules engine against an adversary that mutates its own parameters. Regenerate with <code>python -m launderlab redteam</code>.</p>
-<h2>Recall by typology, generation over generation</h2><div class="card"><svg viewBox="0 0 700 300" width="700" height="300" role="img" aria-label="line chart, 5 series over 8 points"><line class="axis" x1="44" y1="256.0" x2="656" y2="256.0"></line><text class="val" x="36" y="260.0" text-anchor="end">0%</text><line class="axis" x1="44" y1="203.0" x2="656" y2="203.0"></line><text class="val" x="36" y="207.0" text-anchor="end">25%</text><line class="axis" x1="44" y1="150.0" x2="656" y2="150.0"></line><text class="val" x="36" y="154.0" text-anchor="end">50%</text><line class="axis" x1="44" y1="97.0" x2="656" y2="97.0"></line><text class="val" x="36" y="101.0" text-anchor="end">75%</text><line class="axis" x1="44" y1="44.0" x2="656" y2="44.0"></line><text class="val" x="36" y="48.0" text-anchor="end">100%</text><text class="val" x="44.0" y="272" text-anchor="middle">gen0</text><text class="val" x="131.4" y="272" text-anchor="middle">gen1</text><text class="val" x="218.9" y="272" text-anchor="middle">gen2</text><text class="val" x="306.3" y="272" text-anchor="middle">gen3</text><text class="val" x="393.7" y="272" text-anchor="middle">gen4</text><text class="val" x="481.1" y="272" text-anchor="middle">gen5</text><text class="val" x="568.6" y="272" text-anchor="middle">gen6</text><text class="val" x="656.0" y="272" text-anchor="middle">gen7</text><polyline points="44.0,65.2 131.4,65.2 218.9,86.4 306.3,65.2 393.7,65.2 481.1,128.8 568.6,86.4 656.0,65.2" fill="none" stroke="var(--l1)" stroke-width="2.25"></polyline><circle cx="44.0" cy="65.2" r="3" fill="var(--l1)"></circle><circle cx="131.4" cy="65.2" r="3" fill="var(--l1)"></circle><circle cx="218.9" cy="86.4" r="3" fill="var(--l1)"></circle><circle cx="306.3" cy="65.2" r="3" fill="var(--l1)"></circle><circle cx="393.7" cy="65.2" r="3" fill="var(--l1)"></circle><circle cx="481.1" cy="128.8" r="3" fill="var(--l1)"></circle><circle cx="568.6" cy="86.4" r="3" fill="var(--l1)"></circle><circle cx="656.0" cy="65.2" r="3" fill="var(--l1)"></circle><polyline points="44.0,44.0 131.4,44.0 218.9,44.0 306.3,44.0 393.7,44.0 481.1,107.6 568.6,234.8 656.0,256.0" fill="none" stroke="var(--l2)" stroke-width="2.25"></polyline><circle cx="44.0" cy="44.0" r="3" fill="var(--l2)"></circle><circle cx="131.4" cy="44.0" r="3" fill="var(--l2)"></circle><circle cx="218.9" cy="44.0" r="3" fill="var(--l2)"></circle><circle cx="306.3" cy="44.0" r="3" fill="var(--l2)"></circle><circle cx="393.7" cy="44.0" r="3" fill="var(--l2)"></circle><circle cx="481.1" cy="107.6" r="3" fill="var(--l2)"></circle><circle cx="568.6" cy="234.8" r="3" fill="var(--l2)"></circle><circle cx="656.0" cy="256.0" r="3" fill="var(--l2)"></circle><polyline points="44.0,107.6 131.4,107.6 218.9,256.0 306.3,256.0 393.7,256.0 481.1,256.0 568.6,256.0 656.0,256.0" fill="none" stroke="var(--l3)" stroke-width="2.25"></polyline><circle cx="44.0" cy="107.6" r="3" fill="var(--l3)"></circle><circle cx="131.4" cy="107.6" r="3" fill="var(--l3)"></circle><circle cx="218.9" cy="256.0" r="3" fill="var(--l3)"></circle><circle cx="306.3" cy="256.0" r="3" fill="var(--l3)"></circle><circle cx="393.7" cy="256.0" r="3" fill="var(--l3)"></circle><circle cx="481.1" cy="256.0" r="3" fill="var(--l3)"></circle><circle cx="568.6" cy="256.0" r="3" fill="var(--l3)"></circle><circle cx="656.0" cy="256.0" r="3" fill="var(--l3)"></circle><polyline points="44.0,44.0 131.4,65.2 218.9,192.4 306.3,213.6 393.7,213.6 481.1,234.8 568.6,234.8 656.0,234.8" fill="none" stroke="var(--l4)" stroke-width="2.25"></polyline><circle cx="44.0" cy="44.0" r="3" fill="var(--l4)"></circle><circle cx="131.4" cy="65.2" r="3" fill="var(--l4)"></circle><circle cx="218.9" cy="192.4" r="3" fill="var(--l4)"></circle><circle cx="306.3" cy="213.6" r="3" fill="var(--l4)"></circle><circle cx="393.7" cy="213.6" r="3" fill="var(--l4)"></circle><circle cx="481.1" cy="234.8" r="3" fill="var(--l4)"></circle><circle cx="568.6" cy="234.8" r="3" fill="var(--l4)"></circle><circle cx="656.0" cy="234.8" r="3" fill="var(--l4)"></circle><polyline points="44.0,171.2 131.4,213.6 218.9,256.0 306.3,256.0 393.7,213.6 481.1,213.6 568.6,256.0 656.0,213.6" fill="none" stroke="var(--l5)" stroke-width="2.25"></polyline><circle cx="44.0" cy="171.2" r="3" fill="var(--l5)"></circle><circle cx="131.4" cy="213.6" r="3" fill="var(--l5)"></circle><circle cx="218.9" cy="256.0" r="3" fill="var(--l5)"></circle><circle cx="306.3" cy="256.0" r="3" fill="var(--l5)"></circle><circle cx="393.7" cy="213.6" r="3" fill="var(--l5)"></circle><circle cx="481.1" cy="213.6" r="3" fill="var(--l5)"></circle><circle cx="568.6" cy="256.0" r="3" fill="var(--l5)"></circle><circle cx="656.0" cy="213.6" r="3" fill="var(--l5)"></circle></svg><div class="legend"><span><i style="background:var(--l1)"></i>structuring</span><span><i style="background:var(--l2)"></i>mule_network</span><span><i style="background:var(--l3)"></i>shell_company</span><span><i style="background:var(--l4)"></i>round_tripping</span><span><i style="background:var(--l5)"></i>dormant_reactivation</span></div></div><p class="note">Recall against a static rules engine (plus Phase 5&#x27;s graph for mule_network) as the adversary mutates its own injector parameters each generation it evades detection. Converged (fully evaded at least once): mule_network (gen 7), shell_company (gen 2), dormant_reactivation (gen 2). high_risk_geography is excluded -- no continuous evasion knob exists for it (see redteam.py).</p>
+<script>document.documentElement.className+=" js";</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="nav"><div class="nav-in"><a class="brand" href="index.html"><span class="dot"></span>LaunderLab</a><nav class="nav-links" aria-label="Sections"><a href="index.html">Overview</a><a href="story.html">Story Mode</a><a href="results.html">Results</a><a href="redteam.html" aria-current="page">Red Team</a><a href="multibank.html">Cross-Bank</a><a class="ext" href="https://github.com/Dhanu2626/launderlab" rel="noopener">GitHub &#8599;</a></nav></div></header>
+<main id="main">
+<div class="hero"><div class="wrap"><span class="eyebrow amber" data-rv="0">Adversarial benchmark · Phase 8</span><h1 data-rv="1"><span class="grad">Detection decay is not uniform</span></h1><p class="lede" data-rv="2">A static detection stack versus an adversary that <strong>mutates its own scheme parameters every generation it gets caught</strong>. Some controls collapse completely within two generations and never recover. Others never fully evade at all. A single aggregate recall figure could not have shown the difference &mdash; and the difference is the whole finding.</p><div class="hero-meta" data-rv="3"><span class="chip"><b>8</b> generations</span><span class="chip"><b>5</b> adversary genomes</span><span class="chip"><b>3</b> fully evaded</span><span class="chip"><b>2</b> never evaded</span></div></div></div><section id="method"><div class="wrap"><div class="sec-head" data-rv="0"><span class="eyebrow amber">Methodology</span><h2>How the adversary adapts</h2><p>One genome per typology. Each starts at generation 0's naive default and takes one step toward whichever real-world-plausible direction reduces detectability, every generation it gets caught &mdash; freezing once a generation scores zero recall.</p></div><div class="grid g3" data-rv="0"><div class="card"><h3>The knobs are the injectors&#x27; own parameters</h3><p>Deposit ceiling, cut percentage and hop window, invoice count, hop days, dormancy gap. Nothing invented for the benchmark.</p></div><div class="card"><h3>Bounds come from public facts</h3><p>The cash-reporting line near ₹1,00,000; a mule chain stops being worth running past roughly 35% skimmed per hop. A test asserts no bound equals the rule threshold it is meant to evade.</p></div><div class="card"><h3>The adversary never reads the answer key</h3><p>It knows only the account ids it planted this call, held in local memory, and never reads a rule's tuned constants. The same boundary every detection layer here is held to.</p></div></div><div class="box method"><div class="bt">Why one typology is excluded</div><p><code>high_risk_geography</code> is left out on purpose. Its only real evasion move is routing through an unlisted jurisdiction &mdash; a categorical choice with no honest continuous knob. Inventing a fake one would have produced a smooth decay curve that meant nothing.</p></div></div></section><section id="decay"><div class="wrap"><div class="sec-head" data-rv="0"><span class="eyebrow ">Results</span><h2>Recall, generation over generation</h2><p>Click a legend entry to isolate a typology. Every point is a real measured recall against a freshly regenerated world.</p></div><div class="card pad-lg" data-rv="1" data-chart><div class="chart-wrap"><svg viewBox="0 0 780 340" role="img" aria-label="Line chart, 5 series over 8 points"><line class="c-grid" x1="54" y1="286.0" x2="726" y2="286.0"/><text class="c-val" x="42" y="290.0" text-anchor="end">0%</text><line class="c-grid" x1="54" y1="228.0" x2="726" y2="228.0"/><text class="c-val" x="42" y="232.0" text-anchor="end">25%</text><line class="c-grid" x1="54" y1="170.0" x2="726" y2="170.0"/><text class="c-val" x="42" y="174.0" text-anchor="end">50%</text><line class="c-grid" x1="54" y1="112.0" x2="726" y2="112.0"/><text class="c-val" x="42" y="116.0" text-anchor="end">75%</text><line class="c-grid" x1="54" y1="54.0" x2="726" y2="54.0"/><text class="c-val" x="42" y="58.0" text-anchor="end">100%</text><text class="c-lbl" x="54.0" y="310" text-anchor="middle">gen0</text><text class="c-lbl" x="150.0" y="310" text-anchor="middle">gen1</text><text class="c-lbl" x="246.0" y="310" text-anchor="middle">gen2</text><text class="c-lbl" x="342.0" y="310" text-anchor="middle">gen3</text><text class="c-lbl" x="438.0" y="310" text-anchor="middle">gen4</text><text class="c-lbl" x="534.0" y="310" text-anchor="middle">gen5</text><text class="c-lbl" x="630.0" y="310" text-anchor="middle">gen6</text><text class="c-lbl" x="726.0" y="310" text-anchor="middle">gen7</text><g data-s="structuring"><polyline class="c-line" points="54.0,77.2 150.0,77.2 246.0,100.4 342.0,77.2 438.0,77.2 534.0,146.8 630.0,100.4 726.0,77.2" stroke="var(--c1)" style="--len:723;animation-delay:0ms"/><circle class="c-dot" cx="54.0" cy="77.2" r="4" fill="var(--c1)" style="animation-delay:700ms" data-tip="structuring &middot; gen0" data-tip-d="90%" tabindex="0"/><circle class="c-dot" cx="150.0" cy="77.2" r="4" fill="var(--c1)" style="animation-delay:745ms" data-tip="structuring &middot; gen1" data-tip-d="90%" tabindex="0"/><circle class="c-dot" cx="246.0" cy="100.4" r="4" fill="var(--c1)" style="animation-delay:790ms" data-tip="structuring &middot; gen2" data-tip-d="80%" tabindex="0"/><circle class="c-dot" cx="342.0" cy="77.2" r="4" fill="var(--c1)" style="animation-delay:835ms" data-tip="structuring &middot; gen3" data-tip-d="90%" tabindex="0"/><circle class="c-dot" cx="438.0" cy="77.2" r="4" fill="var(--c1)" style="animation-delay:880ms" data-tip="structuring &middot; gen4" data-tip-d="90%" tabindex="0"/><circle class="c-dot" cx="534.0" cy="146.8" r="4" fill="var(--c1)" style="animation-delay:925ms" data-tip="structuring &middot; gen5" data-tip-d="60%" tabindex="0"/><circle class="c-dot" cx="630.0" cy="100.4" r="4" fill="var(--c1)" style="animation-delay:970ms" data-tip="structuring &middot; gen6" data-tip-d="80%" tabindex="0"/><circle class="c-dot" cx="726.0" cy="77.2" r="4" fill="var(--c1)" style="animation-delay:1015ms" data-tip="structuring &middot; gen7" data-tip-d="90%" tabindex="0"/></g><g data-s="mule_network"><polyline class="c-line" points="54.0,54.0 150.0,54.0 246.0,54.0 342.0,54.0 438.0,54.0 534.0,123.6 630.0,262.8 726.0,286.0" stroke="var(--c2)" style="--len:780;animation-delay:110ms"/><circle class="c-dot" cx="54.0" cy="54.0" r="4" fill="var(--c2)" style="animation-delay:700ms" data-tip="mule_network &middot; gen0" data-tip-d="100%" tabindex="0"/><circle class="c-dot" cx="150.0" cy="54.0" r="4" fill="var(--c2)" style="animation-delay:745ms" data-tip="mule_network &middot; gen1" data-tip-d="100%" tabindex="0"/><circle class="c-dot" cx="246.0" cy="54.0" r="4" fill="var(--c2)" style="animation-delay:790ms" data-tip="mule_network &middot; gen2" data-tip-d="100%" tabindex="0"/><circle class="c-dot" cx="342.0" cy="54.0" r="4" fill="var(--c2)" style="animation-delay:835ms" data-tip="mule_network &middot; gen3" data-tip-d="100%" tabindex="0"/><circle class="c-dot" cx="438.0" cy="54.0" r="4" fill="var(--c2)" style="animation-delay:880ms" data-tip="mule_network &middot; gen4" data-tip-d="100%" tabindex="0"/><circle class="c-dot" cx="534.0" cy="123.6" r="4" fill="var(--c2)" style="animation-delay:925ms" data-tip="mule_network &middot; gen5" data-tip-d="70%" tabindex="0"/><circle class="c-dot" cx="630.0" cy="262.8" r="4" fill="var(--c2)" style="animation-delay:970ms" data-tip="mule_network &middot; gen6" data-tip-d="10%" tabindex="0"/><circle class="c-dot" cx="726.0" cy="286.0" r="4" fill="var(--c2)" style="animation-delay:1015ms" data-tip="mule_network &middot; gen7" data-tip-d="0%" tabindex="0"/></g><g data-s="shell_company"><polyline class="c-line" points="54.0,123.6 150.0,123.6 246.0,286.0 342.0,286.0 438.0,286.0 534.0,286.0 630.0,286.0 726.0,286.0" stroke="var(--c3)" style="--len:774;animation-delay:220ms"/><circle class="c-dot" cx="54.0" cy="123.6" r="4" fill="var(--c3)" style="animation-delay:700ms" data-tip="shell_company &middot; gen0" data-tip-d="70%" tabindex="0"/><circle class="c-dot" cx="150.0" cy="123.6" r="4" fill="var(--c3)" style="animation-delay:745ms" data-tip="shell_company &middot; gen1" data-tip-d="70%" tabindex="0"/><circle class="c-dot" cx="246.0" cy="286.0" r="4" fill="var(--c3)" style="animation-delay:790ms" data-tip="shell_company &middot; gen2" data-tip-d="0%" tabindex="0"/><circle class="c-dot" cx="342.0" cy="286.0" r="4" fill="var(--c3)" style="animation-delay:835ms" data-tip="shell_company &middot; gen3" data-tip-d="0%" tabindex="0"/><circle class="c-dot" cx="438.0" cy="286.0" r="4" fill="var(--c3)" style="animation-delay:880ms" data-tip="shell_company &middot; gen4" data-tip-d="0%" tabindex="0"/><circle class="c-dot" cx="534.0" cy="286.0" r="4" fill="var(--c3)" style="animation-delay:925ms" data-tip="shell_company &middot; gen5" data-tip-d="0%" tabindex="0"/><circle class="c-dot" cx="630.0" cy="286.0" r="4" fill="var(--c3)" style="animation-delay:970ms" data-tip="shell_company &middot; gen6" data-tip-d="0%" tabindex="0"/><circle class="c-dot" cx="726.0" cy="286.0" r="4" fill="var(--c3)" style="animation-delay:1015ms" data-tip="shell_company &middot; gen7" data-tip-d="0%" tabindex="0"/></g><g data-s="round_tripping"><polyline class="c-line" points="54.0,54.0 150.0,77.2 246.0,216.4 342.0,239.6 438.0,239.6 534.0,262.8 630.0,262.8 726.0,262.8" stroke="var(--c4)" style="--len:763;animation-delay:330ms"/><circle class="c-dot" cx="54.0" cy="54.0" r="4" fill="var(--c4)" style="animation-delay:700ms" data-tip="round_tripping &middot; gen0" data-tip-d="100%" tabindex="0"/><circle class="c-dot" cx="150.0" cy="77.2" r="4" fill="var(--c4)" style="animation-delay:745ms" data-tip="round_tripping &middot; gen1" data-tip-d="90%" tabindex="0"/><circle class="c-dot" cx="246.0" cy="216.4" r="4" fill="var(--c4)" style="animation-delay:790ms" data-tip="round_tripping &middot; gen2" data-tip-d="30%" tabindex="0"/><circle class="c-dot" cx="342.0" cy="239.6" r="4" fill="var(--c4)" style="animation-delay:835ms" data-tip="round_tripping &middot; gen3" data-tip-d="20%" tabindex="0"/><circle class="c-dot" cx="438.0" cy="239.6" r="4" fill="var(--c4)" style="animation-delay:880ms" data-tip="round_tripping &middot; gen4" data-tip-d="20%" tabindex="0"/><circle class="c-dot" cx="534.0" cy="262.8" r="4" fill="var(--c4)" style="animation-delay:925ms" data-tip="round_tripping &middot; gen5" data-tip-d="10%" tabindex="0"/><circle class="c-dot" cx="630.0" cy="262.8" r="4" fill="var(--c4)" style="animation-delay:970ms" data-tip="round_tripping &middot; gen6" data-tip-d="10%" tabindex="0"/><circle class="c-dot" cx="726.0" cy="262.8" r="4" fill="var(--c4)" style="animation-delay:1015ms" data-tip="round_tripping &middot; gen7" data-tip-d="10%" tabindex="0"/></g><g data-s="dormant_reactivation"><polyline class="c-line" points="54.0,193.2 150.0,239.6 246.0,286.0 342.0,286.0 438.0,239.6 534.0,239.6 630.0,286.0 726.0,239.6" stroke="var(--c5)" style="--len:735;animation-delay:440ms"/><circle class="c-dot" cx="54.0" cy="193.2" r="4" fill="var(--c5)" style="animation-delay:700ms" data-tip="dormant_reactivation &middot; gen0" data-tip-d="40%" tabindex="0"/><circle class="c-dot" cx="150.0" cy="239.6" r="4" fill="var(--c5)" style="animation-delay:745ms" data-tip="dormant_reactivation &middot; gen1" data-tip-d="20%" tabindex="0"/><circle class="c-dot" cx="246.0" cy="286.0" r="4" fill="var(--c5)" style="animation-delay:790ms" data-tip="dormant_reactivation &middot; gen2" data-tip-d="0%" tabindex="0"/><circle class="c-dot" cx="342.0" cy="286.0" r="4" fill="var(--c5)" style="animation-delay:835ms" data-tip="dormant_reactivation &middot; gen3" data-tip-d="0%" tabindex="0"/><circle class="c-dot" cx="438.0" cy="239.6" r="4" fill="var(--c5)" style="animation-delay:880ms" data-tip="dormant_reactivation &middot; gen4" data-tip-d="20%" tabindex="0"/><circle class="c-dot" cx="534.0" cy="239.6" r="4" fill="var(--c5)" style="animation-delay:925ms" data-tip="dormant_reactivation &middot; gen5" data-tip-d="20%" tabindex="0"/><circle class="c-dot" cx="630.0" cy="286.0" r="4" fill="var(--c5)" style="animation-delay:970ms" data-tip="dormant_reactivation &middot; gen6" data-tip-d="0%" tabindex="0"/><circle class="c-dot" cx="726.0" cy="239.6" r="4" fill="var(--c5)" style="animation-delay:1015ms" data-tip="dormant_reactivation &middot; gen7" data-tip-d="20%" tabindex="0"/></g></svg><div class="legend"><button type="button" aria-pressed="true" data-series="structuring"><i style="background:var(--c1)"></i>structuring</button><button type="button" aria-pressed="true" data-series="mule_network"><i style="background:var(--c2)"></i>mule_network</button><button type="button" aria-pressed="true" data-series="shell_company"><i style="background:var(--c3)"></i>shell_company</button><button type="button" aria-pressed="true" data-series="round_tripping"><i style="background:var(--c4)"></i>round_tripping</button><button type="button" aria-pressed="true" data-series="dormant_reactivation"><i style="background:var(--c5)"></i>dormant_reactivation</button></div></div><p class="note">Recall against a static rules engine (plus Phase 5&#x27;s graph for mule_network) as the adversary mutates its own injector parameters each generation it evades detection. Converged (fully evaded at least once): mule_network (gen 7), shell_company (gen 2), dormant_reactivation (gen 2). high_risk_geography is excluded -- no continuous evasion knob exists for it (see redteam.py).</p></div><div class="card pad-lg" data-rv="1" style="margin-top:18px"><div class="scroll-x"><table class="tbl"><tr><th>Typology</th><th>Gen 0</th><th>Final</th><th>Outcome</th></tr><tr><td><strong>dormant_reactivation</strong></td><td class="n">40%</td><td class="n">20%</td><td><span class="pill off">collapsed at gen 2</span></td></tr><tr><td><strong>mule_network</strong></td><td class="n">100%</td><td class="n">0%</td><td><span class="pill off">collapsed at gen 7</span></td></tr><tr><td><strong>round_tripping</strong></td><td class="n">100%</td><td class="n">10%</td><td><span class="pill on">never fully evaded</span></td></tr><tr><td><strong>shell_company</strong></td><td class="n">70%</td><td class="n">0%</td><td><span class="pill off">collapsed at gen 2</span></td></tr><tr><td><strong>structuring</strong></td><td class="n">90%</td><td class="n">90%</td><td><span class="pill on">never fully evaded</span></td></tr></table></div></div></div></section><section id="findings"><div class="wrap"><div class="sec-head" data-rv="0"><span class="eyebrow teal">Findings</span><h2>What collapsed, what held</h2></div><div class="box finding"><div class="bt">Collapse is fast and total where it happens</div><p><code>shell_company</code> converges fastest and most completely, and stays at zero afterwards &mdash; consistent with the earlier static finding that its rule is unfixable by threshold, now demonstrated under adaptive pressure rather than in a clean-world test. <code>mule_network</code>, the one typology watched by <em>both</em> the rules engine and the graph layer, starts at a perfect 100% and still fully collapses.</p></div><div class="box finding"><div class="bt">Some detection surfaces genuinely resist</div><p><code>structuring</code> and <code>round_tripping</code> never fully evade, even at real parameter extremes &mdash; a deposit ceiling of ₹99,000, one rupee under the cash-reporting line, and a hop window stretched to 38 days. Some surfaces are structurally more resistant to this class of evasion than others.</p></div><div class="box warn"><div class="bt">&amp;ldquo;Converged&amp;rdquo; does not mean permanently evaded</div><p><code>dormant_reactivation</code> converges fastest of all and is the <em>least stable</em> convergence &mdash; it still averages meaningful recall in the generations after. A frozen genome runs against a freshly regenerated world each generation, so convergence records a <em>first</em> full evasion, not a guarantee. The benchmark reports post-convergence stability as its own number for exactly this reason.</p></div></div></section><section id="limits"><div class="wrap"><div class="sec-head" data-rv="0"><span class="eyebrow amber">Limitations</span><h2>What this benchmark does not claim</h2></div><div class="grid g2" data-rv="0"><div class="card"><h3>One seed, one trajectory</h3><p>The generation-of-convergence numbers are a real measured example, not a population statistic. Averaging over seeds is future work before any of them supports a stronger claim.</p></div><div class="card"><h3>Rules and graph only</h3><p>Whether a <em>trained</em> model decays faster or slower than static thresholds against the same adversary is a real, different and open question.</p></div></div></div></section><section id="next"><div class="wrap"><div class="sec-head" data-rv="0"><span class="eyebrow ">Next</span><h2>Continue</h2></div><a class="next" href="multibank.html" data-rv="0"><div><div class="nx-k">Flagship result</div><div class="nx-t">The cross-bank blind spot</div><div class="nx-d">What one bank structurally cannot see, and what co-operation buys back.</div></div><div class="arw" aria-hidden="true">&#8594;</div></a></div></section>
+</main>
+<footer class="ft"><div class="wrap"><div class="ft-in"><div>An open adversarial range for AML detection testing.<br>All data synthetic. All typologies from public FATF / FinCEN / RBI advisories.</div><div>Built by Dhanush Jangadi &middot; <a href="https://github.com/Dhanu2626/launderlab" rel="noopener">Source on GitHub</a><br>Every figure is rendered from the project&rsquo;s scoring modules, never typed by hand.</div></div></div></footer>
+<script>
+(function(){
+  var RM = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* Scroll reveal. Falls back to fully visible if IntersectionObserver is
+     missing -- content must never depend on an animation having run. */
+  var rv = document.querySelectorAll('[data-rv]');
+  if (!('IntersectionObserver' in window) || RM) {
+    rv.forEach(function(el){ el.classList.add('in'); });
+  } else {
+    var io = new IntersectionObserver(function(es){
+      es.forEach(function(e){
+        if (!e.isIntersecting) return;
+        var el = e.target, d = +(el.getAttribute('data-rv') || 0);
+        setTimeout(function(){ el.classList.add('in'); }, d * 60);
+        io.unobserve(el);
+      });
+    }, { rootMargin:'0px 0px -8% 0px', threshold:.08 });
+    rv.forEach(function(el){ io.observe(el); });
+  }
+
+  /* Count-up. The element's text is already correct in the DOM; this only
+     replays toward it, and restores the exact original string at the end so no
+     rounding here can ever alter a published figure. */
+  function countUp(el){
+    var target = el.getAttribute('data-count'), final = el.textContent;
+    var n = parseFloat(target);
+    if (isNaN(n) || RM) return;
+    var dec = (target.split('.')[1] || '').length, t0 = null, dur = 950;
+    function step(ts){
+      if (!t0) t0 = ts;
+      var p = Math.min((ts - t0) / dur, 1), e = 1 - Math.pow(1 - p, 3);
+      el.textContent = final.replace(target, (n * e).toFixed(dec));
+      if (p < 1) requestAnimationFrame(step); else el.textContent = final;
+    }
+    requestAnimationFrame(step);
+  }
+  var cu = document.querySelectorAll('[data-count]');
+  if ('IntersectionObserver' in window && !RM) {
+    var io2 = new IntersectionObserver(function(es){
+      es.forEach(function(e){ if (e.isIntersecting) { countUp(e.target); io2.unobserve(e.target); } });
+    }, { threshold:.5 });
+    cu.forEach(function(el){ io2.observe(el); });
+  }
+
+  /* Chart draw-in */
+  var charts = document.querySelectorAll('.chart-wrap');
+  if ('IntersectionObserver' in window && !RM) {
+    var io3 = new IntersectionObserver(function(es){
+      es.forEach(function(e){
+        if (!e.isIntersecting) return;
+        e.target.classList.add('reveal'); io3.unobserve(e.target);
+      });
+    }, { threshold:.15 });
+    charts.forEach(function(c){ io3.observe(c); });
+  } else { charts.forEach(function(c){ c.classList.add('reveal'); }); }
+
+  /* One tooltip element, shared by every chart on the page */
+  var tip = document.createElement('div');
+  tip.className = 'tip'; tip.setAttribute('role','status');
+  document.body.appendChild(tip);
+  function move(ev){
+    var r = tip.getBoundingClientRect();
+    var x = ev.clientX + 14, y = ev.clientY - r.height - 12;
+    if (x + r.width > window.innerWidth - 10) x = ev.clientX - r.width - 14;
+    if (y < 8) y = ev.clientY + 18;
+    tip.style.left = x + 'px'; tip.style.top = y + 'px';
+  }
+  document.querySelectorAll('[data-tip]').forEach(function(el){
+    function show(ev){
+      tip.innerHTML = '<div class="tt">' + el.getAttribute('data-tip') + '</div>' +
+        (el.getAttribute('data-tip-d') ? '<div class="td">' + el.getAttribute('data-tip-d') + '</div>' : '');
+      tip.classList.add('show'); move(ev);
+    }
+    el.addEventListener('mouseenter', show);
+    el.addEventListener('mousemove', move);
+    el.addEventListener('mouseleave', function(){ tip.classList.remove('show'); });
+    el.addEventListener('focus', function(){
+      var b = el.getBoundingClientRect();
+      show({ clientX:b.left + b.width / 2, clientY:b.top + b.height / 2 });
+    });
+    el.addEventListener('blur', function(){ tip.classList.remove('show'); });
+  });
+
+  /* Interactive legends: toggle a series without removing it from the DOM, so
+     the underlying data stays readable to assistive tech and to view-source. */
+  document.querySelectorAll('.legend button[data-series]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var on = btn.getAttribute('aria-pressed') !== 'false';
+      btn.setAttribute('aria-pressed', on ? 'false' : 'true');
+      var sel = btn.closest('[data-chart]');
+      if (!sel) return;
+      sel.querySelectorAll('[data-s="' + btn.getAttribute('data-series') + '"]')
+         .forEach(function(n){ n.style.display = on ? 'none' : ''; });
+    });
+  });
+})();
+</script>
+</body>
+</html>

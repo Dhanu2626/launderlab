@@ -109,7 +109,7 @@ is no legitimate reason to skip, so a skip now means a dependency stopped resolv
 .venv/Scripts/python -m launderlab statement A001    # render a bank statement
 .venv/Scripts/python -m launderlab demo-world        # 1200 accts + 6 typologies + entities
                                                      # + media + detection + 50 cases (~21s)
-.venv/Scripts/python -m launderlab charts            # KPIs + Phase 3/5/7 -> charts/index.html
+.venv/Scripts/python -m launderlab charts            # KPIs + Phase 3/5/7 -> charts/results.html
                                                      # (honours LAUNDERLAB_DB)
 .venv/Scripts/python -m launderlab media-experiment  # 7.12: does adverse media earn a weight?
 .venv/Scripts/python -m launderlab redteam           # Phase 8 decay benchmark (~8 min)
@@ -190,6 +190,12 @@ src/launderlab/
   demo.py               `demo-world` — world + crime + entities + media + cases (7.9)
   viz.py                `charts` — SVG from the SCORERS; also render_redteam() and
                         render_multibank() for the two benchmark pages
+  web.py                THE SHARED DESIGN SYSTEM (Phase 9.7) — tokens, page shell, nav,
+                        components and the chart primitives. Five pages, one language.
+                        Generated rather than hand-authored for the same reason every
+                        figure is: a static site with results pasted in cannot be kept
+                        honest. Motion is scoped to a `.js` class so nothing is hidden
+                        when script is unavailable
   metrics.py            Phase 9.2 — the four FCC operating KPIs; conversion reported as
                         NOT MEASURABLE rather than 0% when nothing has been worked
   publish.py            Phase 9.3 — copies the generated pages into docs/ for GitHub
@@ -532,6 +538,19 @@ wrong *axis* entirely, and be perfectly measured on that one.
 - **`docs/index.html` is the landing page; the charts page publishes as `charts.html`.** Both
   wanted `index.html` and one silently destroyed the other, with a working link to the wrong
   page.
+
+**The published site (9.7)**
+- **`web.py` owns the design language; no page styles itself.** Five pages that look like
+  four different documents is the failure this replaced.
+- **`docs/index.html` is the landing page — no generated page may publish as `index.html`.**
+  Both claiming it silently destroyed one artifact, with a working link to the wrong page.
+- **Every link in the landing page BODY is gated on the target existing.** The persistent nav
+  is deliberately constant across pages (it is the product's spine); an incomplete build is
+  reported loudly by the CLI instead.
+- **Reveal-on-scroll is scoped to `.js`.** An unconditional `opacity:0` made a scroll
+  animation load-bearing for whether the page had any content at all.
+- **The count-up animation restores the exact original string.** It replays toward a value
+  already in the DOM and can never round a published figure into a different one.
 
 **Story Mode (9.1)**
 - **The replay truncates with a VIEW, never a second copy of a rule.** `transactions` is

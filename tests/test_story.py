@@ -218,9 +218,16 @@ def test_page_is_self_contained(world, tmp_path):
     html = path.read_text(encoding="utf-8")
 
     assert path.name == "story.html"
-    assert "http://" not in html and "https://" not in html
-    assert "<img" not in html and "<script src" not in html
-    assert "STORIES = [" in html, "the scheme data must be inlined, not fetched"
+    page = html
+    # The ONE permitted external reference is the repository link in the shared
+    # footer. Everything else -- styles, scripts, fonts, images -- must be inline,
+    # because this page's whole audience is people who open it and nothing else.
+    for token in ("http://", "https://"):
+        for hit in page.split(token)[1:]:
+            assert hit.startswith("github.com/Dhanu2626/launderlab"), (
+                f"unexpected external reference: {token}{hit[:60]}")
+    assert "<img" not in html and "<script src" not in html and "@import" not in html
+    assert "const STORIES = [" in html, "scheme data must be inlined, not fetched"
 
 
 def test_the_page_opens_on_a_scheme_that_can_actually_be_scrubbed(stories, world, tmp_path):
@@ -263,7 +270,10 @@ def test_charts_scale_to_their_container(world, tmp_path):
     audience is people reading it, often on a phone."""
     html = story.render(world, tmp_path / "charts").read_text(encoding="utf-8")
     assert '<svg viewBox=' in html
-    assert 'width="100%"' in html, "charts must scale, not clip"
+    # viewBox with no fixed pixel width: the SVG scales to its container.
+    # A fixed 760px overflowed the card and pushed the longest bar's value label
+    # off-screen, measured in a browser at a 717px body.
+    assert '<svg viewBox=' in html
     assert 'width="760"' not in html
 
 
@@ -286,5 +296,5 @@ def test_render_survives_a_world_with_no_crime_in_it(tmp_path):
         html = story.render(conn, tmp_path / "charts").read_text(encoding="utf-8")
     finally:
         conn.close()
-    assert "no story to tell" in html
+    assert "No story to tell" in html
     assert "demo-world" in html, "it must say how to get a world with crime in it"

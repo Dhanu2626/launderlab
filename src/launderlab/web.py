@@ -1,16 +1,50 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>LaunderLab — An open adversarial range for AML detection</title>
-<meta name="description" content="A synthetic bank with real laundering typologies injected and ground truth recorded, so every AML detector can be scored on real precision and recall. Detection decay, false-positive economics and the cross-bank blind spot, measured in the open.">
-<meta name="theme-color" content="#08090a">
-<meta property="og:title" content="LaunderLab — An open adversarial range for AML detection">
-<meta property="og:description" content="A synthetic bank with real laundering typologies injected and ground truth recorded, so every AML detector can be scored on real precision and recall. Detection decay, false-positive economics and the cross-bank blind spot, measured in the open.">
-<meta property="og:type" content="website">
-<meta name="twitter:card" content="summary_large_image">
-<style>
+"""The shared design language for every published LaunderLab page.
+
+One product, five pages. This module owns the shell, the tokens, the components
+and the chart primitives so that the landing page, Story Mode, the results
+dashboard and both benchmark pages cannot drift into looking like four separate
+documents that happen to live in the same folder.
+
+WHY THIS IS PYTHON AND NOT A STATIC SITE. Every figure on every page is rendered
+from the project's scoring modules at build time. That is the single property
+that makes the numbers trustworthy: nobody types them, so a published figure
+cannot disagree with the one the scorers grade. A hand-authored site with the
+results pasted in would look identical on day one and be silently wrong the
+first time a threshold moved -- which is the exact failure mode §7 of HANDOFF.md
+records four separate instances of. So the presentation layer is generated too.
+
+CONSTRAINTS THAT SHAPED IT
+* **Self-contained.** No CDN, no web font, no external request of any kind. A
+  portfolio artifact that needs the network is one that fails in the room, and a
+  test asserts it.
+* **No build step.** Semantic HTML, modern CSS, vanilla JS. It has to keep
+  working on GitHub Pages with nothing in front of it.
+* **Dark, and committed to it.** The reference points (Linear, Vercel, Datadog,
+  a Bloomberg terminal) are dark-first, and a single theme is one fewer axis on
+  which five pages can disagree.
+* **Motion is subtle and refusable.** Everything animated respects
+  `prefers-reduced-motion`, and every animated element is fully legible in its
+  final state if the animation never runs -- so a reader who disables motion,
+  or a browser that fails the observer, loses nothing but the movement.
+"""
+
+from __future__ import annotations
+
+import html
+import json
+
+GITHUB_URL = "https://github.com/Dhanu2626/launderlab"
+
+# (filename, nav label). One list, so every page's nav is the same nav.
+NAV = (
+    ("index.html", "Overview"),
+    ("story.html", "Story Mode"),
+    ("results.html", "Results"),
+    ("redteam.html", "Red Team"),
+    ("multibank.html", "Cross-Bank"),
+)
+
+TOKENS = """
 :root {
   color-scheme: dark;
   --bg:#08090a; --bg-soft:#0c0e10; --surface:#111417; --surface-2:#161a1e;
@@ -29,7 +63,9 @@
   --ease:cubic-bezier(.16,1,.3,1);
   --maxw:1120px;
 }
+"""
 
+BASE_CSS = """
 *,*::before,*::after { box-sizing:border-box; }
 html { -webkit-text-size-adjust:100%; scroll-behavior:smooth; }
 body {
@@ -70,7 +106,9 @@ code {
 .skip:focus { left:0; }
 .sr { position:absolute; width:1px; height:1px; padding:0; margin:-1px;
       overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
+"""
 
+NAV_CSS = """
 .nav {
   position:sticky; top:0; z-index:50;
   background:rgba(8,9,10,.76); backdrop-filter:blur(14px) saturate(150%);
@@ -95,7 +133,9 @@ code {
 .nav-links a[aria-current="page"] { color:var(--ink); background:var(--surface-3); }
 .nav-links a.ext { color:var(--ink-faint); }
 @media (max-width:720px){ .nav-in { padding:0 14px; } .brand span.full { display:none; } }
+"""
 
+LAYOUT_CSS = """
 .hero { padding:76px 0 44px; }
 .eyebrow {
   display:inline-flex; align-items:center; gap:8px; font-family:var(--mono);
@@ -140,7 +180,9 @@ footer.ft { border-top:1px solid var(--line); padding:38px 0 56px; margin-top:26
             color:var(--ink-faint); font-size:.86rem; }
 .ft-in { display:flex; flex-wrap:wrap; gap:18px; justify-content:space-between; }
 .ft a { color:var(--ink-dim); }
+"""
 
+COMPONENT_CSS = """
 .card {
   background:linear-gradient(180deg,var(--surface) 0%,var(--bg-soft) 100%);
   border:1px solid var(--line); border-radius:var(--radius); padding:20px 22px;
@@ -209,7 +251,7 @@ details.exp > summary::before {
   content:'+'; font-family:var(--mono); color:var(--accent); font-weight:700;
   font-size:1rem; width:14px; flex:0 0 auto; transition:transform .2s var(--ease);
 }
-details.exp[open] > summary::before { content:'\2212'; }
+details.exp[open] > summary::before { content:'\\2212'; }
 details.exp > summary:hover { background:var(--surface-2); }
 details.exp .exp-body {
   padding:2px 17px 16px; font-size:.89rem; color:var(--ink-dim);
@@ -273,7 +315,9 @@ details.exp .exp-body > :first-child { margin-top:13px; }
 .next .nx-t { font-size:1.06rem; font-weight:620; color:var(--ink); margin-top:5px; }
 .next .nx-d { font-size:.87rem; color:var(--ink-dim); margin-top:4px; }
 .next .arw { color:var(--accent); font-size:1.3rem; flex:0 0 auto; }
+"""
 
+CHART_CSS = """
 .chart-wrap { position:relative; }
 .chart-wrap svg { display:block; width:100%; height:auto; overflow:visible; }
 .c-lbl  { font-family:var(--sans); font-size:12.5px; fill:var(--ink-dim); }
@@ -315,7 +359,9 @@ details.exp .exp-body > :first-child { margin-top:13px; }
 .tip.show { opacity:1; }
 .tip .tt { font-weight:640; margin-bottom:3px; }
 .tip .td { color:var(--ink-dim); font-size:.76rem; }
+"""
 
+MOTION_CSS = """
 /* Scoped to .js, which a one-line inline script in <head> adds. With JavaScript
    disabled or broken the rule never applies and every section is simply visible.
    Hiding content unconditionally and relying on script to reveal it would make a
@@ -331,34 +377,9 @@ details.exp .exp-body > :first-child { margin-top:13px; }
   .reveal .c-bar,.reveal .c-line,.reveal .c-dot { animation:none; }
   .c-line { stroke-dasharray:none; }
 }
+"""
 
-.big { padding:96px 0 56px; }
-.big h1 { max-width:15ch; }
-.qcard { border-left:2px solid var(--accent); padding-left:18px; }
-.qcard .q { font-size:1rem; font-weight:620; color:var(--ink); margin-bottom:7px; }
-.qcard .a { font-size:.91rem; color:var(--ink-dim); line-height:1.6; }
-.qcard.t2 { border-color:var(--teal); } .qcard.t3 { border-color:var(--violet); }
-.qcard.t4 { border-color:var(--amber); }
-.stack { display:grid; gap:14px; }
-.arch { display:flex; align-items:center; gap:10px; flex-wrap:wrap;
-        justify-content:center; padding:6px 0; }
-.arch .b { border:1px solid var(--line); border-radius:11px; padding:12px 16px;
-           background:var(--surface); text-align:center; min-width:132px; }
-.arch .b .t { font-size:.84rem; font-weight:620; color:var(--ink); }
-.arch .b .s { font-size:.73rem; color:var(--ink-faint); margin-top:3px;
-              font-family:var(--mono); }
-.arch .ar { color:var(--ink-faint); font-size:16px; }
-</style>
-<script>document.documentElement.className+=" js";</script>
-</head>
-<body>
-<a class="skip" href="#main">Skip to content</a>
-<header class="nav"><div class="nav-in"><a class="brand" href="index.html"><span class="dot"></span>LaunderLab</a><nav class="nav-links" aria-label="Sections"><a href="index.html" aria-current="page">Overview</a><a href="story.html">Story Mode</a><a href="results.html">Results</a><a href="redteam.html">Red Team</a><a href="multibank.html">Cross-Bank</a><a class="ext" href="https://github.com/Dhanu2626/launderlab" rel="noopener">GitHub &#8599;</a></nav></div></header>
-<main id="main">
-<div class="hero big"><div class="wrap"><span class="eyebrow" data-rv="0">Open adversarial range &middot; AML detection</span><h1 data-rv="1"><span class="grad">An answer key for anti-money-laundering detection</span></h1><p class="lede" data-rv="2">Every bank runs AML detection. None of them can tell you how good it is &mdash; they know what they caught, and there is no way to know what they missed. <strong>LaunderLab builds the missing answer key:</strong> a synthetic bank, six real laundering typologies injected with transaction-level ground truth, a four-layer detection stack, an investigator workbench, and a red team that adapts to whatever gets caught.</p><div class="btn-row" data-rv="3"><a class="btn pri" href="story.html">Watch a scheme unfold &#8594;</a><a class="btn sec" href="results.html">See the measured results</a><a class="btn sec" href="https://github.com/Dhanu2626/launderlab" rel="noopener">Source &amp; whitepaper</a></div><div class="hero-meta" data-rv="4"><span class="chip"><b>10,000</b> customers</span><span class="chip"><b>630,755</b> transactions in 31s</span><span class="chip"><b>6</b> typologies</span><span class="chip"><b>4</b> detection layers</span><span class="chip"><b>302</b> tests, zero skips</span></div></div></div><section id="what"><div class="wrap"><div class="sec-head" data-rv="0"><span class="eyebrow ">In three seconds</span><h2>A cyber range, but for financial crime</h2><p>Security teams have had adversarial ranges for years: a red team attacks, a blue team defends, and you measure who wins. Financial-crime teams have nothing equivalent, because you cannot safely publish real laundering data &mdash; and without ground truth you cannot score a detector honestly. LaunderLab generates the data instead, and records the answer.</p></div><div class="card pad-lg" data-rv="0"><div class="arch"><div class="b"><div class="t">Red team</div><div class="s">mutating adversary</div></div><span class="ar">&#8594;</span><div class="b"><div class="t">Synthetic bank</div><div class="s">+ ground truth</div></div><span class="ar">&#8594;</span><div class="b"><div class="t">Detection stack</div><div class="s">4 layers</div></div><span class="ar">&#8594;</span><div class="b"><div class="t">Workbench</div><div class="s">queue &#8594; SAR</div></div><span class="ar">&#8594;</span><div class="b"><div class="t">Scorers</div><div class="s">precision / recall</div></div></div><p class="note">The loop closes: the scorers grade the stack against ground truth, and the red team reads what got caught and adapts. Because the injector records the answer key, every arrow in this diagram can be measured &mdash; which is the measurement a production bank cannot make, because no bank knows what it missed.</p></div></div></section><section id="explore"><div class="wrap"><div class="sec-head" data-rv="0"><span class="eyebrow teal">Explore</span><h2>Four experiments, in depth</h2><p>Each page states its objective, shows the measurement, then explains the finding, the engineering behind it, and the limits of what it proves.</p></div><div class="grid g2"><a class="card hover" href="story.html" data-rv="0"><h3>Story Mode</h3><p>Replay any injected scheme day by day. Accounts light up only on the day a real detector actually fired on them.</p><p style="margin-top:12px;color:var(--accent);font-size:.85rem;font-weight:600">Explore &#8594;</p></a><a class="card hover" href="results.html" data-rv="0"><h3>Measured results</h3><p>Detection rate, precision, queue composition and what the stack costs to run, every figure drawn from the scoring modules.</p><p style="margin-top:12px;color:var(--accent);font-size:.85rem;font-weight:600">Explore &#8594;</p></a><a class="card hover" href="redteam.html" data-rv="0"><h3>Red team benchmark</h3><p>Recall per typology across 8 generations of an adversary that mutates its own parameters. Decay is not uniform.</p><p style="margin-top:12px;color:var(--accent);font-size:.85rem;font-weight:600">Explore &#8594;</p></a><a class="card hover" href="multibank.html" data-rv="0"><h3>Cross-bank blind spot</h3><p>Four banks with genuinely separate ledgers flag 75-77% of mule accounts and reconstruct 0-6% of the chains those accounts form.</p><p style="margin-top:12px;color:var(--accent);font-size:.85rem;font-weight:600">Explore &#8594;</p></a></div></div></section><section id="questions"><div class="wrap"><div class="sec-head" data-rv="0"><span class="eyebrow violet">Research questions</span><h2>Four questions, four measured answers</h2><p>Three were the founding thesis. The fourth was forced by building the visual layer &mdash; and it changed how the other three should be read.</p></div><div class="grid g2"><a class="card hover" href="redteam.html" data-rv="0"><div class="qcard "><div class="q">How fast does a detection stack rot against an adapting adversary?</div><div class="a"><strong>Non-uniformly.</strong> One rule collapses to zero recall within two generations of adaptation and stays collapsed. Two others never fully evade across eight. A single aggregate recall figure could not have shown the difference.</div></div><p style="margin-top:14px;font-size:.78rem;color:var(--ink-faint);font-family:var(--mono)">Detection decay</p></a><a class="card hover" href="results.html" data-rv="1"><div class="qcard t2"><div class="q">What does a true alert actually cost to find?</div><div class="a">Measured for every configuration, never estimated. The <strong>top 25 alerts are 100% true positives</strong>; the next 25 cost 10 false positives &mdash; 1.25 analyst reviews per true find at a budget of 50.</div></div><p style="margin-top:14px;font-size:.78rem;color:var(--ink-faint);font-family:var(--mono)">False-positive economics</p></a><a class="card hover" href="multibank.html" data-rv="2"><div class="qcard t3"><div class="q">What can a single institution structurally not see?</div><div class="a">Banks flag <strong>75&ndash;77%</strong> of individual mule accounts on their own books and reconstruct <strong>0&ndash;6%</strong> of the chains those accounts form. Privacy-preserving co-operation recovers 69&ndash;81% of hops without sharing customer data.</div></div><p style="margin-top:14px;font-size:.78rem;color:var(--ink-faint);font-family:var(--mono)">The cross-bank blind spot</p></a><a class="card hover" href="story.html" data-rv="3"><div class="qcard t4"><div class="q">Was the alert soon enough to matter? (added by Phase 9)</div><div class="a">&ldquo;Caught&rdquo; was never one property. The typology this stack detects <em>fastest</em> is caught with <strong>100% of the money already moved</strong>, because the rule that catches it cannot fire until the crime has completed.</div></div><p style="margin-top:14px;font-size:.78rem;color:var(--ink-faint);font-family:var(--mono)">Detection latency</p></a></div></div></section><section id="honesty"><div class="wrap"><div class="sec-head" data-rv="0"><span class="eyebrow amber">Why trust any of this</span><h2>Sixteen times a flattering number turned out to be an artefact</h2><p>Each one was measured, corrected, and <em>written down</em> rather than quietly kept. That record is the most valuable thing in the project.</p></div><div class="grid g2" data-rv="0"><div class="card"><h3>A perfect ML score that was a data bug</h3><p>Gradient boosting scored a flawless 1.000 average precision. The legitimate world emitted zero cash transactions, so the model had simply learned &ldquo;cash means crime&rdquo;.</p></div><div class="card"><h3>100% rule precision that was a property of the world</h3><p>Fixing the cash gap took one rule from 0 to 24 false positives on a clean world. The original precision had been an artefact of a bank where nobody legitimately banked cash.</p></div><div class="card"><h3>Green CI that was running 178 of 226 tests</h3><p>Three modules skipped on a missing dependency &mdash; including two of the checks that enforce the project's core boundary. A skipped module counts as one skip, so 48 missing tests hid behind the number 3.</p></div><div class="card"><h3>A risk score whose top band was unreachable</h3><p>Every case in the bank was low or medium and the highest score achievable was 43.5. &ldquo;High&rdquo; and &ldquo;critical&rdquo; described nothing &mdash; found when a SAR draft called a confirmed structuring scheme low risk.</p></div></div><div class="box finding"><div class="bt">The pattern behind almost all of them</div><p>They surfaced by <strong>rendering a number where a person had to read it next to a decision</strong>. Detection metrics grade a detector against ground truth. Nothing grades whether its output is usable &mdash; or whether it is being graded on the right axis at all.</p></div><div class="box limit"><div class="bt">And the limits are published too</div><p>The world is synthetic and its realism bounds every figure. The benchmarks use one seed. The co-operation protocol is a prototype whose residual disclosure is stated rather than glossed. Alert-to-SAR conversion is reported as <em>not measurable</em> rather than as zero, because no case in this world has been worked to a disposition.</p></div></div></section><section id="timeline"><div class="wrap"><div class="sec-head" data-rv="0"><span class="eyebrow ">How it was built</span><h2>Nine phases, measured as it went</h2><p>Every phase shipped a visual artifact and a number, and no phase was marked complete on a claim that had not been checked.</p></div><div class="split"><div data-rv="0"><div class="tl"><div class="tl-i done"><span class="tl-t">Phase 0–1</span><div class="tl-h">World engine</div><div class="tl-d">10,000 customers and 630,755 transactions in 31 seconds, every balance reconciled.</div></div><div class="tl-i done"><span class="tl-t">Phase 2</span><div class="tl-h">Typology injector</div><div class="tl-d">Six laundering typologies from public advisories, each writing transaction-level ground truth.</div></div><div class="tl-i done"><span class="tl-t">Phase 3–4</span><div class="tl-h">Rules &amp; screening</div><div class="tl-d">Six tunable scenarios; name matching on Jaro-Winkler plus phonetic corroboration.</div></div><div class="tl-i done"><span class="tl-t">Phase 5</span><div class="tl-h">Graph analytics</div><div class="tl-d">Transfer graph rebuilt from shared payment references; pass-through chains detected.</div></div><div class="tl-i done"><span class="tl-t">Phase 6</span><div class="tl-h">ML tournament</div><div class="tl-d">Six model families on one leaderboard, scored at an alert budget rather than by ROC-AUC.</div></div><div class="tl-i done"><span class="tl-t">Phase 7</span><div class="tl-h">Investigator workbench</div><div class="tl-d">Alert queue, entity 360, link graph, disposition workflow, SAR narrative draft.</div></div><div class="tl-i done"><span class="tl-t">Phase 8</span><div class="tl-h">Red team</div><div class="tl-d">An adversary that mutates its own scheme parameters every generation it gets caught.</div></div><div class="tl-i done"><span class="tl-t">Phase 8.5</span><div class="tl-h">Multi-bank</div><div class="tl-d">The world split across four institutions with genuinely separate ledger files.</div></div><div class="tl-i done"><span class="tl-t">Phase 9</span><div class="tl-h">Story Mode &amp; metrics</div><div class="tl-d">Day-by-day replay, detection latency, and the four KPIs an FCC function reports upward.</div></div></div></div><div class="stack" data-rv="1"><div class="card"><h3>The boundary that makes it meaningful</h3><p>No detection code may read the ground-truth tables. If a detector could see the answer key, every precision and recall figure here would be meaningless &mdash; and it would fail silently. Enforced by source-level tests in twelve places.</p></div><div class="card"><h3>Every page is generated, never typed</h3><p>The figures on these pages are rendered from the same scoring modules the test suite grades. A hand-written page with results pasted in would look identical on day one and be silently wrong the first time a threshold moved.</p></div></div></div></div></section><section id="start"><div class="wrap"><div class="sec-head" data-rv="0"><span class="eyebrow ">Start here</span><h2>Two ways in</h2></div><div class="grid g2"><a class="next" href="story.html" data-rv="0"><div><div class="nx-k">Three minutes</div><div class="nx-t">Watch a scheme unfold</div><div class="nx-d">Drag a day slider through a real laundering scheme and watch the detection stack close in on it.</div></div><div class="arw" aria-hidden="true">&#8594;</div></a><a class="next" href="results.html" data-rv="1"><div><div class="nx-k">Thirty minutes</div><div class="nx-t">Read every measurement</div><div class="nx-d">Detection rate, false-positive economics, decay under adaptation, and the cross-bank result &mdash; with the limits of each.</div></div><div class="arw" aria-hidden="true">&#8594;</div></a></div><p class="note">Generated by <code>python -m launderlab publish</code>. Last published 2026-07-31.</p></div></section>
-</main>
-<footer class="ft"><div class="wrap"><div class="ft-in"><div>An open adversarial range for AML detection testing.<br>All data synthetic. All typologies from public FATF / FinCEN / RBI advisories.</div><div>Built by Dhanush Jangadi &middot; <a href="https://github.com/Dhanu2626/launderlab" rel="noopener">Source on GitHub</a><br>Every figure is rendered from the project&rsquo;s scoring modules, never typed by hand.</div></div></div></footer>
-<script>
+BASE_JS = """
 (function(){
   var RM = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -455,6 +476,272 @@ details.exp .exp-body > :first-child { margin-top:13px; }
     });
   });
 })();
-</script>
-</body>
-</html>
+"""
+
+
+def css(*extra: str) -> str:
+    return "".join((TOKENS, BASE_CSS, NAV_CSS, LAYOUT_CSS, COMPONENT_CSS,
+                    CHART_CSS, MOTION_CSS) + extra)
+
+
+def esc(text: str) -> str:
+    return html.escape(str(text))
+
+
+# ------------------------------------------------------------------ structure
+
+def nav(active: str) -> str:
+    links = "".join(
+        f'<a href="{href}"{" aria-current=\"page\"" if href == active else ""}>{esc(label)}</a>'
+        for href, label in NAV)
+    return (
+        '<header class="nav"><div class="nav-in">'
+        f'<a class="brand" href="index.html"><span class="dot"></span>'
+        f'LaunderLab</a>'
+        f'<nav class="nav-links" aria-label="Sections">{links}'
+        f'<a class="ext" href="{GITHUB_URL}" rel="noopener">GitHub &#8599;</a>'
+        '</nav></div></header>')
+
+
+def footer() -> str:
+    return (
+        '<footer class="ft"><div class="wrap"><div class="ft-in">'
+        '<div>An open adversarial range for AML detection testing.<br>'
+        'All data synthetic. All typologies from public FATF / FinCEN / RBI advisories.</div>'
+        f'<div>Built by Dhanush Jangadi &middot; <a href="{GITHUB_URL}" rel="noopener">'
+        'Source on GitHub</a><br>'
+        'Every figure is rendered from the project&rsquo;s scoring modules, never typed by hand.'
+        '</div></div></div></footer>')
+
+
+def shell(*, title: str, description: str, active: str, body: str,
+          extra_css: str = "", extra_js: str = "") -> str:
+    """One full HTML document. Self-contained: no external request of any kind."""
+    return (
+        '<!doctype html>\n<html lang="en">\n<head>\n'
+        '<meta charset="utf-8">\n'
+        '<meta name="viewport" content="width=device-width,initial-scale=1">\n'
+        f'<title>{esc(title)}</title>\n'
+        f'<meta name="description" content="{esc(description)}">\n'
+        '<meta name="theme-color" content="#08090a">\n'
+        f'<meta property="og:title" content="{esc(title)}">\n'
+        f'<meta property="og:description" content="{esc(description)}">\n'
+        '<meta property="og:type" content="website">\n'
+        '<meta name="twitter:card" content="summary_large_image">\n'
+        f'<style>{css(extra_css)}</style>\n'
+        # Marks that scripting is live, so the reveal styles may apply. Inline
+        # and in <head> so it runs before first paint and nothing flashes.
+        '<script>document.documentElement.className+=" js";</script>\n'
+        '</head>\n<body>\n'
+        '<a class="skip" href="#main">Skip to content</a>\n'
+        f'{nav(active)}\n<main id="main">\n{body}\n</main>\n{footer()}\n'
+        f'<script>{BASE_JS}{extra_js}</script>\n'
+        '</body>\n</html>\n')
+
+
+def hero(*, eyebrow: str, title: str, lede: str, meta: list[tuple[str, str]] | None = None,
+         buttons: str = "", tone: str = "") -> str:
+    chips = "".join(f'<span class="chip"><b>{esc(v)}</b> {esc(k)}</span>'
+                    for v, k in (meta or []))
+    return (
+        f'<div class="hero"><div class="wrap">'
+        f'<span class="eyebrow {tone}" data-rv="0">{esc(eyebrow)}</span>'
+        f'<h1 data-rv="1"><span class="grad">{esc(title)}</span></h1>'
+        f'<p class="lede" data-rv="2">{lede}</p>'
+        + (f'<div class="hero-meta" data-rv="3">{chips}</div>' if chips else "")
+        + (f'<div class="btn-row" data-rv="3">{buttons}</div>' if buttons else "")
+        + '</div></div>')
+
+
+def section(*, sid: str, eyebrow: str, title: str, lede: str = "", body: str = "",
+            tone: str = "") -> str:
+    head = (f'<div class="sec-head" data-rv="0">'
+            f'<span class="eyebrow {tone}">{esc(eyebrow)}</span>'
+            f'<h2>{esc(title)}</h2>'
+            + (f"<p>{lede}</p>" if lede else "") + "</div>")
+    return f'<section id="{sid}"><div class="wrap">{head}{body}</div></section>'
+
+
+def kpi(value: str, label: str, detail: str = "", tone: str = "",
+        count: str | None = None, small: bool = False) -> str:
+    """One headline number. `count` opts the value into the count-up animation.
+
+    The animation only ever replays toward the value already in the DOM and
+    restores the exact original string when it finishes, so it cannot round a
+    published figure into a different one.
+    """
+    attr = f' data-count="{esc(count)}"' if count else ""
+    cls = "v sm" if small else "v"
+    return (f'<div class="kpi {tone}">'
+            f'<div class="{cls}"{attr}>{esc(value)}</div>'
+            f'<div class="k">{esc(label)}</div>'
+            + (f'<div class="d">{detail}</div>' if detail else "") + "</div>")
+
+
+def kpis(items: list[tuple], columns: str = "g4") -> str:
+    return (f'<div class="grid {columns}" data-rv="1">'
+            + "".join(kpi(*i) if isinstance(i, tuple) else i for i in items) + "</div>")
+
+
+def box(kind: str, title: str, body: str) -> str:
+    """A callout. `kind` is one of finding / why / limit / warn / method."""
+    return (f'<div class="box {kind}"><div class="bt">{esc(title)}</div>{body}</div>')
+
+
+def expandable(summary: str, body: str) -> str:
+    """Native <details>: keyboard accessible and works with JS disabled."""
+    return (f'<details class="exp"><summary>{esc(summary)}</summary>'
+            f'<div class="exp-body">{body}</div></details>')
+
+
+def card(title: str, body: str, *, href: str = "", hover: bool = True,
+         extra: str = "") -> str:
+    cls = "card hover" if hover else "card"
+    inner = f"<h3>{esc(title)}</h3><p>{body}</p>{extra}"
+    if href:
+        return f'<a class="{cls}" href="{href}">{inner}</a>'
+    return f'<div class="{cls}">{inner}</div>'
+
+
+def next_link(href: str, kind: str, title: str, detail: str) -> str:
+    return (f'<a class="next" href="{href}" data-rv="0"><div>'
+            f'<div class="nx-k">{esc(kind)}</div>'
+            f'<div class="nx-t">{esc(title)}</div>'
+            f'<div class="nx-d">{esc(detail)}</div></div>'
+            f'<div class="arw" aria-hidden="true">&#8594;</div></a>')
+
+
+def chart_card(svg: str, *, caption: str = "", legend: str = "") -> str:
+    return (f'<div class="card pad-lg" data-rv="1" data-chart>'
+            f'<div class="chart-wrap">{svg}</div>{legend}'
+            + (f'<p class="note">{caption}</p>' if caption else "") + "</div>")
+
+
+# --------------------------------------------------------------------- charts
+
+_SERIES = ("c1", "c2", "c3", "c4", "c5")
+
+
+def bars(rows: list[tuple[str, float]], *, maximum: float | None = None,
+         fmt: str = "{:.0%}", accent: set[str] | None = None,
+         tips: dict[str, str] | None = None, width: int = 780) -> str:
+    """Horizontal bars, animated on reveal, each row hoverable for a tooltip.
+
+    `rows` is [(label, value)]. Values are formatted with `fmt` and never
+    recomputed here -- this draws what it is handed.
+    """
+    if not rows:
+        return '<p class="note">No data.</p>'
+    accent, tips = accent or set(), tips or {}
+    top = maximum if maximum is not None else max((v for _, v in rows), default=0)
+    top = top or 1.0
+    row_h, pad_l, pad_r = 34, 232, 74
+    plot = width - pad_l - pad_r
+    height = len(rows) * row_h + 10
+
+    out = [f'<svg viewBox="0 0 {width} {height}" role="img" '
+           f'aria-label="Bar chart, {len(rows)} values">',
+           '<defs>']
+    for i, key in enumerate(("c1", "c2")):
+        out.append(f'<linearGradient id="bg{i}" x1="0" x2="1" y1="0" y2="0">'
+                   f'<stop offset="0%" stop-color="var(--{key})" stop-opacity=".95"/>'
+                   f'<stop offset="100%" stop-color="var(--{key})" stop-opacity=".55"/>'
+                   f'</linearGradient>')
+    out.append("</defs>")
+
+    for i, (label, value) in enumerate(rows):
+        y = i * row_h + 6
+        w = max(2.0, (value / top) * plot) if value > 0 else 0.0
+        fill = "url(#bg1)" if label in accent else "url(#bg0)"
+        tip = tips.get(label, "")
+        out.append(f'<g class="c-row" data-tip="{esc(label)}" '
+                   f'data-tip-d="{esc(tip)}" tabindex="0">')
+        out.append(f'<rect class="c-hit" x="0" y="{y - 3}" width="{width}" '
+                   f'height="{row_h - 2}"></rect>')
+        out.append(f'<text class="c-lbl k" x="{pad_l - 14}" y="{y + 17}" '
+                   f'text-anchor="end">{esc(label)}</text>')
+        if w:
+            out.append(f'<rect class="c-bar" x="{pad_l}" y="{y + 4}" width="{w:.1f}" '
+                       f'height="{row_h - 16}" fill="{fill}" '
+                       f'style="animation-delay:{i * 70}ms"></rect>')
+        out.append(f'<text class="c-val" x="{pad_l + w + 9:.1f}" y="{y + 17}">'
+                   f'{fmt.format(value)}</text>')
+        out.append("</g>")
+    out.append(f'<line class="c-ax" x1="{pad_l}" y1="2" x2="{pad_l}" y2="{height - 8}"/>')
+    out.append("</svg>")
+    return "".join(out)
+
+
+def lines(series: dict[str, list[float]], *, y_max: float = 1.0,
+          y_fmt: str = "{:.0%}", x_label: str = "gen", width: int = 780,
+          height: int = 340) -> tuple[str, str]:
+    """Multi-series line chart. Returns (svg, legend html)."""
+    if not series:
+        return '<p class="note">No data.</p>', ""
+    n = max(len(v) for v in series.values())
+    pad = 54
+    pw, ph = width - pad * 2, height - pad * 2
+    step = pw / max(n - 1, 1)
+
+    def xy(i, v):
+        return pad + i * step, pad + ph * (1 - min(v / y_max, 1.0))
+
+    out = [f'<svg viewBox="0 0 {width} {height}" role="img" '
+           f'aria-label="Line chart, {len(series)} series over {n} points">']
+    for frac in (0, .25, .5, .75, 1):
+        _, y = xy(0, frac * y_max)
+        out.append(f'<line class="c-grid" x1="{pad}" y1="{y:.1f}" '
+                   f'x2="{width - pad}" y2="{y:.1f}"/>')
+        out.append(f'<text class="c-val" x="{pad - 12}" y="{y + 4:.1f}" '
+                   f'text-anchor="end">{y_fmt.format(frac * y_max)}</text>')
+    for i in range(n):
+        x, _ = xy(i, 0)
+        out.append(f'<text class="c-lbl" x="{x:.1f}" y="{height - pad + 24}" '
+                   f'text-anchor="middle">{x_label}{i}</text>')
+
+    for idx, (name, values) in enumerate(series.items()):
+        col = f"var(--{_SERIES[idx % len(_SERIES)]})"
+        pts = [xy(i, v) for i, v in enumerate(values)]
+        d = " ".join(f"{x:.1f},{y:.1f}" for x, y in pts)
+        length = int(sum(((pts[i + 1][0] - pts[i][0]) ** 2
+                          + (pts[i + 1][1] - pts[i][1]) ** 2) ** .5
+                         for i in range(len(pts) - 1)) + 10)
+        out.append(f'<g data-s="{esc(name)}">')
+        out.append(f'<polyline class="c-line" points="{d}" stroke="{col}" '
+                   f'style="--len:{length};animation-delay:{idx * 110}ms"/>')
+        for i, (x, y) in enumerate(pts):
+            out.append(f'<circle class="c-dot" cx="{x:.1f}" cy="{y:.1f}" r="4" '
+                       f'fill="{col}" style="animation-delay:{700 + i * 45}ms" '
+                       f'data-tip="{esc(name)} &middot; {x_label}{i}" '
+                       f'data-tip-d="{y_fmt.format(values[i])}" tabindex="0"/>')
+        out.append("</g>")
+    out.append("</svg>")
+
+    legend = '<div class="legend">' + "".join(
+        f'<button type="button" aria-pressed="true" data-series="{esc(name)}">'
+        f'<i style="background:var(--{_SERIES[i % len(_SERIES)]})"></i>{esc(name)}</button>'
+        for i, name in enumerate(series)) + "</div>"
+    return "".join(out), legend
+
+
+def donut(fraction: float, *, label: str, size: int = 132) -> str:
+    """A single share, drawn as a ring. Used where one number IS the finding."""
+    r, cx = size / 2 - 12, size / 2
+    circ = 2 * 3.141592653589793 * r
+    return (
+        f'<svg viewBox="0 0 {size} {size}" width="{size}" height="{size}" role="img" '
+        f'aria-label="{esc(label)}: {fraction:.0%}">'
+        f'<circle cx="{cx}" cy="{cx}" r="{r:.1f}" fill="none" stroke="var(--line)" '
+        f'stroke-width="10"/>'
+        f'<circle cx="{cx}" cy="{cx}" r="{r:.1f}" fill="none" stroke="var(--c1)" '
+        f'stroke-width="10" stroke-linecap="round" '
+        f'stroke-dasharray="{circ * fraction:.1f} {circ:.1f}" '
+        f'transform="rotate(-90 {cx} {cx})"/>'
+        f'<text x="{cx}" y="{cx + 2}" text-anchor="middle" class="c-val" '
+        f'style="font-size:21px" >{fraction:.0%}</text>'
+        f'<text x="{cx}" y="{cx + 20}" text-anchor="middle" class="c-lbl" '
+        f'style="font-size:10.5px">{esc(label)}</text></svg>')
+
+
+def json_payload(name: str, data) -> str:
+    return f"const {name} = {json.dumps(data, separators=(',', ':'))};"

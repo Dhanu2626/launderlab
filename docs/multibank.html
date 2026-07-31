@@ -1,32 +1,443 @@
 <!doctype html>
+<html lang="en">
+<head>
 <meta charset="utf-8">
-<title>LaunderLab — the cross-bank blind spot</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LaunderLab — The cross-bank blind spot</title>
+<meta name="description" content="Four banks with genuinely separate ledgers flag 75-77% of individual mule accounts and reconstruct 0-6% of the chains those accounts form. Privacy-preserving co-operation recovers 69-81% of hops.">
+<meta name="theme-color" content="#08090a">
+<meta property="og:title" content="LaunderLab — The cross-bank blind spot">
+<meta property="og:description" content="Four banks with genuinely separate ledgers flag 75-77% of individual mule accounts and reconstruct 0-6% of the chains those accounts form. Privacy-preserving co-operation recovers 69-81% of hops.">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
 <style>
-:root { --bg:#fbfbfa; --panel:#fff; --ink:#14140f; --muted:#6b6b63; --line:#e3e2da;
-        --bar:#185fa5; --bar2:#0f6e56; --miss:#c9c7bd; --warn:#a32d2d;
-        --l1:#185fa5; --l2:#0f6e56; --l3:#b45309; --l4:#7a3ea3; --l5:#a32d2d; }
-@media (prefers-color-scheme: dark) {
-  :root { --bg:#161614; --panel:#1e1e1b; --ink:#f2f1ea; --muted:#9d9c92;
-          --line:#32312c; --bar:#6ea8e6; --bar2:#4fb59a; --miss:#3a3934;
-          --l1:#6ea8e6; --l2:#4fb59a; --l3:#e0a458; --l4:#c398e8; --l5:#e08080; } }
-* { box-sizing:border-box; }
-body { margin:0; padding:30px 28px 60px; background:var(--bg); color:var(--ink);
-       font:15px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif; max-width:900px; }
-h1 { font-size:20px; margin:0 0 4px; }
-h2 { font-size:14px; margin:34px 0 4px; }
-p.sub { color:var(--muted); font-size:13px; margin:0 0 12px; }
-.card { background:var(--panel); border:1px solid var(--line); border-radius:9px;
-        padding:14px 16px; overflow-x:auto; }
-.bar { fill:var(--bar); } .bar.alt { fill:var(--bar2); } .bar.miss { fill:var(--miss); }
-.lbl { font-size:11.5px; fill:var(--ink); }
-.val { font-size:11px; fill:var(--muted); }
-.axis { stroke:var(--line); stroke-width:1; }
-.note { color:var(--muted); font-size:12.5px; margin:10px 0 0; }
-.warn { color:var(--warn); }
-.legend { display:flex; flex-wrap:wrap; gap:12px 18px; margin-top:8px; font-size:12.5px; }
-.legend span { display:inline-flex; align-items:center; gap:6px; }
-.legend i { width:11px; height:11px; border-radius:2px; display:inline-block; }
+:root {
+  color-scheme: dark;
+  --bg:#08090a; --bg-soft:#0c0e10; --surface:#111417; --surface-2:#161a1e;
+  --surface-3:#1c2126; --line:#222930; --line-strong:#2f3841;
+  --ink:#e9ecef; --ink-dim:#9aa3ab; --ink-faint:#6b747c;
+  --accent:#4c8dff; --accent-soft:#1b3a63;
+  --accent-glow:rgba(76,141,255,.14);
+  --teal:#2dd4bf; --violet:#a78bfa; --amber:#f0b429; --rose:#f87171;
+  --green:#4ade80;
+  --c1:#4c8dff; --c2:#2dd4bf; --c3:#f0b429; --c4:#a78bfa; --c5:#f87171;
+  --radius:14px; --radius-sm:9px; --radius-lg:20px;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 28px -12px rgba(0,0,0,.7);
+  --shadow-lg:0 2px 4px rgba(0,0,0,.4), 0 24px 60px -20px rgba(0,0,0,.85);
+  --mono:ui-monospace,"SF Mono","JetBrains Mono","Cascadia Mono",Menlo,Consolas,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+  --ease:cubic-bezier(.16,1,.3,1);
+  --maxw:1120px;
+}
+
+*,*::before,*::after { box-sizing:border-box; }
+html { -webkit-text-size-adjust:100%; scroll-behavior:smooth; }
+body {
+  margin:0; background:var(--bg); color:var(--ink);
+  font:400 16px/1.65 var(--sans);
+  -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+  overflow-x:hidden;
+}
+body::before {
+  content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+  background:
+    radial-gradient(900px 500px at 12% -8%, rgba(76,141,255,.10), transparent 60%),
+    radial-gradient(760px 420px at 92% 4%, rgba(167,139,250,.07), transparent 62%);
+}
+main,header,footer { position:relative; z-index:1; }
+h1,h2,h3,h4 { margin:0; font-weight:640; letter-spacing:-.021em; line-height:1.18; }
+h1 { font-size:clamp(2.1rem,5.2vw,3.5rem); letter-spacing:-.033em; }
+h2 { font-size:clamp(1.45rem,2.9vw,2rem); letter-spacing:-.026em; }
+h3 { font-size:1.075rem; letter-spacing:-.014em; }
+p { margin:0 0 1em; color:var(--ink-dim); }
+p:last-child { margin-bottom:0; }
+a { color:var(--accent); text-decoration:none; }
+a:hover { text-decoration:underline; text-underline-offset:3px; }
+strong,b { color:var(--ink); font-weight:620; }
+code,.mono { font-family:var(--mono); font-size:.875em; }
+code {
+  background:var(--surface-2); border:1px solid var(--line);
+  padding:.13em .42em; border-radius:5px; color:var(--ink);
+}
+.num { font-family:var(--mono); font-variant-numeric:tabular-nums; }
+.wrap { width:100%; max-width:var(--maxw); margin:0 auto; padding:0 24px; }
+.narrow { max-width:760px; }
+:focus-visible { outline:2px solid var(--accent); outline-offset:3px; border-radius:4px; }
+.skip {
+  position:absolute; left:-9999px; top:0; background:var(--accent); color:#04070d;
+  padding:10px 18px; border-radius:0 0 8px 0; font-weight:600; z-index:100;
+}
+.skip:focus { left:0; }
+.sr { position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+      overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
+
+.nav {
+  position:sticky; top:0; z-index:50;
+  background:rgba(8,9,10,.76); backdrop-filter:blur(14px) saturate(150%);
+  -webkit-backdrop-filter:blur(14px) saturate(150%);
+  border-bottom:1px solid var(--line);
+}
+.nav-in { display:flex; align-items:center; gap:8px; height:58px;
+          max-width:var(--maxw); margin:0 auto; padding:0 24px; }
+.brand { display:flex; align-items:center; gap:9px; font-weight:660;
+         letter-spacing:-.02em; color:var(--ink); margin-right:6px; font-size:.97rem; }
+.brand:hover { text-decoration:none; }
+.brand .dot { width:9px; height:9px; border-radius:3px;
+  background:linear-gradient(140deg,var(--accent),var(--teal)); flex:0 0 auto; }
+.nav-links { display:flex; gap:2px; margin-left:auto; align-items:center;
+             overflow-x:auto; scrollbar-width:none; }
+.nav-links::-webkit-scrollbar { display:none; }
+.nav-links a {
+  color:var(--ink-dim); font-size:.855rem; font-weight:500; padding:7px 11px;
+  border-radius:8px; white-space:nowrap; transition:color .16s, background .16s;
+}
+.nav-links a:hover { color:var(--ink); background:var(--surface-2); text-decoration:none; }
+.nav-links a[aria-current="page"] { color:var(--ink); background:var(--surface-3); }
+.nav-links a.ext { color:var(--ink-faint); }
+@media (max-width:720px){ .nav-in { padding:0 14px; } .brand span.full { display:none; } }
+
+.hero { padding:76px 0 44px; }
+.eyebrow {
+  display:inline-flex; align-items:center; gap:8px; font-family:var(--mono);
+  font-size:.72rem; letter-spacing:.13em; text-transform:uppercase;
+  color:var(--accent); background:var(--accent-glow);
+  border:1px solid rgba(76,141,255,.24); padding:5px 11px; border-radius:99px;
+  margin-bottom:20px;
+}
+.eyebrow.teal { color:var(--teal); background:rgba(45,212,191,.1);
+                border-color:rgba(45,212,191,.24); }
+.eyebrow.violet { color:var(--violet); background:rgba(167,139,250,.1);
+                  border-color:rgba(167,139,250,.24); }
+.eyebrow.amber { color:var(--amber); background:rgba(240,180,41,.1);
+                 border-color:rgba(240,180,41,.24); }
+.hero h1 { max-width:16ch; }
+.hero .grad {
+  background:linear-gradient(96deg,var(--ink) 18%,var(--accent) 62%,var(--teal) 96%);
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+}
+.lede { font-size:clamp(1.03rem,1.7vw,1.2rem); color:var(--ink-dim);
+        max-width:66ch; margin-top:20px; line-height:1.62; }
+.lede strong { color:var(--ink); }
+.hero-meta { display:flex; flex-wrap:wrap; gap:9px; margin-top:26px; }
+.chip {
+  display:inline-flex; align-items:center; gap:7px; font-size:.79rem;
+  color:var(--ink-dim); background:var(--surface); border:1px solid var(--line);
+  padding:6px 12px; border-radius:99px; font-family:var(--mono);
+}
+.chip b { color:var(--ink); font-weight:600; }
+section { padding:52px 0; }
+section + section { border-top:1px solid var(--line); }
+.sec-head { margin-bottom:28px; max-width:74ch; }
+.sec-head h2 { margin-bottom:12px; }
+.sec-head p { font-size:1rem; }
+.grid { display:grid; gap:16px; }
+.g2 { grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); }
+.g3 { grid-template-columns:repeat(auto-fit,minmax(232px,1fr)); }
+.g4 { grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); }
+.split { display:grid; gap:22px; grid-template-columns:1.35fr .95fr; align-items:start; }
+@media (max-width:860px){ .split { grid-template-columns:1fr; } }
+footer.ft { border-top:1px solid var(--line); padding:38px 0 56px; margin-top:26px;
+            color:var(--ink-faint); font-size:.86rem; }
+.ft-in { display:flex; flex-wrap:wrap; gap:18px; justify-content:space-between; }
+.ft a { color:var(--ink-dim); }
+
+.card {
+  background:linear-gradient(180deg,var(--surface) 0%,var(--bg-soft) 100%);
+  border:1px solid var(--line); border-radius:var(--radius); padding:20px 22px;
+  transition:border-color .22s var(--ease), transform .22s var(--ease),
+             box-shadow .22s var(--ease);
+}
+.card.pad-lg { padding:26px 28px; }
+.card.hover:hover { border-color:var(--line-strong); transform:translateY(-3px);
+                    box-shadow:var(--shadow-lg); }
+a.card { display:block; color:inherit; }
+a.card:hover { text-decoration:none; }
+.card h3 { margin-bottom:7px; }
+.card p { font-size:.92rem; }
+.kpi { background:var(--surface); border:1px solid var(--line);
+       border-radius:var(--radius); padding:18px 20px; position:relative;
+       overflow:hidden; }
+.kpi::after { content:''; position:absolute; left:0; top:0; bottom:0; width:2px;
+              background:linear-gradient(180deg,var(--accent),transparent); opacity:.55; }
+.kpi .v { font-family:var(--mono); font-variant-numeric:tabular-nums;
+          font-size:clamp(1.5rem,3.1vw,1.95rem); font-weight:600;
+          letter-spacing:-.03em; color:var(--ink); line-height:1.1; }
+.kpi .v.sm { font-size:1.16rem; letter-spacing:-.01em; }
+.kpi .k { font-size:.79rem; font-weight:600; color:var(--ink); margin-top:8px;
+          letter-spacing:-.005em; }
+.kpi .d { font-size:.77rem; color:var(--ink-faint); margin-top:5px; line-height:1.5; }
+.kpi.teal::after   { background:linear-gradient(180deg,var(--teal),transparent); }
+.kpi.violet::after { background:linear-gradient(180deg,var(--violet),transparent); }
+.kpi.amber::after  { background:linear-gradient(180deg,var(--amber),transparent); }
+.kpi.rose::after   { background:linear-gradient(180deg,var(--rose),transparent); }
+.note {
+  border-left:2px solid var(--line-strong); padding:2px 0 2px 16px;
+  color:var(--ink-dim); font-size:.9rem; margin:16px 0 0;
+}
+.box {
+  border:1px solid var(--line); border-radius:var(--radius-sm);
+  padding:15px 17px; margin:16px 0 0; background:var(--surface);
+  font-size:.91rem; color:var(--ink-dim);
+}
+.box .bt {
+  display:flex; align-items:center; gap:8px; font-size:.71rem; font-weight:700;
+  letter-spacing:.11em; text-transform:uppercase; margin-bottom:8px;
+  font-family:var(--mono);
+}
+.box.finding    { border-color:rgba(76,141,255,.3);  background:rgba(76,141,255,.045); }
+.box.finding .bt{ color:var(--accent); }
+.box.why        { border-color:rgba(45,212,191,.3);  background:rgba(45,212,191,.04); }
+.box.why .bt    { color:var(--teal); }
+.box.limit      { border-color:rgba(240,180,41,.3);  background:rgba(240,180,41,.04); }
+.box.limit .bt  { color:var(--amber); }
+.box.warn       { border-color:rgba(248,113,113,.32); background:rgba(248,113,113,.045); }
+.box.warn .bt   { color:var(--rose); }
+.box.method     { border-color:rgba(167,139,250,.3); background:rgba(167,139,250,.04); }
+.box.method .bt { color:var(--violet); }
+.box b, .box strong { color:var(--ink); }
+details.exp {
+  border:1px solid var(--line); border-radius:var(--radius-sm); margin:16px 0 0;
+  background:var(--surface); overflow:hidden;
+}
+details.exp > summary {
+  cursor:pointer; padding:13px 17px; font-size:.87rem; font-weight:600;
+  color:var(--ink); list-style:none; display:flex; align-items:center; gap:10px;
+  transition:background .16s;
+}
+details.exp > summary::-webkit-details-marker { display:none; }
+details.exp > summary::before {
+  content:'+'; font-family:var(--mono); color:var(--accent); font-weight:700;
+  font-size:1rem; width:14px; flex:0 0 auto; transition:transform .2s var(--ease);
+}
+details.exp[open] > summary::before { content:'\2212'; }
+details.exp > summary:hover { background:var(--surface-2); }
+details.exp .exp-body {
+  padding:2px 17px 16px; font-size:.89rem; color:var(--ink-dim);
+  border-top:1px solid var(--line);
+}
+details.exp .exp-body > :first-child { margin-top:13px; }
+.tbl { width:100%; border-collapse:collapse; font-size:.87rem; }
+.tbl th {
+  text-align:left; font-weight:600; color:var(--ink-faint); font-size:.72rem;
+  letter-spacing:.08em; text-transform:uppercase; padding:0 14px 9px 0;
+  border-bottom:1px solid var(--line); white-space:nowrap;
+}
+.tbl td { padding:9px 14px 9px 0; border-bottom:1px solid var(--line);
+          color:var(--ink-dim); vertical-align:top; }
+.tbl tr:last-child td { border-bottom:0; }
+.tbl td.n { font-family:var(--mono); font-variant-numeric:tabular-nums; color:var(--ink); }
+.tbl tr.hi td { background:rgba(76,141,255,.05); }
+.scroll-x { overflow-x:auto; margin:0 -22px; padding:0 22px; }
+.pill { display:inline-block; font-family:var(--mono); font-size:.71rem;
+        padding:2.5px 8px; border-radius:99px; border:1px solid var(--line);
+        color:var(--ink-dim); background:var(--surface-2); white-space:nowrap; }
+.pill.on   { background:rgba(74,222,128,.13); color:var(--green);
+             border-color:rgba(74,222,128,.3); }
+.pill.off  { background:rgba(248,113,113,.12); color:var(--rose);
+             border-color:rgba(248,113,113,.3); }
+.pill.wait { background:rgba(240,180,41,.12); color:var(--amber);
+             border-color:rgba(240,180,41,.28); }
+.tl { position:relative; padding-left:26px; }
+.tl::before { content:''; position:absolute; left:6px; top:5px; bottom:5px;
+              width:1px; background:var(--line); }
+.tl-i { position:relative; padding-bottom:20px; }
+.tl-i:last-child { padding-bottom:0; }
+.tl-i::before {
+  content:''; position:absolute; left:-24px; top:6px; width:9px; height:9px;
+  border-radius:99px; background:var(--surface-3); border:2px solid var(--line-strong);
+}
+.tl-i.done::before { background:var(--accent); border-color:var(--accent); }
+.tl-i .tl-h { font-size:.9rem; font-weight:620; color:var(--ink); }
+.tl-i .tl-d { font-size:.84rem; color:var(--ink-dim); margin-top:3px; }
+.tl-i .tl-t { font-family:var(--mono); font-size:.71rem; color:var(--ink-faint); }
+.btn {
+  display:inline-flex; align-items:center; gap:9px; padding:11px 19px;
+  border-radius:10px; font-size:.9rem; font-weight:600; border:1px solid transparent;
+  transition:transform .18s var(--ease), background .18s, border-color .18s;
+}
+.btn:hover { text-decoration:none; transform:translateY(-1.5px); }
+.btn.pri { background:var(--accent); color:#04070d; }
+.btn.pri:hover { background:#6ba1ff; }
+.btn.sec { background:var(--surface-2); color:var(--ink); border-color:var(--line-strong); }
+.btn.sec:hover { background:var(--surface-3); }
+.btn-row { display:flex; flex-wrap:wrap; gap:11px; margin-top:30px; }
+.next {
+  display:flex; align-items:center; justify-content:space-between; gap:18px;
+  padding:22px 24px; border:1px solid var(--line); border-radius:var(--radius);
+  background:linear-gradient(100deg,var(--surface),var(--bg-soft));
+  transition:border-color .22s, transform .22s var(--ease);
+}
+.next:hover { border-color:var(--accent); transform:translateY(-2px); text-decoration:none; }
+.next .nx-k { font-family:var(--mono); font-size:.71rem; letter-spacing:.11em;
+              text-transform:uppercase; color:var(--ink-faint); }
+.next .nx-t { font-size:1.06rem; font-weight:620; color:var(--ink); margin-top:5px; }
+.next .nx-d { font-size:.87rem; color:var(--ink-dim); margin-top:4px; }
+.next .arw { color:var(--accent); font-size:1.3rem; flex:0 0 auto; }
+
+.chart-wrap { position:relative; }
+.chart-wrap svg { display:block; width:100%; height:auto; overflow:visible; }
+.c-lbl  { font-family:var(--sans); font-size:12.5px; fill:var(--ink-dim); }
+.c-lbl.k{ fill:var(--ink); font-weight:560; }
+.c-val  { font-family:var(--mono); font-size:12px; fill:var(--ink);
+          font-variant-numeric:tabular-nums; }
+.c-ax   { stroke:var(--line); stroke-width:1; }
+.c-grid { stroke:var(--line); stroke-width:1; stroke-dasharray:2 5; opacity:.65; }
+.c-bar  { rx:4; transform-origin:left center; transition:opacity .18s; }
+.c-row  { cursor:default; }
+.c-row:hover .c-bar { opacity:.82; }
+.c-row.dim { opacity:.28; }
+.c-hit  { fill:transparent; }
+.reveal .c-bar { animation:barIn .85s var(--ease) both; }
+.reveal .c-line { animation:lineIn 1.15s var(--ease) both; }
+.reveal .c-dot { animation:dotIn .4s var(--ease) both; }
+@keyframes barIn { from { transform:scaleX(0); } to { transform:scaleX(1); } }
+@keyframes lineIn { from { stroke-dashoffset:var(--len); } to { stroke-dashoffset:0; } }
+@keyframes dotIn { from { opacity:0; transform:scale(.3); } to { opacity:1; transform:scale(1); } }
+.c-line { fill:none; stroke-width:2.25; stroke-linecap:round; stroke-linejoin:round;
+          stroke-dasharray:var(--len); }
+.legend { display:flex; flex-wrap:wrap; gap:7px; margin-top:16px; }
+.legend button {
+  display:inline-flex; align-items:center; gap:7px; font:inherit; font-size:.79rem;
+  color:var(--ink-dim); background:var(--surface-2); border:1px solid var(--line);
+  padding:5px 11px; border-radius:99px; cursor:pointer;
+  transition:background .16s, color .16s, opacity .16s;
+}
+.legend button:hover { color:var(--ink); background:var(--surface-3); }
+.legend button[aria-pressed="false"] { opacity:.4; }
+.legend i { width:9px; height:9px; border-radius:3px; flex:0 0 auto; }
+.tip {
+  position:fixed; pointer-events:none; opacity:0; z-index:80;
+  background:var(--surface-3); border:1px solid var(--line-strong);
+  border-radius:9px; padding:9px 12px; font-size:.8rem; color:var(--ink);
+  box-shadow:var(--shadow-lg); transition:opacity .13s; max-width:280px;
+  line-height:1.5;
+}
+.tip.show { opacity:1; }
+.tip .tt { font-weight:640; margin-bottom:3px; }
+.tip .td { color:var(--ink-dim); font-size:.76rem; }
+
+/* Scoped to .js, which a one-line inline script in <head> adds. With JavaScript
+   disabled or broken the rule never applies and every section is simply visible.
+   Hiding content unconditionally and relying on script to reveal it would make a
+   scroll animation load-bearing for whether the page has any content at all. */
+.js [data-rv] { opacity:0; transform:translateY(14px);
+                transition:opacity .62s var(--ease), transform .62s var(--ease); }
+.js [data-rv].in { opacity:1; transform:none; }
+@media (prefers-reduced-motion:reduce) {
+  html { scroll-behavior:auto; }
+  *,*::before,*::after { animation-duration:.001ms !important;
+    animation-iteration-count:1 !important; transition-duration:.001ms !important; }
+  .js [data-rv] { opacity:1; transform:none; }
+  .reveal .c-bar,.reveal .c-line,.reveal .c-dot { animation:none; }
+  .c-line { stroke-dasharray:none; }
+}
 </style>
-<h1>LaunderLab — the cross-bank blind spot (Phase 8.5)</h1>
-<p class="sub">What one bank sees alone, what a central view would see, and what privacy-preserving co-operation buys back. Regenerate with <code>python -m launderlab multibank</code>.</p>
-<h2>Mule-chain hops reconstructed, by view</h2><div class="card"><svg viewBox="0 0 760 170" width="760" height="170" role="img" aria-label="bar chart of 6 values"><text class="lbl" x="182" y="19" text-anchor="end">deliberate: pooled (central view)</text><rect class="bar" x="190" y="8" width="512.0" height="16" rx="2"></rect><text class="val" x="708.0" y="19">100%</text><text class="lbl" x="182" y="45" text-anchor="end">deliberate: single bank alone</text><text class="val" x="196.0" y="45">0%</text><text class="lbl" x="182" y="71" text-anchor="end">deliberate: privacy-preserving co-op</text><rect class="bar alt" x="190" y="60" width="355.6" height="16" rx="2"></rect><text class="val" x="551.6" y="71">69%</text><text class="lbl" x="182" y="97" text-anchor="end">naive: pooled (central view)</text><rect class="bar" x="190" y="86" width="512.0" height="16" rx="2"></rect><text class="val" x="708.0" y="97">100%</text><text class="lbl" x="182" y="123" text-anchor="end">naive: single bank alone</text><rect class="bar" x="190" y="112" width="28.4" height="16" rx="2"></rect><text class="val" x="224.4" y="123">6%</text><text class="lbl" x="182" y="149" text-anchor="end">naive: privacy-preserving co-op</text><rect class="bar alt" x="190" y="138" width="412.4" height="16" rx="2"></rect><text class="val" x="608.4" y="149">81%</text><line class="axis" x1="190" y1="2" x2="190" y2="164"></line></svg></div><p class="note">Share of planted mule-chain hops each view can reconstruct. A single bank sees essentially none of the network no matter how the chain was placed - rebuilding a chain needs consecutive hops inside one bank, which is rare once accounts are spread across institutions. Co-operation recovers most of it while sharing only hashed payment references, never customer data.</p>
+<script>document.documentElement.className+=" js";</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="nav"><div class="nav-in"><a class="brand" href="index.html"><span class="dot"></span>LaunderLab</a><nav class="nav-links" aria-label="Sections"><a href="index.html">Overview</a><a href="story.html">Story Mode</a><a href="results.html">Results</a><a href="redteam.html">Red Team</a><a href="multibank.html" aria-current="page">Cross-Bank</a><a class="ext" href="https://github.com/Dhanu2626/launderlab" rel="noopener">GitHub &#8599;</a></nav></div></header>
+<main id="main">
+<div class="hero"><div class="wrap"><span class="eyebrow violet" data-rv="0">Flagship result · Phase 8.5</span><h1 data-rv="1"><span class="grad">The blind spot is the network, not the account</span></h1><p class="lede" data-rv="2">Split one synthetic world across <strong>four banks with genuinely separate ledgers</strong>, then ask what each can see of a mule chain running through all of them. Banks flag three-quarters of the individual mule accounts on their own books &mdash; and reconstruct almost none of the chains those accounts form. This is the experiment central banks run behind closed doors; this is its open version.</p><div class="hero-meta" data-rv="3"><span class="chip"><b>4</b> separate ledgers</span><span class="chip"><b>2</b> placement arms</span><span class="chip"><b>HMAC</b> not a bare hash</span></div></div></div><section id="problem"><div class="wrap"><div class="sec-head" data-rv="0"><span class="eyebrow violet">Problem statement</span><h2>Why a laundering chain disappears at an institutional boundary</h2><p>Reconstructing a chain means pairing the two legs of a transfer. When the counterparty banks elsewhere, the second leg is not in your ledger at all &mdash; so the hop is not weakly visible, it is <em>absent</em>.</p></div><div class="card pad-lg" data-rv="0"><div class="chart-wrap"><svg viewBox="0 0 780 210" role="img" aria-label="A four-hop laundering chain crossing four separate banks; each bank sees only its own account"><rect x="24" y="34" width="152" height="118" rx="12" fill="var(--surface-2)" stroke="var(--c1)" stroke-opacity=".45"/><text x="100" y="58" text-anchor="middle" class="c-lbl k" style="font-size:12px">Bank A</text><circle cx="100" cy="96" r="19" fill="var(--c1)" fill-opacity=".18" stroke="var(--c1)"/><text x="100" y="101" text-anchor="middle" class="c-val" style="font-size:11px">A1</text><text x="100" y="136" text-anchor="middle" class="c-lbl" style="font-size:10.5px">sees 1 leg</text><path d="M176 96 L214 96" stroke="var(--rose)" stroke-width="2" stroke-dasharray="4 4"/><path d="M207 91 L214 96 L207 101" fill="none" stroke="var(--rose)" stroke-width="2"/><rect x="214" y="34" width="152" height="118" rx="12" fill="var(--surface-2)" stroke="var(--c2)" stroke-opacity=".45"/><text x="290" y="58" text-anchor="middle" class="c-lbl k" style="font-size:12px">Bank B</text><circle cx="290" cy="96" r="19" fill="var(--c2)" fill-opacity=".18" stroke="var(--c2)"/><text x="290" y="101" text-anchor="middle" class="c-val" style="font-size:11px">A2</text><text x="290" y="136" text-anchor="middle" class="c-lbl" style="font-size:10.5px">sees 1 leg</text><path d="M366 96 L404 96" stroke="var(--rose)" stroke-width="2" stroke-dasharray="4 4"/><path d="M397 91 L404 96 L397 101" fill="none" stroke="var(--rose)" stroke-width="2"/><rect x="404" y="34" width="152" height="118" rx="12" fill="var(--surface-2)" stroke="var(--c3)" stroke-opacity=".45"/><text x="480" y="58" text-anchor="middle" class="c-lbl k" style="font-size:12px">Bank C</text><circle cx="480" cy="96" r="19" fill="var(--c3)" fill-opacity=".18" stroke="var(--c3)"/><text x="480" y="101" text-anchor="middle" class="c-val" style="font-size:11px">A3</text><text x="480" y="136" text-anchor="middle" class="c-lbl" style="font-size:10.5px">sees 1 leg</text><path d="M556 96 L594 96" stroke="var(--rose)" stroke-width="2" stroke-dasharray="4 4"/><path d="M587 91 L594 96 L587 101" fill="none" stroke="var(--rose)" stroke-width="2"/><rect x="594" y="34" width="152" height="118" rx="12" fill="var(--surface-2)" stroke="var(--c4)" stroke-opacity=".45"/><text x="670" y="58" text-anchor="middle" class="c-lbl k" style="font-size:12px">Bank D</text><circle cx="670" cy="96" r="19" fill="var(--c4)" fill-opacity=".18" stroke="var(--c4)"/><text x="670" y="101" text-anchor="middle" class="c-val" style="font-size:11px">A4</text><text x="670" y="136" text-anchor="middle" class="c-lbl" style="font-size:10.5px">sees 1 leg</text><text x="390" y="188" text-anchor="middle" class="c-lbl" style="font-size:11.5px">Every dashed hop crosses an institutional boundary &mdash; the second leg is not in either ledger</text></svg></div><p class="note">The money is perfectly visible. The <em>path</em> is not: each bank holds one leg of each hop and no bank holds two consecutive hops, which is the minimum chain detection can report.</p></div><div class="box why"><div class="bt">The mechanism, computed rather than asserted</div><p>Chain detection will not report anything shorter than two hops, so a lone intra-bank hop is invisible even to the bank holding both its legs. With <em>n</em> banks, the odds of a reportable same-bank stretch fall off as <strong>1/n&sup2;</strong> per position. The code counts how many stretches were even long enough to report, so a 0% is explained rather than merely observed.</p></div></div></section><section id="results"><div class="wrap"><div class="sec-head" data-rv="0"><span class="eyebrow violet">Results</span><h2>What each view reconstructs</h2><p>Two arms, because one alone would be arithmetic dressed as a finding. <strong>Deliberate</strong> walks the banks in turn so no two consecutive accounts share one &mdash; a solo bank then reconstructs 0% <em>by construction</em>, which is not evidence. <strong>Naive</strong> ignores banks entirely, which is what an unsophisticated launderer does, and what a solo bank sees there is genuinely measured.</p></div><div class="grid g4" data-rv="1"><div class="kpi teal"><div class="v">100%</div><div class="k">Pooled central view</div><div class="d">A hypothetical regulator holding every bank's ledger at once</div></div><div class="kpi rose"><div class="v">6%</div><div class="k">A single bank alone</div><div class="d">The luckiest individual bank reconstructed 2 of 36 chain hops</div></div><div class="kpi "><div class="v">81%</div><div class="k">Privacy-preserving co-operation</div><div class="d">Recovered from HMAC'd payment references alone — no names, no account ids</div></div><div class="kpi violet"><div class="v">75%</div><div class="k">Mule accounts flagged locally</div><div class="d">Each bank saw the accounts perfectly well. It could not see the network</div></div></div><div style="height:18px"></div><div class="card pad-lg" data-rv="1" data-chart><div class="chart-wrap"><svg viewBox="0 0 780 214" role="img" aria-label="Bar chart, 6 values"><defs><linearGradient id="bg0" x1="0" x2="1" y1="0" y2="0"><stop offset="0%" stop-color="var(--c1)" stop-opacity=".95"/><stop offset="100%" stop-color="var(--c1)" stop-opacity=".55"/></linearGradient><linearGradient id="bg1" x1="0" x2="1" y1="0" y2="0"><stop offset="0%" stop-color="var(--c2)" stop-opacity=".95"/><stop offset="100%" stop-color="var(--c2)" stop-opacity=".55"/></linearGradient></defs><g class="c-row" data-tip="deliberate: pooled (central view)" data-tip-d="36 of 36 planted chain hops. A hypothetical regulator holding every bank&#x27;s ledger at once." tabindex="0"><rect class="c-hit" x="0" y="3" width="780" height="32"></rect><text class="c-lbl k" x="218" y="23" text-anchor="end">deliberate: pooled (central view)</text><rect class="c-bar" x="232" y="10" width="474.0" height="18" fill="url(#bg0)" style="animation-delay:0ms"></rect><text class="c-val" x="715.0" y="23">100%</text></g><g class="c-row" data-tip="deliberate: single bank alone" data-tip-d="0 of 36 planted chain hops. The luckiest individual bank, working only its own rows." tabindex="0"><rect class="c-hit" x="0" y="37" width="780" height="32"></rect><text class="c-lbl k" x="218" y="57" text-anchor="end">deliberate: single bank alone</text><text class="c-val" x="241.0" y="57">0%</text></g><g class="c-row" data-tip="deliberate: privacy-preserving co-op" data-tip-d="25 of 36 planted chain hops. After banks publish HMAC&#x27;d payment references for accounts they already flagged themselves. No names, no account ids." tabindex="0"><rect class="c-hit" x="0" y="71" width="780" height="32"></rect><text class="c-lbl k" x="218" y="91" text-anchor="end">deliberate: privacy-preserving co-op</text><rect class="c-bar" x="232" y="78" width="329.2" height="18" fill="url(#bg1)" style="animation-delay:140ms"></rect><text class="c-val" x="570.2" y="91">69%</text></g><g class="c-row" data-tip="naive: pooled (central view)" data-tip-d="36 of 36 planted chain hops. A hypothetical regulator holding every bank&#x27;s ledger at once." tabindex="0"><rect class="c-hit" x="0" y="105" width="780" height="32"></rect><text class="c-lbl k" x="218" y="125" text-anchor="end">naive: pooled (central view)</text><rect class="c-bar" x="232" y="112" width="474.0" height="18" fill="url(#bg0)" style="animation-delay:210ms"></rect><text class="c-val" x="715.0" y="125">100%</text></g><g class="c-row" data-tip="naive: single bank alone" data-tip-d="2 of 36 planted chain hops. The luckiest individual bank, working only its own rows." tabindex="0"><rect class="c-hit" x="0" y="139" width="780" height="32"></rect><text class="c-lbl k" x="218" y="159" text-anchor="end">naive: single bank alone</text><rect class="c-bar" x="232" y="146" width="26.3" height="18" fill="url(#bg0)" style="animation-delay:280ms"></rect><text class="c-val" x="267.3" y="159">6%</text></g><g class="c-row" data-tip="naive: privacy-preserving co-op" data-tip-d="29 of 36 planted chain hops. After banks publish HMAC&#x27;d payment references for accounts they already flagged themselves. No names, no account ids." tabindex="0"><rect class="c-hit" x="0" y="173" width="780" height="32"></rect><text class="c-lbl k" x="218" y="193" text-anchor="end">naive: privacy-preserving co-op</text><rect class="c-bar" x="232" y="180" width="381.8" height="18" fill="url(#bg1)" style="animation-delay:350ms"></rect><text class="c-val" x="622.8" y="193">81%</text></g><line class="c-ax" x1="232" y1="2" x2="232" y2="206"/></svg></div><p class="note">Share of planted mule-chain hops each view can reconstruct. A single bank sees essentially none of the network no matter how the chain was placed - rebuilding a chain needs consecutive hops inside one bank, which is rare once accounts are spread across institutions. Co-operation recovers most of it while sharing only hashed payment references, never customer data.</p></div><div class="box finding"><div class="bt">The result inverted the hypothesis it was built to test</div><p>Naive placement gave a solo bank only 6%, against 0% for deliberate. So <strong>spreading a chain across institutions buys the launderer almost nothing</strong> &mdash; the blind spot is already near-total by accident. You do not need a sophisticated adversary to get it; you get it for free from how the banking system is partitioned. The case for co-operation does not depend on facing a clever criminal.</p></div><div class="box why"><div class="bt">Local detection was never the problem</div><p>Each bank flagged 75&ndash;77% of the individual mule accounts it held. Those banks are probably already filing individual reports. What nobody can do is see that six separate pass-through alerts at six different institutions are <strong>one laundering operation</strong> &mdash; which is exactly the gap financial intelligence units exist to close.</p></div></div></section><section id="coop"><div class="wrap"><div class="sec-head" data-rv="0"><span class="eyebrow teal">Prototype</span><h2>Privacy-preserving co-operation, and what it costs to disclose</h2><p>Each bank publishes, only for accounts it already flagged itself, an HMAC of the payment reference plus direction, amount and timestamp. Never a name, an account id, a balance, or anything at all about an unflagged account. Matching hashed references across banks rebuilds the cross-boundary edges pseudonymously.</p></div><div class="card pad-lg" data-rv="0"><div class="chart-wrap"><svg viewBox="0 0 780 230" role="img" aria-label="Each bank publishes an HMAC of the payment reference, never customer data; a coordinator matches the hashes"><rect x="20" y="20" width="200" height="86" rx="11" fill="var(--surface-2)" stroke="var(--line-strong)"/><text x="120" y="45" text-anchor="middle" class="c-lbl k" style="font-size:12px">Stays inside the bank</text><text x="120" y="68" text-anchor="middle" class="c-lbl" style="font-size:11px" fill="var(--rose)">names &middot; account ids</text><text x="120" y="86" text-anchor="middle" class="c-lbl" style="font-size:11px" fill="var(--rose)">balances &middot; unflagged accounts</text><rect x="20" y="124" width="200" height="86" rx="11" fill="var(--surface-2)" stroke="var(--teal)" stroke-opacity=".5"/><text x="120" y="149" text-anchor="middle" class="c-lbl k" style="font-size:12px">Published</text><text x="120" y="172" text-anchor="middle" class="c-lbl" style="font-size:11px" fill="var(--teal)">HMAC(secret, reference)</text><text x="120" y="190" text-anchor="middle" class="c-lbl" style="font-size:11px" fill="var(--teal)">direction &middot; amount &middot; timestamp</text><path d="M228 167 L318 122" stroke="var(--teal)" stroke-width="2"/><path d="M311 120 L318 122 L314 128" fill="none" stroke="var(--teal)" stroke-width="2"/><rect x="326" y="80" width="180" height="84" rx="11" fill="var(--surface-3)" stroke="var(--accent)" stroke-opacity=".5"/><text x="416" y="112" text-anchor="middle" class="c-lbl k" style="font-size:12px">Coordinator</text><text x="416" y="134" text-anchor="middle" class="c-lbl" style="font-size:11px">matches identical hashes</text><path d="M514 122 L602 122" stroke="var(--accent)" stroke-width="2"/><path d="M595 117 L602 122 L595 127" fill="none" stroke="var(--accent)" stroke-width="2"/><rect x="610" y="80" width="150" height="84" rx="11" fill="var(--surface-2)" stroke="var(--accent)" stroke-opacity=".5"/><text x="685" y="112" text-anchor="middle" class="c-lbl k" style="font-size:12px">Cross-bank edge</text><text x="685" y="134" text-anchor="middle" class="c-lbl" style="font-size:11px">rebuilt pseudonymously</text></svg></div><p class="note">A bank publishes fingerprints only for accounts it had already flagged itself. Nothing at all is published about an account the bank did not flag.</p></div><div class="box method"><div class="bt">Why HMAC and not a bare hash</div><p>A plain SHA of a short numeric payment reference is trivially brute-forced back to the reference, which would hand every participant a lookup table for payments they were never party to. The shared secret is what makes the published fingerprint useless to anyone outside the scheme.</p></div><div class="box limit"><div class="bt">Residual disclosure, stated rather than glossed</div><p>The coordinator still learns the <em>shape</em> of the inter-bank graph &mdash; who transacts with whom, at what volume &mdash; even without identities. And a flagged account's <em>entire</em> payment history is fingerprinted, not just its suspicious legs, because which leg is the laundering hop is the very thing reconstruction exists to find. Those are the honest reasons this is a prototype and not a protocol proposal, and they are where the real central-bank work spends most of its effort.</p></div><details class="exp"><summary>Engineering note: why four separate database files, not a WHERE clause</summary><div class="exp-body"><p>A filter would have been faster and simpler &mdash; and then every detector in the project (rules, graph build, motif detection) would have had to remember to honour it, and one that forgot would silently give a bank sight of another bank's rows. That would invent detection ability that does not exist and inflate the exact number this phase was built to produce. With separate files the isolation is structural: the other bank's rows are simply absent, every existing detector runs completely unmodified, and a test asserts each ledger holds only its own accounts, transactions and customers.</p></div></details><details class="exp"><summary>Engineering note: a backwards metric, caught before publication</summary><div class="exp-body"><p>The first version scored the co-operative view on cross-boundary recoveries <em>alone</em>. That penalised the naive arm for intra-bank hops its own bank already held both legs of &mdash; and produced the absurd result that a chain <em>deliberately spread across banks</em> looked better covered (69%) than a careless one (50%). Getting a backwards ordering out of a metric is the cheapest possible signal that the metric is wrong. The co-operative view now counts every hop whose link is known, and naive correctly comes out ahead.</p></div></details></div></section><section id="implications"><div class="wrap"><div class="sec-head" data-rv="0"><span class="eyebrow amber">Contribution</span><h2>What this contributes, and what it does not</h2></div><div class="grid g2" data-rv="0"><div class="card"><h3>Research contribution</h3><p>The cross-bank blind spot, quantified in the open with ground truth available &mdash; and decomposed into an account-level result (detection works) and a network-level result (it does not). The 1/n&sup2; mechanism turns the headline from an observation into an explanation.</p></div><div class="card"><h3>Practical implication</h3><p>Information-sharing schemes should be evaluated on chain reconstruction, not on account-level flag rates. A programme reporting that member banks flag 76% of mule accounts is reporting a number that was already true before it existed.</p></div><div class="card"><h3>Not a protocol proposal</h3><p>The coordinator still learns the inter-bank graph's shape, and unflagged legs of a flagged account are disclosed. Making those private &mdash; secure set intersection, differential privacy on volumes &mdash; is where the real work lies.</p></div><div class="card"><h3>One seed, exactly four banks, mule chains only</h3><p>The 1/n&sup2; mechanism predicts the blind spot deepens with more banks; sweeping n would turn a stated mechanism into a measured curve. The other five typologies leave no internal edge even inside one bank, so splitting changes nothing for them.</p></div></div></div></section><section id="next"><div class="wrap"><div class="sec-head" data-rv="0"><span class="eyebrow ">Next</span><h2>Continue</h2></div><a class="next" href="story.html" data-rv="0"><div><div class="nx-k">Story Mode</div><div class="nx-t">Watch a single scheme unfold</div><div class="nx-d">Replay a real injected scheme day by day and see exactly when detection closes in on it.</div></div><div class="arw" aria-hidden="true">&#8594;</div></a></div></section>
+</main>
+<footer class="ft"><div class="wrap"><div class="ft-in"><div>An open adversarial range for AML detection testing.<br>All data synthetic. All typologies from public FATF / FinCEN / RBI advisories.</div><div>Built by Dhanush Jangadi &middot; <a href="https://github.com/Dhanu2626/launderlab" rel="noopener">Source on GitHub</a><br>Every figure is rendered from the project&rsquo;s scoring modules, never typed by hand.</div></div></div></footer>
+<script>
+(function(){
+  var RM = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* Scroll reveal. Falls back to fully visible if IntersectionObserver is
+     missing -- content must never depend on an animation having run. */
+  var rv = document.querySelectorAll('[data-rv]');
+  if (!('IntersectionObserver' in window) || RM) {
+    rv.forEach(function(el){ el.classList.add('in'); });
+  } else {
+    var io = new IntersectionObserver(function(es){
+      es.forEach(function(e){
+        if (!e.isIntersecting) return;
+        var el = e.target, d = +(el.getAttribute('data-rv') || 0);
+        setTimeout(function(){ el.classList.add('in'); }, d * 60);
+        io.unobserve(el);
+      });
+    }, { rootMargin:'0px 0px -8% 0px', threshold:.08 });
+    rv.forEach(function(el){ io.observe(el); });
+  }
+
+  /* Count-up. The element's text is already correct in the DOM; this only
+     replays toward it, and restores the exact original string at the end so no
+     rounding here can ever alter a published figure. */
+  function countUp(el){
+    var target = el.getAttribute('data-count'), final = el.textContent;
+    var n = parseFloat(target);
+    if (isNaN(n) || RM) return;
+    var dec = (target.split('.')[1] || '').length, t0 = null, dur = 950;
+    function step(ts){
+      if (!t0) t0 = ts;
+      var p = Math.min((ts - t0) / dur, 1), e = 1 - Math.pow(1 - p, 3);
+      el.textContent = final.replace(target, (n * e).toFixed(dec));
+      if (p < 1) requestAnimationFrame(step); else el.textContent = final;
+    }
+    requestAnimationFrame(step);
+  }
+  var cu = document.querySelectorAll('[data-count]');
+  if ('IntersectionObserver' in window && !RM) {
+    var io2 = new IntersectionObserver(function(es){
+      es.forEach(function(e){ if (e.isIntersecting) { countUp(e.target); io2.unobserve(e.target); } });
+    }, { threshold:.5 });
+    cu.forEach(function(el){ io2.observe(el); });
+  }
+
+  /* Chart draw-in */
+  var charts = document.querySelectorAll('.chart-wrap');
+  if ('IntersectionObserver' in window && !RM) {
+    var io3 = new IntersectionObserver(function(es){
+      es.forEach(function(e){
+        if (!e.isIntersecting) return;
+        e.target.classList.add('reveal'); io3.unobserve(e.target);
+      });
+    }, { threshold:.15 });
+    charts.forEach(function(c){ io3.observe(c); });
+  } else { charts.forEach(function(c){ c.classList.add('reveal'); }); }
+
+  /* One tooltip element, shared by every chart on the page */
+  var tip = document.createElement('div');
+  tip.className = 'tip'; tip.setAttribute('role','status');
+  document.body.appendChild(tip);
+  function move(ev){
+    var r = tip.getBoundingClientRect();
+    var x = ev.clientX + 14, y = ev.clientY - r.height - 12;
+    if (x + r.width > window.innerWidth - 10) x = ev.clientX - r.width - 14;
+    if (y < 8) y = ev.clientY + 18;
+    tip.style.left = x + 'px'; tip.style.top = y + 'px';
+  }
+  document.querySelectorAll('[data-tip]').forEach(function(el){
+    function show(ev){
+      tip.innerHTML = '<div class="tt">' + el.getAttribute('data-tip') + '</div>' +
+        (el.getAttribute('data-tip-d') ? '<div class="td">' + el.getAttribute('data-tip-d') + '</div>' : '');
+      tip.classList.add('show'); move(ev);
+    }
+    el.addEventListener('mouseenter', show);
+    el.addEventListener('mousemove', move);
+    el.addEventListener('mouseleave', function(){ tip.classList.remove('show'); });
+    el.addEventListener('focus', function(){
+      var b = el.getBoundingClientRect();
+      show({ clientX:b.left + b.width / 2, clientY:b.top + b.height / 2 });
+    });
+    el.addEventListener('blur', function(){ tip.classList.remove('show'); });
+  });
+
+  /* Interactive legends: toggle a series without removing it from the DOM, so
+     the underlying data stays readable to assistive tech and to view-source. */
+  document.querySelectorAll('.legend button[data-series]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var on = btn.getAttribute('aria-pressed') !== 'false';
+      btn.setAttribute('aria-pressed', on ? 'false' : 'true');
+      var sel = btn.closest('[data-chart]');
+      if (!sel) return;
+      sel.querySelectorAll('[data-s="' + btn.getAttribute('data-series') + '"]')
+         .forEach(function(n){ n.style.display = on ? 'none' : ''; });
+    });
+  });
+})();
+</script>
+</body>
+</html>

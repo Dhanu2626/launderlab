@@ -1374,3 +1374,70 @@ And I had to refuse to report it: my queue had fifty open cases and zero disposi
 reported it as not measurable rather than as zero percent — 'nobody has reviewed these' and
 'everything reviewed was cleared' are opposite facts, and a zero merges them into the one that
 makes your stack look broken."
+
+---
+
+## Phase 9.7 — 2026-07-31 (redesigning the site without touching a single number)
+
+🏦 **FCC:** The brief was to make the published site feel like a research product rather than
+documentation, and the hardest part had nothing to do with visuals. It was deciding what a
+reader is allowed to be told, and in what order.
+
+The rule I settled on: **never place a chart without answering four questions next to it** —
+what am I looking at, why should I care, what does this prove, and what is the conclusion. That
+sounds like a presentation rule. It is actually a compliance-writing rule, and it is the same
+discipline a SAR narrative demands. A chart with no stated conclusion is exactly the MI pack
+that gets presented to a board, nodded at, and misunderstood — because everybody reads the bar
+heights and nobody agrees afterwards on what the bars *meant*.
+
+Two places where the honest presentation was harder than the flattering one. Alert-to-SAR
+conversion had to render as **not measurable** rather than as a confident 0%, on a page whose
+whole purpose is looking impressive — an empty KPI card is an odd thing to design deliberately,
+but the alternative is a number that says my detection stack converts nothing. And on the
+latency page I had to put the exposure chart directly under the latency chart, because latency
+alone makes `round_tripping` look like the best-detected typology on the site when it is
+structurally the worst. Putting the flattering chart on its own would not have been a lie in any
+single sentence. It would still have misled every reader.
+
+🔧 **Engineering:** The load-bearing decision was made before any CSS: **the pages stay
+generated from the scoring modules.** The tempting move was to hand-author a beautiful static
+site — far faster, total design control. It would also have been silently wrong the first time a
+threshold moved, which is the exact drift this project has already corrected four separate
+times. So the presentation layer is generated too, and `web.py` is a Python module rather than a
+stylesheet. To prove the redesign changed nothing, I snapshotted every number *before* touching
+anything and diffed after: metrics byte-identical, the latency table identical, the red team's
+convergence generations identical (shell_company gen 2, mule_network gen 7), the cross-bank arms
+identical.
+
+Three defects found, and every one by **looking at the output rather than by a failing test** —
+which is now the fourth or fifth time in this project that has been the method that worked.
+
+The worst was self-inflicted and would have been invisible to me. I hid every section at
+`opacity:0` and revealed it on scroll with an IntersectionObserver. Elegant, until you ask what
+happens if the script does not run: the page renders **completely blank**. I had made a
+decorative scroll animation load-bearing for whether the site had any content at all. The fix is
+the old boring pattern — scope the hiding rule to a `.js` class that an inline script adds — and
+the lesson is one I keep relearning: if a feature is unavailable, the failure mode should be
+*less polish*, never *less content*.
+
+The second was a dead-link bug my own test caught one layer up: the landing page's
+research-question cards, hero buttons and start-here cards all linked unconditionally, so a
+partial build published a page with dead links on it. Every body link routes through one
+availability check now. I deliberately left the persistent top navigation constant across all
+five pages and documented why rather than silently exempting it — a nav that changes shape as
+you move through a site is worse than one entry that 404s in a build state that never gets
+committed.
+
+The third: a fixed-width SVG overflowed its card and pushed the *longest* bar's value label
+off-screen. The one number a reader most wants was the one number they could not see. I found it
+by measuring the element in a browser instead of trusting that it looked fine.
+
+🎯 **Interview line:** "I rebuilt the project's published site as a proper research product, and
+the constraint I set first was that the pages stay generated from the scoring modules rather than
+hand-authored. A static site with the results pasted in would have looked identical on day one
+and been silently wrong the first time a threshold moved — which is a drift I'd already had to
+correct four times in that codebase. To prove the redesign changed nothing scientific, I
+snapshotted every number before starting and diffed after: all identical. Then looking at the
+finished page caught three defects no test had, including one where I'd hidden every section at
+opacity zero and revealed it on scroll — so with JavaScript unavailable the page rendered
+completely blank. I'd made an animation load-bearing for whether the site had any content."

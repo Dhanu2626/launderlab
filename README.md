@@ -12,8 +12,10 @@ investigator in one loop.
 recall — something no production bank can do, because no bank knows what it missed.** That
 single property is what makes the numbers below measurements rather than claims.
 
-**▶ [See it running](https://dhanu2626.github.io/launderlab/)** — replay a laundering scheme
-day by day, watch detection close in, and read every measured result. No install.
+**▶ [See it running](https://dhanu2626.github.io/launderlab/)** — an interactive research site:
+replay a laundering scheme day by day, watch detection close in, and read every measured result
+with its methodology and limits. No install. *(Requires GitHub Pages enabled on this repo:
+Settings → Pages → Deploy from a branch → `main` / `docs`.)*
 
 <sub>Built by Dhanush Jangadi. All data synthetic; all typologies from public FATF / FinCEN /
 RBI advisories.</sub>

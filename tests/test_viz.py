@@ -39,8 +39,11 @@ def test_every_chart_draws_without_falling_back_to_an_error(world, tmp_path):
     path = viz.render(world, tmp_path / "charts")
     page = path.read_text(encoding="utf-8")
 
-    assert path.name == "index.html"
-    assert page.count("<svg") == 3, "expected one chart per phase section"
+    assert path.name == "results.html"
+    # 3 experiment charts. The KPI block is deliberately not a chart:
+    # five unrelated scalars in three units, where a bar comparing a
+    # percentage to a review count would be decoration posing as analysis.
+    assert page.count("<svg") == 3, "expected one chart per experiment"
     assert "Could not draw this chart" not in page, page[:500]
 
 
@@ -48,8 +51,15 @@ def test_charts_are_self_contained(world, tmp_path):
     """A portfolio artifact that needs a CDN reachable is one that fails in the
     room. Same rule the workbench page follows."""
     page = viz.render(world, tmp_path / "charts").read_text(encoding="utf-8")
-    assert "http://" not in page and "https://" not in page
+    # The ONE permitted external reference is the repository link in the shared
+    # footer. Everything else -- styles, scripts, fonts, images -- must be inline,
+    # because this page's whole audience is people who open it and nothing else.
+    for token in ("http://", "https://"):
+        for hit in page.split(token)[1:]:
+            assert hit.startswith("github.com/Dhanu2626/launderlab"), (
+                f"unexpected external reference: {token}{hit[:60]}")
     assert "<img" not in page, "charts must be inline SVG, not linked images"
+    assert "<script src" not in page and "@import" not in page
 
 
 def test_charts_come_from_the_scorers_not_their_own_queries(world):
@@ -106,14 +116,18 @@ def redteam_run():
 
 
 def test_line_chart_draws_one_polyline_per_series():
-    svg = viz.line_chart({"a": [0.1, 0.5, 0.9], "b": [0.9, 0.5, 0.1]})
+    """Returns (svg, legend) since the redesign: the legend became interactive,
+    so it is paired with the chart it toggles rather than pasted after it."""
+    svg, legend = viz.line_chart({"a": [0.1, 0.5, 0.9], "b": [0.9, 0.5, 0.1]})
     assert svg.count("<polyline") == 2
     assert "gen0" in svg and "gen2" in svg
-    assert '<span><i style="background:var(--l1)"></i>a</span>' in svg
+    assert 'data-series="a"' in legend and 'data-series="b"' in legend
+    assert legend.count('aria-pressed="true"') == 2, "every series starts visible"
 
 
 def test_line_chart_survives_no_series():
-    assert "No data" in viz.line_chart({})
+    svg, legend = viz.line_chart({})
+    assert "No data" in svg and legend == ""
 
 
 def test_redteam_chart_draws_a_series_per_typology(redteam_run):
@@ -142,16 +156,29 @@ def test_multibank_chart_shows_every_view_for_every_arm(tmp_path):
     path = viz.render_multibank(arms, tmp_path / "charts")
     assert path.name == "multibank.html"
     page = path.read_text(encoding="utf-8")
-    assert "http://" not in page and "https://" not in page
+    # The ONE permitted external reference is the repository link in the shared
+    # footer. Everything else -- styles, scripts, fonts, images -- must be inline,
+    # because this page's whole audience is people who open it and nothing else.
+    for token in ("http://", "https://"):
+        for hit in page.split(token)[1:]:
+            assert hit.startswith("github.com/Dhanu2626/launderlab"), (
+                f"unexpected external reference: {token}{hit[:60]}")
 
 
 def test_redteam_page_is_self_contained_and_separate_from_the_main_charts(redteam_run, tmp_path):
-    """Must not force `charts/index.html` to depend on an 8-generation benchmark
+    """Must not force the results page to depend on an 8-generation benchmark
     result, and must never reach out to a CDN — same rule every other page in
     this project follows."""
     results, genomes = redteam_run
     path = viz.render_redteam(results, genomes, tmp_path / "charts")
     assert path.name == "redteam.html"
     page = path.read_text(encoding="utf-8")
-    assert "http://" not in page and "https://" not in page
-    assert page.count("<svg") == 1
+    # The ONE permitted external reference is the repository link in the shared
+    # footer. Everything else -- styles, scripts, fonts, images -- must be inline,
+    # because this page's whole audience is people who open it and nothing else.
+    for token in ("http://", "https://"):
+        for hit in page.split(token)[1:]:
+            assert hit.startswith("github.com/Dhanu2626/launderlab"), (
+                f"unexpected external reference: {token}{hit[:60]}")
+    # one decay chart, plus the shared page furniture drawing no data
+    assert page.count("<svg") >= 1

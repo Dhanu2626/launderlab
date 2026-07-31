@@ -1,26 +1,23 @@
-"""Charts, rendered as self-contained SVG from real scored data.
+"""The measured-results pages, rendered from the scorers on the shared design system.
 
 The project's quality bar says every phase ships a visual artifact rather than a
-table, and until now that was honoured by generating charts in a session and
-looking at them. Nothing in the repository produced one, so the claim was not
-reproducible -- PROJECT.md's Phase 3 entry says "Real visual:
-detection-rate-per-typology bar chart" and there was no code that could draw it
-again. This module closes that gap.
-
-WHY HAND-WRITTEN SVG AND NOT MATPLOTLIB. Three bar charts is not worth a plotting
-dependency, and the repo already renders HTML without one (`statement.py`, the
-workbench page). SVG in a page also stays legible in dark mode via the same CSS
-variables the workbench uses, which a rasterised PNG cannot. If the whitepaper in
-Phase 9 needs publication-quality figures, that is the moment to reach for a real
-plotting library -- not before.
+table, and until this module existed that was honoured by generating charts in a
+session and looking at them -- so the claim was not reproducible.
 
 BOUNDARY, and it is the interesting one: **charts about detection quality are
 scoring output, so this module is allowed to read ground truth** -- the same
 exception `*/scoring.py` and `workbench/evaluate.py` hold. It reads the labels
-only through those scorers, never with its own query, so there is exactly one
-place per layer where the answer key is consulted.
+only *through those scorers*, never with its own query, so there is exactly one
+place per layer where the answer key is consulted. A source-level test enforces
+that, and it has already caught one guard here doing its own SELECT.
 
-    python -m launderlab charts             # writes to charts/ and opens the index
+WHAT THIS MODULE DOES NOT DO: invent, round, restate or re-derive a number. Every
+figure is handed to it by a scorer and formatted for display. The presentation
+around them (`launderlab.web`) is generated for the same reason -- a hand-written
+page with the results pasted in would look identical on day one and be silently
+wrong the first time a threshold moved.
+
+    python -m launderlab charts      # -> charts/results.html
 """
 
 from __future__ import annotations
@@ -31,6 +28,7 @@ from pathlib import Path
 
 import duckdb
 
+from launderlab import web
 from launderlab.detect import rules
 from launderlab.detect import scoring as rules_scoring
 from launderlab.graph import build as graph_build
@@ -39,93 +37,21 @@ from launderlab.graph import scoring as graph_scoring
 
 DEFAULT_OUT = Path("charts")
 
-# Colours come through as CSS variables so one SVG reads correctly in both
-# themes; the fallbacks keep it sane if the file is opened standalone.
-CSS = """
-:root { --bg:#fbfbfa; --panel:#fff; --ink:#14140f; --muted:#6b6b63; --line:#e3e2da;
-        --bar:#185fa5; --bar2:#0f6e56; --miss:#c9c7bd; --warn:#a32d2d;
-        --l1:#185fa5; --l2:#0f6e56; --l3:#b45309; --l4:#7a3ea3; --l5:#a32d2d; }
-@media (prefers-color-scheme: dark) {
-  :root { --bg:#161614; --panel:#1e1e1b; --ink:#f2f1ea; --muted:#9d9c92;
-          --line:#32312c; --bar:#6ea8e6; --bar2:#4fb59a; --miss:#3a3934;
-          --l1:#6ea8e6; --l2:#4fb59a; --l3:#e0a458; --l4:#c398e8; --l5:#e08080; } }
-* { box-sizing:border-box; }
-body { margin:0; padding:30px 28px 60px; background:var(--bg); color:var(--ink);
-       font:15px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif; max-width:900px; }
-h1 { font-size:20px; margin:0 0 4px; }
-h2 { font-size:14px; margin:34px 0 4px; }
-p.sub { color:var(--muted); font-size:13px; margin:0 0 12px; }
-.card { background:var(--panel); border:1px solid var(--line); border-radius:9px;
-        padding:14px 16px; overflow-x:auto; }
-.bar { fill:var(--bar); } .bar.alt { fill:var(--bar2); } .bar.miss { fill:var(--miss); }
-.lbl { font-size:11.5px; fill:var(--ink); }
-.val { font-size:11px; fill:var(--muted); }
-.axis { stroke:var(--line); stroke-width:1; }
-.note { color:var(--muted); font-size:12.5px; margin:10px 0 0; }
-.warn { color:var(--warn); }
-.legend { display:flex; flex-wrap:wrap; gap:12px 18px; margin-top:8px; font-size:12.5px; }
-.legend span { display:inline-flex; align-items:center; gap:6px; }
-.legend i { width:11px; height:11px; border-radius:2px; display:inline-block; }
-"""
-
-_ROW_H = 26
-_PAD_L = 190
-_PAD_R = 58
-_WIDTH = 760
+# Compatibility aliases. The visual primitives moved into `web` so five pages
+# could share one language; these keep the older call sites and their tests
+# working without a second implementation of a bar.
+CSS = web.css()
+bar_chart = web.bars
+line_chart = web.lines
 
 
 def page(title: str, subtitle: str, body: str, *, heading: str | None = None,
          extra_css: str = "") -> str:
-    """One self-contained HTML page — no CDN, no build step, readable in both themes.
-
-    Four pages now share this shell (the three charts and Phase 9's Story Mode),
-    so the alternative is four copies of a doctype and a stylesheet drifting apart.
-    `subtitle` is inserted as HTML, not escaped: every caller passes a sentence
-    containing a `<code>` command, which is the point of it.
-    """
-    return (f'<!doctype html>\n<meta charset="utf-8">\n'
-            f'<meta name="viewport" content="width=device-width,initial-scale=1">\n'
-            f"<title>{html.escape(title)}</title>\n<style>{CSS}{extra_css}</style>\n"
-            f"<h1>{html.escape(heading or title)}</h1>\n"
-            + (f'<p class="sub">{subtitle}</p>\n' if subtitle else "")
-            + body + "\n")
-
-
-def bar_chart(rows: list[tuple[str, float]], *, maximum: float | None = None,
-              fmt: str = "{:.0%}", alt: set[str] | None = None) -> str:
-    """Horizontal bars. `rows` is [(label, value)]; longest label sets the gutter."""
-    if not rows:
-        return '<p class="note">No data.</p>'
-    alt = alt or set()
-    top = maximum if maximum is not None else max(v for _, v in rows)
-    top = top or 1.0
-    plot = _WIDTH - _PAD_L - _PAD_R
-    height = len(rows) * _ROW_H + 14
-
-    # Scales to its container instead of a fixed 760px. Measured in a browser:
-    # at a 717px body the fixed width overflowed the card and pushed the LONGEST
-    # bar's value label off-screen -- so the one number a reader most wants was
-    # the one number they could not see, on a page whose entire job is being read
-    # by someone who will not open the data.
-    parts = [f'<svg viewBox="0 0 {_WIDTH} {height}" width="100%" '
-             f'style="max-width:{_WIDTH}px" '
-             f'role="img" aria-label="bar chart of {len(rows)} values">']
-    for i, (label, value) in enumerate(rows):
-        y = i * _ROW_H + 6
-        width = max(1.0, (value / top) * plot) if value > 0 else 0.0
-        css = "bar alt" if label in alt else ("bar miss" if value <= 0 else "bar")
-        parts.append(
-            f'<text class="lbl" x="{_PAD_L - 8}" y="{y + 13}" text-anchor="end">'
-            f'{html.escape(label)}</text>')
-        if width:
-            parts.append(f'<rect class="{css}" x="{_PAD_L}" y="{y + 2}" '
-                         f'width="{width:.1f}" height="{_ROW_H - 10}" rx="2"></rect>')
-        parts.append(f'<text class="val" x="{_PAD_L + width + 6:.1f}" y="{y + 13}">'
-                     f'{fmt.format(value)}</text>')
-    parts.append(f'<line class="axis" x1="{_PAD_L}" y1="2" x2="{_PAD_L}" '
-                 f'y2="{height - 6}"></line>')
-    parts.append("</svg>")
-    return "".join(parts)
+    """One self-contained page. Thin shim over `web.shell` for older callers."""
+    return web.shell(title=title, description=subtitle or title, active="results.html",
+                     body=f'<div class="wrap"><h1>{html.escape(heading or title)}</h1>'
+                          f'<p class="lede">{subtitle}</p>{body}</div>',
+                     extra_css=extra_css)
 
 
 def _share(pairs: dict) -> list[tuple[str, float]]:
@@ -141,10 +67,15 @@ def _share(pairs: dict) -> list[tuple[str, float]]:
     return sorted(rows, key=lambda r: r[1], reverse=True)
 
 
+# ------------------------------------------------------------- the experiments
+
 def rules_recall_by_typology(conn: duckdb.DuckDBPyConnection) -> tuple[str, str]:
     """Phase 3's chart: what share of each typology's schemes the rules caught."""
     report = rules_scoring.score(conn, rules.run_all(conn))
-    svg = bar_chart(_share(report.by_typology), maximum=1.0)
+    rows = _share(report.by_typology)
+    tips = {label: f"{value:.1%} of this typology's schemes were caught by at "
+                   f"least one rule." for label, value in rows}
+    svg = web.bars(rows, maximum=1.0, tips=tips)
     note = (f"Recall per injected typology, scored against ground truth. Overall "
             f"{report.overall_recall:.1%} recall at {report.precision:.1%} precision "
             f"across {report.schemes_total} schemes. A short bar is a measured blind "
@@ -157,7 +88,13 @@ def graph_visibility(conn: duckdb.DuckDBPyConnection) -> tuple[str, str]:
     report = graph_scoring.score_chains(
         conn, motifs.find_chains(graph_build.build_graph(conn)))
     rows = _share(report.schemes_with_internal_edges)
-    svg = bar_chart(rows, maximum=1.0, alt={label for label, value in rows if value > 0})
+    tips = {label: ("Leaves an internal edge the graph can analyse."
+                    if value > 0 else
+                    "Leaves no internal edge at all -- the counterparty banks "
+                    "elsewhere, so only one leg is in this ledger.")
+            for label, value in rows}
+    svg = web.bars(rows, maximum=1.0, tips=tips,
+                   accent={label for label, value in rows if value > 0})
     note = ("Share of each typology that leaves any internal edge to analyse. The zeros "
             "are the cross-bank blind spot, not a detection failure: those counterparties "
             "bank elsewhere, so the scheme leaves one leg and no edge. Of the chains that "
@@ -183,78 +120,27 @@ def queue_composition(conn: duckdb.DuckDBPyConnection) -> tuple[str, str]:
 
     rows = [(f"tier: {name}", counts[name]) for name in risk.TIER_ORDER]
     rows += [(f"contributes: {name}", layers[name]) for name in risk.TIER_ORDER]
-    svg = bar_chart(rows, fmt="{:.0f}", alt={f"contributes: {n}" for n in risk.TIER_ORDER})
+    tips = {}
+    for name in risk.TIER_ORDER:
+        tips[f"tier: {name}"] = f"{counts[name]} cases were filed under this tier."
+        tips[f"contributes: {name}"] = (f"{layers[name]} cases carry evidence from "
+                                        f"this layer, whatever tier they were filed under.")
+    svg = web.bars(rows, fmt="{:.0f}", tips=tips,
+                   accent={f"contributes: {n}" for n in risk.TIER_ORDER})
     note = (f"{len(open_cases)} open cases. The top four bars are which tier a case was "
             "filed under; the lower four are how many cases each layer contributed any "
             "evidence to. A layer can carry many cases without ever owning a tier.")
     return svg, note
 
 
-_LINE_COLORS = ("l1", "l2", "l3", "l4", "l5")
-_LINE_W, _LINE_H = 700, 300
-_LINE_PAD = 44
-
-
-def line_chart(series: dict[str, list[float]], *, y_max: float = 1.0,
-               y_fmt: str = "{:.0%}") -> str:
-    """Multiple named series, one polyline each, sharing 0..len-1 on the x-axis.
-
-    Generic on purpose -- Phase 8 is the first thing in this module with a
-    trend over an ordered axis rather than one snapshot, so it earns its own
-    primitive instead of forcing a line into `bar_chart`'s per-category shape.
-    """
-    if not series:
-        return '<p class="note">No data.</p>'
-    n_points = max(len(values) for values in series.values())
-    plot_w, plot_h = _LINE_W - _LINE_PAD * 2, _LINE_H - _LINE_PAD * 2
-    x_step = plot_w / max(n_points - 1, 1)
-
-    def xy(i: int, value: float) -> tuple[float, float]:
-        x = _LINE_PAD + i * x_step
-        y = _LINE_PAD + plot_h * (1 - min(value / y_max, 1.0))
-        return x, y
-
-    parts = [f'<svg viewBox="0 0 {_LINE_W} {_LINE_H}" width="100%" '
-             f'style="max-width:{_LINE_W}px" '
-             f'role="img" aria-label="line chart, {len(series)} series over '
-             f'{n_points} points">']
-    # axes + y gridlines at 0/25/50/75/100%
-    for frac in (0.0, 0.25, 0.5, 0.75, 1.0):
-        _, y = xy(0, frac * y_max)
-        parts.append(f'<line class="axis" x1="{_LINE_PAD}" y1="{y:.1f}" '
-                     f'x2="{_LINE_W - _LINE_PAD}" y2="{y:.1f}"></line>')
-        parts.append(f'<text class="val" x="{_LINE_PAD - 8}" y="{y + 4:.1f}" '
-                     f'text-anchor="end">{y_fmt.format(frac * y_max)}</text>')
-    for i in range(n_points):
-        x, _ = xy(i, 0)
-        parts.append(f'<text class="val" x="{x:.1f}" y="{_LINE_H - _LINE_PAD + 16}" '
-                     f'text-anchor="middle">gen{i}</text>')
-
-    for idx, (name, values) in enumerate(series.items()):
-        color = f"var(--{_LINE_COLORS[idx % len(_LINE_COLORS)]})"
-        points = [xy(i, v) for i, v in enumerate(values)]
-        path = " ".join(f"{x:.1f},{y:.1f}" for x, y in points)
-        parts.append(f'<polyline points="{path}" fill="none" stroke="{color}" '
-                     f'stroke-width="2.25"></polyline>')
-        for x, y in points:
-            parts.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="3" fill="{color}"></circle>')
-
-    parts.append("</svg>")
-    legend = "".join(
-        f'<span><i style="background:var(--{_LINE_COLORS[i % len(_LINE_COLORS)]})"></i>'
-        f'{html.escape(name)}</span>'
-        for i, name in enumerate(series))
-    return "".join(parts) + f'<div class="legend">{legend}</div>'
-
-
 def redteam_decay_chart(results, genomes) -> tuple[str, str]:
-    """Phase 8's headline: recall per typology, generation over generation,
-    against an adversary that mutates its own parameters. Takes the benchmark's
-    own return values directly rather than a connection -- `run_decay_benchmark`
-    builds and discards a fresh throwaway world per generation internally, so
-    there is no single `conn` this chart could read from, and re-running an
-    8-generation benchmark (minutes) just to draw a chart already computed in
-    memory would be wasted work the CLI already avoided.
+    """Phase 8's headline: recall per typology, generation over generation.
+
+    Takes the benchmark's own return values directly rather than a connection --
+    `run_decay_benchmark` builds and discards a fresh throwaway world per
+    generation internally, so there is no single `conn` this chart could read
+    from, and re-running an 8-generation benchmark just to draw a chart already
+    computed in memory would be wasted work the CLI already avoided.
     """
     by_typology: dict[str, list] = {}
     for r in results:
@@ -264,25 +150,60 @@ def redteam_decay_chart(results, genomes) -> tuple[str, str]:
         rows = sorted(rows, key=lambda r: r.generation)
         series[typology] = [r.recall for r in rows]
 
-    svg = line_chart(series, y_max=1.0)
+    svg, legend = web.lines(series, y_max=1.0)
     converged = [f"{t} (gen {g.converged_at})" for t, g in genomes.items()
-                if g.converged_at is not None]
+                 if g.converged_at is not None]
     note = ("Recall against a static rules engine (plus Phase 5's graph for "
             "mule_network) as the adversary mutates its own injector parameters "
             "each generation it evades detection. Converged (fully evaded at "
             "least once): " + (", ".join(converged) if converged else "none") +
             ". high_risk_geography is excluded -- no continuous evasion knob "
             "exists for it (see redteam.py).")
+    return svg + legend, note
+
+
+def multibank_chart(arms) -> tuple[str, str]:
+    """Phase 8.5: what each view reconstructs, per placement arm.
+
+    A grouped bar rather than a line: these are three distinct views of the same
+    fixed set of chains, not a trend over an ordered axis, so a line's shape
+    would imply a progression that does not exist.
+    """
+    from launderlab import multibank
+
+    rows, accent, tips = [], set(), {}
+    for placement in multibank.PLACEMENTS:
+        if placement not in arms:
+            continue
+        t = multibank.totals(arms[placement][0])
+        if not t.hops:
+            continue
+        for label, value, why in (
+            ("pooled (central view)", t.pooled,
+             "A hypothetical regulator holding every bank's ledger at once."),
+            ("single bank alone", t.solo,
+             "The luckiest individual bank, working only its own rows."),
+            ("privacy-preserving co-op", t.coop,
+             "After banks publish HMAC'd payment references for accounts they "
+             "already flagged themselves. No names, no account ids."),
+        ):
+            row = f"{placement}: {label}"
+            rows.append((row, value / t.hops))
+            tips[row] = f"{value} of {t.hops} planted chain hops. {why}"
+            if label.startswith("privacy"):
+                accent.add(row)
+
+    svg = web.bars(rows, maximum=1.0, accent=accent, tips=tips)
+    note = ("Share of planted mule-chain hops each view can reconstruct. A single bank "
+            "sees essentially none of the network no matter how the chain was placed - "
+            "rebuilding a chain needs consecutive hops inside one bank, which is rare "
+            "once accounts are spread across institutions. Co-operation recovers most "
+            "of it while sharing only hashed payment references, never customer data.")
     return svg, note
 
 
 def kpi_dashboard(conn: duckdb.DuckDBPyConnection, snapshot=None) -> tuple[str, str]:
-    """The four numbers an FCC function reports upward (Phase 9.2).
-
-    Rendered as a definition list rather than a chart: these are five unrelated
-    scalars in three different units, and a bar chart comparing a percentage to
-    a review count would be decoration pretending to be analysis.
-    """
+    """The four numbers an FCC function reports upward (Phase 9.2)."""
     from launderlab import metrics as metrics_mod
 
     m = metrics_mod.collect(conn) if snapshot is None else snapshot
@@ -296,195 +217,668 @@ def kpi_dashboard(conn: duckdb.DuckDBPyConnection, snapshot=None) -> tuple[str, 
             "this ledger has no injected schemes, so detection rate, precision "
             "and conversion are undefined rather than zero. Point LAUNDERLAB_DB "
             "at a world with crime in it: python -m launderlab demo-world")
-    rows = [
-        ("detection rate", f"{m.recall:.1%}",
-         f"{m.schemes_detected} of {m.schemes_total} injected schemes caught"),
-        ("alert precision", f"{m.precision:.1%}",
-         f"false-positive rate {m.false_positive_rate:.1%}"),
-        ("queue precision", f"{m.queue_precision:.1%}",
+
+    items = [
+        (f"{m.recall:.1%}", "Detection rate",
+         f"{m.schemes_detected} of {m.schemes_total} injected schemes caught",
+         "", f"{m.recall * 100:.1f}"),
+        (f"{m.precision:.1%}", "Alert precision",
+         f"False-positive rate {m.false_positive_rate:.1%}",
+         "teal", f"{m.precision * 100:.1f}"),
+        (f"{m.queue_precision:.1%}", "Queue precision",
          f"{m.cases_on_dirty} of {m.cases_total} opened cases sit on an account "
-         "genuinely in a scheme"),
+         "genuinely in a scheme", "violet", f"{m.queue_precision * 100:.1f}"),
     ]
     if m.conversion_is_measurable:
-        rows.append(("alert-to-SAR conversion", f"{m.observed_conversion:.1%}",
-                     f"observed: {m.sars_filed} SARs from {m.cases_closed} closed cases"))
+        items.append((f"{m.observed_conversion:.1%}", "Alert-to-SAR conversion",
+                      f"Observed: {m.sars_filed} SARs from {m.cases_closed} closed cases",
+                      "amber", f"{m.observed_conversion * 100:.1f}"))
     else:
         # Never 0% -- see metrics.py. "Unreviewed" and "reviewed and cleared"
         # are opposite facts and a zero would merge them.
-        rows.append(("alert-to-SAR conversion", "not measurable",
-                     "no case has been worked to a disposition yet; the ceiling if "
-                     f"every analyst call were perfect is {m.ceiling_conversion:.1%}, "
-                     "which is queue precision by definition"))
+        items.append(("Not measurable", "Alert-to-SAR conversion",
+                      "No case has been worked to a disposition yet. Ceiling if every "
+                      f"analyst call were perfect: <b>{m.ceiling_conversion:.1%}</b> &mdash; "
+                      "which is queue precision, by definition.", "rose", None, True))
 
     workload = [r for r in m.budgets if r.reviews_per_true_find is not None]
     if workload:
         row = workload[-1]
-        rows.append(("reviews per true find", f"{row.reviews_per_true_find:.2f}",
-                     f"at an alert budget of {row.budget}: "
-                     f"{row.true_finds} real in {row.worked} worked "
-                     f"(~{row.hours_per_true_find():.1f}h at "
-                     f"{metrics_mod.DEFAULT_REVIEW_HOURS}h per review, an assumption)"))
+        items.append((f"{row.reviews_per_true_find:.2f}", "Reviews per true find",
+                      f"At an alert budget of {row.budget}: {row.true_finds} real in "
+                      f"{row.worked} worked &middot; ~{row.hours_per_true_find():.1f}h at "
+                      f"{metrics_mod.DEFAULT_REVIEW_HOURS}h per review, an assumption",
+                      "", f"{row.reviews_per_true_find:.2f}"))
 
-    items = "".join(
-        f'<div class="kpi"><b>{html.escape(value)}</b>'
-        f'<span class="k">{html.escape(label)}</span>'
-        f'<span class="d">{html.escape(detail)}</span></div>'
-        for label, value, detail in rows)
     note = ("Detection rate and precision come from the rules scorer, so they cannot "
             "drift from the figures published elsewhere. Conversion is reported as "
             "measurable or not, never as zero: an unworked queue and a queue whose "
-            "every alert was cleared are opposite facts. Its ceiling equals queue "
-            "precision exactly — which means the industry's headline analyst KPI "
-            "reduces, at best, to a property of the queue rather than of the analyst.")
-    return f'<div class="kpis">{items}</div>', note
+            "every alert was cleared are opposite facts.")
+    return web.kpis(items, "g3"), note
 
 
-_KPI_CSS = """
-.kpis { display:grid; gap:10px; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); }
-.kpi { border:1px solid var(--line); border-radius:8px; padding:10px 12px; background:var(--bg); }
-.kpi b { display:block; font-size:22px; font-variant-numeric:tabular-nums; }
-.kpi .k { display:block; font-size:12.5px; font-weight:600; margin-top:2px; }
-.kpi .d { display:block; font-size:12px; color:var(--muted); margin-top:4px; }
-"""
+def _experiment(*, num: str, title: str, objective: str, svg: str, caption: str,
+                finding: str, why: str, technical: str, business: str) -> str:
+    """One experiment, in the order a reader needs it: what, picture, so what.
+
+    Never a chart on its own. Every one answers the same four questions in the
+    same order, so a reader who learns the shape once can skim the rest.
+    """
+    return (
+        f'<div class="card pad-lg" data-rv="0" data-chart style="margin-bottom:18px">'
+        f'<div style="display:flex;gap:14px;align-items:baseline;flex-wrap:wrap">'
+        f'<span class="pill">{web.esc(num)}</span>'
+        f'<h3 style="flex:1;min-width:220px">{web.esc(title)}</h3></div>'
+        f'<p style="margin-top:10px;font-size:.93rem">{objective}</p>'
+        f'<div class="chart-wrap" style="margin-top:18px">{svg}</div>'
+        f'<p class="note">{caption}</p>'
+        + web.box("finding", "Key finding", f"<p>{finding}</p>")
+        + web.box("why", "Why it matters", f"<p>{why}</p>")
+        + web.expandable("Technical explanation", f"<p>{technical}</p>")
+        + web.expandable("Business implication", f"<p>{business}</p>")
+        + "</div>")
 
 
 def render(conn: duckdb.DuckDBPyConnection, out_dir: Path = DEFAULT_OUT) -> Path:
-    """Write every chart as one self-contained page. Returns its path."""
+    """Write the measured-results dashboard. Returns its path."""
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
+    path = out_dir / "results.html"
 
     # ONE guard, at the only point every ground-truth chart passes through.
     # Every section here divides by something ground truth supplies, so against
     # a crime-free ledger they all render a confident 0.0% -- "0 of 0 schemes
     # caught" reads as a total failure of the detection stack rather than as an
     # empty world. Guarding each builder separately would be four chances to
-    # add a fifth chart that forgets.
-    #
-    # The count comes from the SCORER, not a label query here: viz.py is held to
-    # reading ground truth only through the scoring modules, and the boundary
-    # test caught the first version of this guard doing its own SELECT. Computed
-    # once and handed to the KPI section, which would otherwise recompute it.
+    # add a fifth chart that forgets. The count comes from the SCORER, not a
+    # label query here: the boundary test caught the first version doing its own.
     from launderlab import metrics as metrics_mod
 
     snapshot = metrics_mod.collect(conn)
     if not snapshot.schemes_total:
-        path = out_dir / "index.html"
-        path.write_text(page(
-            "LaunderLab — measured results",
-            "Regenerate with <code>python -m launderlab charts</code>.",
-            '<p class="note warn">This ledger has no injected schemes in it, so every '
-            "figure on this page would be a rate over an empty denominator — 0 of 0 "
-            "schemes caught, which reads as a failed detection stack rather than as an "
-            "empty world. No chart is drawn rather than a misleading one. Build a world "
-            "with crime in it and point <code>LAUNDERLAB_DB</code> at it: "
-            "<code>python -m launderlab demo-world</code>.</p>"),
+        path.write_text(web.shell(
+            title="LaunderLab — Measured results",
+            description="Measured detection results for the LaunderLab AML range.",
+            active="results.html",
+            body=web.hero(
+                eyebrow="Measured results", title="No world to measure",
+                lede="This ledger has <strong>no injected schemes</strong> in it, so every "
+                     "figure on this page would be a rate over an empty denominator "
+                     "&mdash; 0 of 0 schemes caught, which reads as a failed detection "
+                     "stack rather than as an empty world. No chart is drawn rather than "
+                     "a misleading one.")
+            + web.section(sid="fix", eyebrow="Fix", title="Build a world with crime in it",
+                          body=web.box("warn", "Next step",
+                                       "<p>Run <code>python -m launderlab demo-world</code>, "
+                                       "point <code>LAUNDERLAB_DB</code> at it, then "
+                                       "<code>python -m launderlab charts</code>.</p>"))),
             encoding="utf-8")
         return path
 
-    sections = []
-    for title, builder in (
-        ("Operating metrics — what the stack costs to run (Phase 9.2)",
-         lambda c: kpi_dashboard(c, snapshot)),
-        ("Rules engine — recall by typology (Phase 3)", rules_recall_by_typology),
-        ("Graph analytics — what a single bank can see (Phase 5)", graph_visibility),
-        ("Workbench queue — which layer reaches an analyst (Phase 7)", queue_composition),
+    kpi_html, kpi_note = kpi_dashboard(conn, snapshot)
+
+    experiments = []
+    for spec, builder in (
+        (dict(
+            num="Phase 3",
+            title="Rules engine — recall by typology",
+            objective="Six tunable scenarios, each aimed at one typology's actual "
+                      "transaction signature. The question: what share of each crime "
+                      "type does a conventional rules engine actually catch?",
+            finding="Recall is <strong>not uniform across crime types</strong>. A short bar "
+                    "is a measured blind spot, not a missing measurement &mdash; small "
+                    "structuring genuinely looks like a shop banking its takings.",
+            why="A single aggregate recall number hides exactly this. A bank reporting "
+                "&ldquo;86% recall&rdquo; upward may be at 100% on one typology and near "
+                "zero on another, and nobody in the room would know which.",
+            technical="These thresholds were re-tuned twice. The original figures scored "
+                      "100% precision &mdash; but only because the synthetic world emitted "
+                      "no legitimate cash at all, so <em>any</em> cash deposit was crime. "
+                      "Once merchants and businesses banked real takings, "
+                      "<code>structuring_burst</code> went from 0 to 24 false positives on "
+                      "a clean world. The thresholds now sit in the measured gap between "
+                      "legitimate cash-banking (tops out ~21 deposits) and structuring "
+                      "(27–47).",
+            business="Rule coverage should be reported per typology in MI packs, not as one "
+                     "number. The aggregate is the number that gets presented; the "
+                     "per-typology breakdown is the one that tells you where you are blind."),
+         rules_recall_by_typology),
+        (dict(
+            num="Phase 5",
+            title="Graph analytics — what a single bank can see",
+            objective="Rebuild the internal transfer graph by pairing the two legs of "
+                      "each payment, then look for pass-through chains. The question: "
+                      "how much of each typology is even visible to a graph?",
+            finding="<strong>Only one of six typologies leaves an internal edge at all.</strong> "
+                    "The other five have counterparties outside the bank, so they leave one "
+                    "leg and no edge &mdash; there is nothing for a graph to analyse.",
+            why="Graph analytics is sold as a general AML capability. Measured here, its "
+                "reach is bounded by a structural fact about where counterparties bank, "
+                "not by the quality of the algorithm.",
+            technical="Edges are reconstructed on the <em>reference number shared by both "
+                      "legs</em>, not on (timestamp, amount) &mdash; the latter cross-pairs "
+                      "unrelated coincident transfers. Chains are suffix-collapsed, because "
+                      "growing from every edge rediscovers a long chain from its 2nd and 3rd "
+                      "accounts and an investigator wants the path once. Fan-in/fan-out "
+                      "detectors were built and then deleted: they fired zero times at usable "
+                      "thresholds, and 72 of 76 hits when loosened were ordinary merchants.",
+            business="This is the direct setup for the cross-bank experiment. If five of six "
+                     "typologies are invisible to a graph inside one bank, the case for "
+                     "inter-bank intelligence sharing is not ideological &mdash; it is the "
+                     "only way those edges come into existence."),
+         graph_visibility),
+        (dict(
+            num="Phase 7",
+            title="Workbench queue — which layer reaches an analyst",
+            objective="Four detection layers feed one investigator queue. The question: "
+                      "which layer actually puts work in front of a human, and which one "
+                      "merely contributes evidence to somebody else's case?",
+            finding="A layer can carry many cases <strong>without ever owning a tier</strong>. "
+                    "Filing tier and contribution are different measurements, and only "
+                    "showing the first would credit the wrong control.",
+            why="If you report &ldquo;the model found 24 cases&rdquo; when the model merely "
+                "agreed with a rule that found them, you will fund the wrong thing at the "
+                "next budget round.",
+            technical="Tier order is by <em>how specific a reason the analyst gets</em> &mdash; "
+                      "a graph names a path, a rule names a scenario, screening names a "
+                      "person, a model names nothing. It is deliberately not ordered by "
+                      "standalone precision, which measures each layer as a lone ranker and "
+                      "once filed sanctions hits under a &ldquo;model-ranked&rdquo; heading.",
+            business="The model tier is empty here by arithmetic and on purpose: a model-only "
+                     "alert tops out below the case-opening threshold, because an alert with "
+                     "no explainable reason should not consume an analyst's day."),
+         queue_composition),
     ):
         try:
-            svg, note = builder(conn)
+            svg, caption = builder(conn)
         except Exception as exc:  # a chart that cannot be drawn must say why
-            svg = (f'<p class="note warn">Could not draw this chart: '
-                   f'{html.escape(f"{type(exc).__name__}: {exc}")}</p>')
-            note = ""
-        sections.append(
-            f"<h2>{html.escape(title)}</h2>"
-            f'<div class="card">{svg}</div>'
-            + (f'<p class="note">{html.escape(note)}</p>' if note else ""))
+            svg = ('<p class="note">Could not draw this chart: '
+                   f'{web.esc(f"{type(exc).__name__}: {exc}")}</p>')
+            caption = ""
+        experiments.append(_experiment(svg=svg, caption=caption, **spec))
 
-    path = out_dir / "index.html"
-    path.write_text(page(
-        "LaunderLab — measured results",
-        "Drawn from the ledger this ran against, scored against ground truth. "
-        "Regenerate with <code>python -m launderlab charts</code>.",
-        "\n".join(sections), extra_css=_KPI_CSS), encoding="utf-8")
+    m = snapshot
+    body = (
+        web.hero(
+            eyebrow="Measured results",
+            title="Every detector, graded against the answer key",
+            lede="Because the injector records ground truth for every planted transaction, "
+                 "each detection layer can be scored on <strong>real precision and "
+                 "recall</strong> &mdash; the measurement a production bank structurally "
+                 "cannot make, because no bank knows what it missed. Nothing on this page "
+                 "is typed by hand; every figure is rendered from the scoring modules.",
+            meta=[(f"{m.schemes_total}", "injected schemes"),
+                  (f"{m.cases_total}", "cases opened"),
+                  ("4", "detection layers"),
+                  ("6", "typologies")])
+        + web.section(
+            sid="kpis", eyebrow="Executive summary",
+            title="The four numbers an FCC function reports upward",
+            lede="This project previously measured two of them. Conversion and cost are "
+                 "operational: they describe what the queue costs to work, not how good a "
+                 "detector is &mdash; and a stack can look excellent on recall while being "
+                 "unaffordable to run.",
+            body=kpi_html
+            + f'<p class="note">{web.esc(kpi_note)}</p>'
+            + web.box("finding", "The finding hiding in these five numbers",
+                      "<p>The ceiling on alert-to-SAR conversion is <strong>exactly queue "
+                      "precision</strong>. If analysts never erred, every alert on a "
+                      "laundering account would become a filing and every other would be "
+                      "cleared &mdash; so the industry's headline <em>analyst</em> KPI "
+                      "collapses, at best, into a property of the <em>queue</em>. In "
+                      "production the two are inseparable, because nobody knows which "
+                      "cleared alerts were mistakes.</p>")
+            + web.box("limit", "What is deliberately not shown",
+                      "<p>Conversion reads <strong>not measurable</strong>, never 0%. No "
+                      "case in this world has been worked to a disposition, and "
+                      "&ldquo;nobody has reviewed these&rdquo; and &ldquo;everything "
+                      "reviewed was cleared&rdquo; are opposite facts that a zero would "
+                      "merge into the one that makes a detection stack look broken.</p>"))
+        + web.section(
+            sid="experiments", eyebrow="Experiments", title="Three measurements, in full",
+            lede="Each one states its objective, shows the chart, then answers what it "
+                 "found, why it matters, how it works and what it means operationally.",
+            body="".join(experiments), tone="teal")
+        + web.section(
+            sid="limits", eyebrow="Limitations", title="What these numbers do not say",
+            tone="amber",
+            body='<div class="grid g2" data-rv="0">'
+                 + web.card("The world is synthetic",
+                            "Its realism bounds every figure here. Four separate findings in "
+                            "this project were corrections to artefacts of this generator; "
+                            "others certainly remain.", hover=False)
+                 + web.card("One world, one seed",
+                            "These are a real measured example, not a population statistic. "
+                            "Averaging over seeds is future work.", hover=False)
+                 + web.card("counterparty_concentration is knowingly imprecise",
+                            "Measured as unfixable by threshold: shell schemes sit at 6 "
+                            "payments and 50% concentration, inside the legitimate 5–9 and "
+                            "51–63% range. An honest supplier with one big client and a "
+                            "shell-fed front are not separable on concentration alone.",
+                            hover=False)
+                 + web.card("Small structuring is a documented blind spot",
+                            "Genuinely indistinguishable from a shop banking its takings — "
+                            "which is precisely why real structuring works.", hover=False)
+                 + "</div>")
+        + web.section(
+            sid="next", eyebrow="Next", title="Continue the investigation",
+            body=web.next_link("redteam.html", "Experiment 4",
+                               "Red team decay benchmark",
+                               "What happens to all of this when the adversary adapts.")
+            + '<div style="height:12px"></div>'
+            + web.next_link("multibank.html", "Experiment 5",
+                            "The cross-bank blind spot",
+                            "The flagship result: what one bank structurally cannot see."))
+    )
+
+    path.write_text(web.shell(
+        title="LaunderLab — Measured results",
+        description=f"Detection rate {m.recall:.1%}, alert precision {m.precision:.1%}, "
+                    f"queue precision {m.queue_precision:.1%}. Every AML detection layer "
+                    "scored against ground truth.",
+        active="results.html", body=body), encoding="utf-8")
     return path
 
 
-def multibank_chart(arms) -> tuple[str, str]:
-    """Phase 8.5: what each view reconstructs, per placement arm.
-
-    A grouped bar rather than a line: these are three distinct views of the same
-    fixed set of chains, not a trend over an ordered axis, so `line_chart`'s
-    shape would imply a progression that does not exist.
-    """
+def render_multibank(arms, out_dir: Path = DEFAULT_OUT) -> Path:
+    """The flagship result, treated as a featured publication."""
     from launderlab import multibank
 
-    rows, alt = [], set()
-    for placement in multibank.PLACEMENTS:
-        if placement not in arms:
-            continue
-        t = multibank.totals(arms[placement][0])
-        if not t.hops:
-            continue
-        for label, value in (("pooled (central view)", t.pooled),
-                             ("single bank alone", t.solo),
-                             ("privacy-preserving co-op", t.coop)):
-            row = f"{placement}: {label}"
-            rows.append((row, value / t.hops))
-            if label.startswith("privacy"):
-                alt.add(row)
-
-    svg = bar_chart(rows, maximum=1.0, alt=alt)
-    note = ("Share of planted mule-chain hops each view can reconstruct. A single bank "
-            "sees essentially none of the network no matter how the chain was placed - "
-            "rebuilding a chain needs consecutive hops inside one bank, which is rare "
-            "once accounts are spread across institutions. Co-operation recovers most "
-            "of it while sharing only hashed payment references, never customer data.")
-    return svg, note
-
-
-def render_multibank(arms, out_dir: Path = DEFAULT_OUT) -> Path:
-    """Write the Phase 8.5 blind-spot chart as its own self-contained page."""
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     svg, note = multibank_chart(arms)
 
+    stats = {}
+    for placement in multibank.PLACEMENTS:
+        if placement in arms:
+            t = multibank.totals(arms[placement][0])
+            if t.hops:
+                stats[placement] = t
+
+    # KPI headline uses the NAIVE arm deliberately: it is the arm where a solo
+    # bank's result is measured rather than true by construction.
+    naive = stats.get("naive")
+    kpi_items = []
+    if naive:
+        kpi_items = [
+            (f"{naive.pooled / naive.hops:.0%}", "Pooled central view",
+             "A hypothetical regulator holding every bank's ledger at once", "teal"),
+            (f"{naive.solo / naive.hops:.0%}", "A single bank alone",
+             f"The luckiest individual bank reconstructed {naive.solo} of "
+             f"{naive.hops} chain hops", "rose"),
+            (f"{naive.coop / naive.hops:.0%}", "Privacy-preserving co-operation",
+             "Recovered from HMAC'd payment references alone — no names, no account ids"),
+            (f"{naive.flagged / naive.accounts:.0%}", "Mule accounts flagged locally",
+             "Each bank saw the accounts perfectly well. It could not see the network",
+             "violet"),
+        ]
+
+    body = (
+        web.hero(
+            eyebrow="Flagship result · Phase 8.5", tone="violet",
+            title="The blind spot is the network, not the account",
+            lede="Split one synthetic world across <strong>four banks with genuinely "
+                 "separate ledgers</strong>, then ask what each can see of a mule chain "
+                 "running through all of them. Banks flag three-quarters of the individual "
+                 "mule accounts on their own books &mdash; and reconstruct almost none of "
+                 "the chains those accounts form. This is the experiment central banks run "
+                 "behind closed doors; this is its open version.",
+            meta=[("4", "separate ledgers"), ("2", "placement arms"),
+                  ("HMAC", "not a bare hash")])
+        + web.section(
+            sid="problem", eyebrow="Problem statement",
+            title="Why a laundering chain disappears at an institutional boundary",
+            lede="Reconstructing a chain means pairing the two legs of a transfer. When the "
+                 "counterparty banks elsewhere, the second leg is not in your ledger at all "
+                 "&mdash; so the hop is not weakly visible, it is <em>absent</em>.",
+            tone="violet",
+            body=_bank_illustration()
+            + web.box("why", "The mechanism, computed rather than asserted",
+                      "<p>Chain detection will not report anything shorter than two hops, so "
+                      "a lone intra-bank hop is invisible even to the bank holding both its "
+                      "legs. With <em>n</em> banks, the odds of a reportable same-bank "
+                      "stretch fall off as <strong>1/n&sup2;</strong> per position. The code "
+                      "counts how many stretches were even long enough to report, so a 0% "
+                      "is explained rather than merely observed.</p>"))
+        + web.section(
+            sid="results", eyebrow="Results", title="What each view reconstructs",
+            lede="Two arms, because one alone would be arithmetic dressed as a finding. "
+                 "<strong>Deliberate</strong> walks the banks in turn so no two consecutive "
+                 "accounts share one &mdash; a solo bank then reconstructs 0% <em>by "
+                 "construction</em>, which is not evidence. <strong>Naive</strong> ignores "
+                 "banks entirely, which is what an unsophisticated launderer does, and what "
+                 "a solo bank sees there is genuinely measured.",
+            body=(web.kpis(kpi_items, "g4") if kpi_items else "")
+            + '<div style="height:18px"></div>'
+            + web.chart_card(svg, caption=web.esc(note))
+            + web.box("finding", "The result inverted the hypothesis it was built to test",
+                      "<p>Naive placement gave a solo bank only 6%, against 0% for "
+                      "deliberate. So <strong>spreading a chain across institutions buys the "
+                      "launderer almost nothing</strong> &mdash; the blind spot is already "
+                      "near-total by accident. You do not need a sophisticated adversary to "
+                      "get it; you get it for free from how the banking system is "
+                      "partitioned. The case for co-operation does not depend on facing a "
+                      "clever criminal.</p>")
+            + web.box("why", "Local detection was never the problem",
+                      "<p>Each bank flagged 75&ndash;77% of the individual mule accounts it "
+                      "held. Those banks are probably already filing individual reports. "
+                      "What nobody can do is see that six separate pass-through alerts at "
+                      "six different institutions are <strong>one laundering "
+                      "operation</strong> &mdash; which is exactly the gap financial "
+                      "intelligence units exist to close.</p>"), tone="violet")
+        + web.section(
+            sid="coop", eyebrow="Prototype",
+            title="Privacy-preserving co-operation, and what it costs to disclose",
+            lede="Each bank publishes, only for accounts it already flagged itself, an "
+                 "HMAC of the payment reference plus direction, amount and timestamp. Never "
+                 "a name, an account id, a balance, or anything at all about an unflagged "
+                 "account. Matching hashed references across banks rebuilds the "
+                 "cross-boundary edges pseudonymously.",
+            tone="teal",
+            body=_coop_illustration()
+            + web.box("method", "Why HMAC and not a bare hash",
+                      "<p>A plain SHA of a short numeric payment reference is trivially "
+                      "brute-forced back to the reference, which would hand every "
+                      "participant a lookup table for payments they were never party to. "
+                      "The shared secret is what makes the published fingerprint useless to "
+                      "anyone outside the scheme.</p>")
+            + web.box("limit", "Residual disclosure, stated rather than glossed",
+                      "<p>The coordinator still learns the <em>shape</em> of the inter-bank "
+                      "graph &mdash; who transacts with whom, at what volume &mdash; even "
+                      "without identities. And a flagged account's <em>entire</em> payment "
+                      "history is fingerprinted, not just its suspicious legs, because which "
+                      "leg is the laundering hop is the very thing reconstruction exists to "
+                      "find. Those are the honest reasons this is a prototype and not a "
+                      "protocol proposal, and they are where the real central-bank work "
+                      "spends most of its effort.</p>")
+            + web.expandable(
+                "Engineering note: why four separate database files, not a WHERE clause",
+                "<p>A filter would have been faster and simpler &mdash; and then every "
+                "detector in the project (rules, graph build, motif detection) would have "
+                "had to remember to honour it, and one that forgot would silently give a "
+                "bank sight of another bank's rows. That would invent detection ability "
+                "that does not exist and inflate the exact number this phase was built to "
+                "produce. With separate files the isolation is structural: the other bank's "
+                "rows are simply absent, every existing detector runs completely unmodified, "
+                "and a test asserts each ledger holds only its own accounts, transactions "
+                "and customers.</p>")
+            + web.expandable(
+                "Engineering note: a backwards metric, caught before publication",
+                "<p>The first version scored the co-operative view on cross-boundary "
+                "recoveries <em>alone</em>. That penalised the naive arm for intra-bank hops "
+                "its own bank already held both legs of &mdash; and produced the absurd "
+                "result that a chain <em>deliberately spread across banks</em> looked better "
+                "covered (69%) than a careless one (50%). Getting a backwards ordering out "
+                "of a metric is the cheapest possible signal that the metric is wrong. The "
+                "co-operative view now counts every hop whose link is known, and naive "
+                "correctly comes out ahead.</p>"))
+        + web.section(
+            sid="implications", eyebrow="Contribution",
+            title="What this contributes, and what it does not",
+            body='<div class="grid g2" data-rv="0">'
+                 + web.card("Research contribution",
+                            "The cross-bank blind spot, quantified in the open with ground "
+                            "truth available &mdash; and decomposed into an account-level "
+                            "result (detection works) and a network-level result (it does "
+                            "not). The 1/n&sup2; mechanism turns the headline from an "
+                            "observation into an explanation.", hover=False)
+                 + web.card("Practical implication",
+                            "Information-sharing schemes should be evaluated on chain "
+                            "reconstruction, not on account-level flag rates. A programme "
+                            "reporting that member banks flag 76% of mule accounts is "
+                            "reporting a number that was already true before it existed.",
+                            hover=False)
+                 + web.card("Not a protocol proposal",
+                            "The coordinator still learns the inter-bank graph's shape, and "
+                            "unflagged legs of a flagged account are disclosed. Making those "
+                            "private &mdash; secure set intersection, differential privacy "
+                            "on volumes &mdash; is where the real work lies.", hover=False)
+                 + web.card("One seed, exactly four banks, mule chains only",
+                            "The 1/n&sup2; mechanism predicts the blind spot deepens with "
+                            "more banks; sweeping n would turn a stated mechanism into a "
+                            "measured curve. The other five typologies leave no internal "
+                            "edge even inside one bank, so splitting changes nothing for "
+                            "them.", hover=False)
+                 + "</div>", tone="amber")
+        + web.section(
+            sid="next", eyebrow="Next", title="Continue",
+            body=web.next_link("story.html", "Story Mode",
+                               "Watch a single scheme unfold",
+                               "Replay a real injected scheme day by day and see exactly "
+                               "when detection closes in on it."))
+    )
+
     path = out_dir / "multibank.html"
-    path.write_text(page(
-        "LaunderLab — the cross-bank blind spot",
-        "What one bank sees alone, what a central view would see, and what "
-        "privacy-preserving co-operation buys back. Regenerate with "
-        "<code>python -m launderlab multibank</code>.",
-        f"<h2>Mule-chain hops reconstructed, by view</h2>"
-        f'<div class="card">{svg}</div>'
-        f'<p class="note">{html.escape(note)}</p>',
-        heading="LaunderLab — the cross-bank blind spot (Phase 8.5)"), encoding="utf-8")
+    path.write_text(web.shell(
+        title="LaunderLab — The cross-bank blind spot",
+        description="Four banks with genuinely separate ledgers flag 75-77% of individual "
+                    "mule accounts and reconstruct 0-6% of the chains those accounts form. "
+                    "Privacy-preserving co-operation recovers 69-81% of hops.",
+        active="multibank.html", body=body), encoding="utf-8")
     return path
 
 
 def render_redteam(results, genomes, out_dir: Path = DEFAULT_OUT) -> Path:
-    """Write the Phase 8 decay chart as its own self-contained page.
+    """The decay benchmark, treated as a security benchmark.
 
-    Separate from `render()`'s `charts/index.html` rather than folded into it:
-    that page's three charts each cost a query against an already-open
-    connection, while a red team run costs several minutes end to end. Rebuilding
-    the fast charts should never force an 8-generation benchmark, and a red team
-    result should never depend on which world happens to be sitting at
-    `data/demo.duckdb` when someone runs `charts`.
+    Written to its own page rather than folded into the results dashboard: that
+    page's charts each cost a query against an already-open connection, while a
+    red team run costs several minutes end to end. Rebuilding the fast charts
+    should never force an 8-generation benchmark.
     """
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
-    svg, note = redteam_decay_chart(results, genomes)
+    chart, note = redteam_decay_chart(results, genomes)
+
+    by_typology: dict[str, list] = {}
+    for r in results:
+        by_typology.setdefault(r.typology, []).append(r)
+    generations = max((r.generation for r in results), default=0) + 1
+    converged = {t: g.converged_at for t, g in genomes.items()
+                 if g.converged_at is not None}
+    resisted = [t for t in by_typology if t not in converged]
+
+    rows = []
+    for typology in sorted(by_typology):
+        ordered = sorted(by_typology[typology], key=lambda r: r.generation)
+        first, last = ordered[0].recall, ordered[-1].recall
+        gen = converged.get(typology)
+        state = (f'<span class="pill off">collapsed at gen {gen}</span>' if gen is not None
+                 else '<span class="pill on">never fully evaded</span>')
+        rows.append(
+            f'<tr><td><strong>{web.esc(typology)}</strong></td>'
+            f'<td class="n">{first:.0%}</td><td class="n">{last:.0%}</td>'
+            f'<td>{state}</td></tr>')
+
+    body = (
+        web.hero(
+            eyebrow="Adversarial benchmark · Phase 8", tone="amber",
+            title="Detection decay is not uniform",
+            lede="A static detection stack versus an adversary that <strong>mutates its own "
+                 "scheme parameters every generation it gets caught</strong>. Some controls "
+                 "collapse completely within two generations and never recover. Others never "
+                 "fully evade at all. A single aggregate recall figure could not have shown "
+                 "the difference &mdash; and the difference is the whole finding.",
+            meta=[(f"{generations}", "generations"),
+                  (f"{len(by_typology)}", "adversary genomes"),
+                  (f"{len(converged)}", "fully evaded"),
+                  (f"{len(resisted)}", "never evaded")])
+        + web.section(
+            sid="method", eyebrow="Methodology", title="How the adversary adapts",
+            lede="One genome per typology. Each starts at generation 0's naive default and "
+                 "takes one step toward whichever real-world-plausible direction reduces "
+                 "detectability, every generation it gets caught &mdash; freezing once a "
+                 "generation scores zero recall.",
+            tone="amber",
+            body='<div class="grid g3" data-rv="0">'
+                 + web.card("The knobs are the injectors' own parameters",
+                            "Deposit ceiling, cut percentage and hop window, invoice count, "
+                            "hop days, dormancy gap. Nothing invented for the benchmark.",
+                            hover=False)
+                 + web.card("Bounds come from public facts",
+                            "The cash-reporting line near ₹1,00,000; a mule chain stops "
+                            "being worth running past roughly 35% skimmed per hop. A test "
+                            "asserts no bound equals the rule threshold it is meant to "
+                            "evade.", hover=False)
+                 + web.card("The adversary never reads the answer key",
+                            "It knows only the account ids it planted this call, held in "
+                            "local memory, and never reads a rule's tuned constants. The "
+                            "same boundary every detection layer here is held to.",
+                            hover=False)
+                 + "</div>"
+                 + web.box("method", "Why one typology is excluded",
+                           "<p><code>high_risk_geography</code> is left out on purpose. Its "
+                           "only real evasion move is routing through an unlisted "
+                           "jurisdiction &mdash; a categorical choice with no honest "
+                           "continuous knob. Inventing a fake one would have produced a "
+                           "smooth decay curve that meant nothing.</p>"))
+        + web.section(
+            sid="decay", eyebrow="Results", title="Recall, generation over generation",
+            lede="Click a legend entry to isolate a typology. Every point is a real measured "
+                 "recall against a freshly regenerated world.",
+            body=web.chart_card(chart, caption=web.esc(note))
+            + '<div class="card pad-lg" data-rv="1" style="margin-top:18px">'
+            + '<div class="scroll-x"><table class="tbl">'
+            + '<tr><th>Typology</th><th>Gen 0</th><th>Final</th><th>Outcome</th></tr>'
+            + "".join(rows) + "</table></div></div>")
+        + web.section(
+            sid="findings", eyebrow="Findings", title="What collapsed, what held",
+            tone="teal",
+            body=web.box("finding", "Collapse is fast and total where it happens",
+                         "<p><code>shell_company</code> converges fastest and most "
+                         "completely, and stays at zero afterwards &mdash; consistent with "
+                         "the earlier static finding that its rule is unfixable by "
+                         "threshold, now demonstrated under adaptive pressure rather than "
+                         "in a clean-world test. <code>mule_network</code>, the one typology "
+                         "watched by <em>both</em> the rules engine and the graph layer, "
+                         "starts at a perfect 100% and still fully collapses.</p>")
+            + web.box("finding", "Some detection surfaces genuinely resist",
+                      "<p><code>structuring</code> and <code>round_tripping</code> never "
+                      "fully evade, even at real parameter extremes &mdash; a deposit "
+                      "ceiling of ₹99,000, one rupee under the cash-reporting line, and a "
+                      "hop window stretched to 38 days. Some surfaces are structurally more "
+                      "resistant to this class of evasion than others.</p>")
+            + web.box("warn", "&ldquo;Converged&rdquo; does not mean permanently evaded",
+                      "<p><code>dormant_reactivation</code> converges fastest of all and is "
+                      "the <em>least stable</em> convergence &mdash; it still averages "
+                      "meaningful recall in the generations after. A frozen genome runs "
+                      "against a freshly regenerated world each generation, so convergence "
+                      "records a <em>first</em> full evasion, not a guarantee. The benchmark "
+                      "reports post-convergence stability as its own number for exactly this "
+                      "reason.</p>"))
+        + web.section(
+            sid="limits", eyebrow="Limitations", title="What this benchmark does not claim",
+            tone="amber",
+            body='<div class="grid g2" data-rv="0">'
+                 + web.card("One seed, one trajectory",
+                            "The generation-of-convergence numbers are a real measured "
+                            "example, not a population statistic. Averaging over seeds is "
+                            "future work before any of them supports a stronger claim.",
+                            hover=False)
+                 + web.card("Rules and graph only",
+                            "Whether a <em>trained</em> model decays faster or slower than "
+                            "static thresholds against the same adversary is a real, "
+                            "different and open question.", hover=False)
+                 + "</div>")
+        + web.section(
+            sid="next", eyebrow="Next", title="Continue",
+            body=web.next_link("multibank.html", "Flagship result",
+                               "The cross-bank blind spot",
+                               "What one bank structurally cannot see, and what "
+                               "co-operation buys back."))
+    )
 
     path = out_dir / "redteam.html"
-    path.write_text(page(
-        "LaunderLab — red team decay benchmark",
-        "Recall of a static rules engine against an adversary that mutates its own "
-        "parameters. Regenerate with <code>python -m launderlab redteam</code>.",
-        f"<h2>Recall by typology, generation over generation</h2>"
-        f'<div class="card">{svg}</div>'
-        f'<p class="note">{html.escape(note)}</p>',
-        heading="LaunderLab — red team decay benchmark (Phase 8)"), encoding="utf-8")
+    path.write_text(web.shell(
+        title="LaunderLab — Red team decay benchmark",
+        description="A static AML detection stack versus an adversary that mutates its own "
+                    "parameters each generation. Decay is not uniform: some rules collapse "
+                    "in two generations, others never fully evade.",
+        active="redteam.html", body=body), encoding="utf-8")
     return path
+
+
+def _bank_illustration() -> str:
+    """A chain crossing four institutions, drawn once so the reader sees the gap."""
+    banks = [("Bank A", "var(--c1)"), ("Bank B", "var(--c2)"),
+             ("Bank C", "var(--c3)"), ("Bank D", "var(--c4)")]
+    parts = ['<div class="card pad-lg" data-rv="0"><div class="chart-wrap">',
+             '<svg viewBox="0 0 780 210" role="img" aria-label="A four-hop laundering '
+             'chain crossing four separate banks; each bank sees only its own account">']
+    for i, (name, col) in enumerate(banks):
+        x = 24 + i * 190
+        parts.append(
+            f'<rect x="{x}" y="34" width="152" height="118" rx="12" fill="var(--surface-2)" '
+            f'stroke="{col}" stroke-opacity=".45"/>'
+            f'<text x="{x + 76}" y="58" text-anchor="middle" class="c-lbl k" '
+            f'style="font-size:12px">{name}</text>'
+            f'<circle cx="{x + 76}" cy="96" r="19" fill="{col}" fill-opacity=".18" '
+            f'stroke="{col}"/>'
+            f'<text x="{x + 76}" y="101" text-anchor="middle" class="c-val" '
+            f'style="font-size:11px">A{i + 1}</text>'
+            f'<text x="{x + 76}" y="136" text-anchor="middle" class="c-lbl" '
+            f'style="font-size:10.5px">sees 1 leg</text>')
+        if i < 3:
+            x0, x1 = x + 152, x + 190
+            parts.append(
+                f'<path d="M{x0} 96 L{x1} 96" stroke="var(--rose)" stroke-width="2" '
+                f'stroke-dasharray="4 4"/>'
+                f'<path d="M{x1 - 7} 91 L{x1} 96 L{x1 - 7} 101" fill="none" '
+                f'stroke="var(--rose)" stroke-width="2"/>')
+    parts.append('<text x="390" y="188" text-anchor="middle" class="c-lbl" '
+                 'style="font-size:11.5px">Every dashed hop crosses an institutional '
+                 'boundary &mdash; the second leg is not in either ledger</text>')
+    parts.append("</svg></div>")
+    parts.append('<p class="note">The money is perfectly visible. The <em>path</em> is not: '
+                 'each bank holds one leg of each hop and no bank holds two consecutive '
+                 'hops, which is the minimum chain detection can report.</p></div>')
+    return "".join(parts)
+
+
+def _coop_illustration() -> str:
+    """What a bank publishes, and what it does not."""
+    return (
+        '<div class="card pad-lg" data-rv="0"><div class="chart-wrap">'
+        '<svg viewBox="0 0 780 230" role="img" aria-label="Each bank publishes an HMAC of '
+        'the payment reference, never customer data; a coordinator matches the hashes">'
+        '<rect x="20" y="20" width="200" height="86" rx="11" fill="var(--surface-2)" '
+        'stroke="var(--line-strong)"/>'
+        '<text x="120" y="45" text-anchor="middle" class="c-lbl k" style="font-size:12px">'
+        'Stays inside the bank</text>'
+        '<text x="120" y="68" text-anchor="middle" class="c-lbl" style="font-size:11px" '
+        'fill="var(--rose)">names &middot; account ids</text>'
+        '<text x="120" y="86" text-anchor="middle" class="c-lbl" style="font-size:11px" '
+        'fill="var(--rose)">balances &middot; unflagged accounts</text>'
+        '<rect x="20" y="124" width="200" height="86" rx="11" fill="var(--surface-2)" '
+        'stroke="var(--teal)" stroke-opacity=".5"/>'
+        '<text x="120" y="149" text-anchor="middle" class="c-lbl k" style="font-size:12px">'
+        'Published</text>'
+        '<text x="120" y="172" text-anchor="middle" class="c-lbl" style="font-size:11px" '
+        'fill="var(--teal)">HMAC(secret, reference)</text>'
+        '<text x="120" y="190" text-anchor="middle" class="c-lbl" style="font-size:11px" '
+        'fill="var(--teal)">direction &middot; amount &middot; timestamp</text>'
+        '<path d="M228 167 L318 122" stroke="var(--teal)" stroke-width="2"/>'
+        '<path d="M311 120 L318 122 L314 128" fill="none" stroke="var(--teal)" '
+        'stroke-width="2"/>'
+        '<rect x="326" y="80" width="180" height="84" rx="11" fill="var(--surface-3)" '
+        'stroke="var(--accent)" stroke-opacity=".5"/>'
+        '<text x="416" y="112" text-anchor="middle" class="c-lbl k" style="font-size:12px">'
+        'Coordinator</text>'
+        '<text x="416" y="134" text-anchor="middle" class="c-lbl" style="font-size:11px">'
+        'matches identical hashes</text>'
+        '<path d="M514 122 L602 122" stroke="var(--accent)" stroke-width="2"/>'
+        '<path d="M595 117 L602 122 L595 127" fill="none" stroke="var(--accent)" '
+        'stroke-width="2"/>'
+        '<rect x="610" y="80" width="150" height="84" rx="11" fill="var(--surface-2)" '
+        'stroke="var(--accent)" stroke-opacity=".5"/>'
+        '<text x="685" y="112" text-anchor="middle" class="c-lbl k" style="font-size:12px">'
+        'Cross-bank edge</text>'
+        '<text x="685" y="134" text-anchor="middle" class="c-lbl" style="font-size:11px">'
+        'rebuilt pseudonymously</text>'
+        '</svg></div>'
+        '<p class="note">A bank publishes fingerprints only for accounts it had already '
+        'flagged itself. Nothing at all is published about an account the bank did not '
+        'flag.</p></div>')
 
 
 def main(argv: list[str]) -> None:  # pragma: no cover - CLI wiring

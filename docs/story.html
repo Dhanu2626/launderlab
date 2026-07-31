@@ -1,146 +1,710 @@
 <!doctype html>
+<html lang="en">
+<head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>LaunderLab — Story Mode</title>
+<meta name="description" content="Replay a real money-laundering scheme day by day and watch a four-layer AML detection stack close in on it. Detection latency measured by re-running the real detectors against day-truncated views of the same ledger.">
+<meta name="theme-color" content="#08090a">
+<meta property="og:title" content="LaunderLab — Story Mode">
+<meta property="og:description" content="Replay a real money-laundering scheme day by day and watch a four-layer AML detection stack close in on it. Detection latency measured by re-running the real detectors against day-truncated views of the same ledger.">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
 <style>
-:root { --bg:#fbfbfa; --panel:#fff; --ink:#14140f; --muted:#6b6b63; --line:#e3e2da;
-        --bar:#185fa5; --bar2:#0f6e56; --miss:#c9c7bd; --warn:#a32d2d;
-        --l1:#185fa5; --l2:#0f6e56; --l3:#b45309; --l4:#7a3ea3; --l5:#a32d2d; }
-@media (prefers-color-scheme: dark) {
-  :root { --bg:#161614; --panel:#1e1e1b; --ink:#f2f1ea; --muted:#9d9c92;
-          --line:#32312c; --bar:#6ea8e6; --bar2:#4fb59a; --miss:#3a3934;
-          --l1:#6ea8e6; --l2:#4fb59a; --l3:#e0a458; --l4:#c398e8; --l5:#e08080; } }
-* { box-sizing:border-box; }
-body { margin:0; padding:30px 28px 60px; background:var(--bg); color:var(--ink);
-       font:15px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif; max-width:900px; }
-h1 { font-size:20px; margin:0 0 4px; }
-h2 { font-size:14px; margin:34px 0 4px; }
-p.sub { color:var(--muted); font-size:13px; margin:0 0 12px; }
-.card { background:var(--panel); border:1px solid var(--line); border-radius:9px;
-        padding:14px 16px; overflow-x:auto; }
-.bar { fill:var(--bar); } .bar.alt { fill:var(--bar2); } .bar.miss { fill:var(--miss); }
-.lbl { font-size:11.5px; fill:var(--ink); }
-.val { font-size:11px; fill:var(--muted); }
-.axis { stroke:var(--line); stroke-width:1; }
-.note { color:var(--muted); font-size:12.5px; margin:10px 0 0; }
-.warn { color:var(--warn); }
-.legend { display:flex; flex-wrap:wrap; gap:12px 18px; margin-top:8px; font-size:12.5px; }
-.legend span { display:inline-flex; align-items:center; gap:6px; }
-.legend i { width:11px; height:11px; border-radius:2px; display:inline-block; }
+:root {
+  color-scheme: dark;
+  --bg:#08090a; --bg-soft:#0c0e10; --surface:#111417; --surface-2:#161a1e;
+  --surface-3:#1c2126; --line:#222930; --line-strong:#2f3841;
+  --ink:#e9ecef; --ink-dim:#9aa3ab; --ink-faint:#6b747c;
+  --accent:#4c8dff; --accent-soft:#1b3a63;
+  --accent-glow:rgba(76,141,255,.14);
+  --teal:#2dd4bf; --violet:#a78bfa; --amber:#f0b429; --rose:#f87171;
+  --green:#4ade80;
+  --c1:#4c8dff; --c2:#2dd4bf; --c3:#f0b429; --c4:#a78bfa; --c5:#f87171;
+  --radius:14px; --radius-sm:9px; --radius-lg:20px;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 28px -12px rgba(0,0,0,.7);
+  --shadow-lg:0 2px 4px rgba(0,0,0,.4), 0 24px 60px -20px rgba(0,0,0,.85);
+  --mono:ui-monospace,"SF Mono","JetBrains Mono","Cascadia Mono",Menlo,Consolas,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+  --ease:cubic-bezier(.16,1,.3,1);
+  --maxw:1120px;
+}
 
-.picker { display:flex; flex-wrap:wrap; gap:6px; margin:10px 0 18px; }
-.picker button { font:inherit; font-size:12.5px; padding:5px 10px; cursor:pointer;
-  background:var(--panel); color:var(--ink); border:1px solid var(--line); border-radius:6px; }
-.picker button.on { background:var(--bar); border-color:var(--bar); color:#fff; }
-.scrub { display:flex; align-items:center; gap:12px; margin:4px 0 14px; }
-.scrub input { flex:1; }
-.day { font-variant-numeric:tabular-nums; font-weight:600; min-width:200px; }
-.flow { display:flex; align-items:stretch; gap:8px; overflow-x:auto; padding:4px 0; }
-.node { flex:0 0 auto; min-width:150px; border:1px solid var(--line); border-radius:8px;
-  padding:8px 10px; background:var(--bg); }
-.node.lit { border-color:var(--warn); box-shadow:0 0 0 2px color-mix(in srgb,var(--warn) 25%,transparent); }
-.node .who { font-size:12.5px; font-weight:600; }
-.node .id { font-size:11px; color:var(--muted); font-variant-numeric:tabular-nums; }
-.node .amt { font-size:12px; margin-top:4px; font-variant-numeric:tabular-nums; }
-.arrow { flex:0 0 auto; align-self:center; color:var(--muted); font-size:18px; }
-.det { display:flex; gap:8px; align-items:baseline; padding:5px 0;
-  border-bottom:1px solid var(--line); font-size:13px; }
+*,*::before,*::after { box-sizing:border-box; }
+html { -webkit-text-size-adjust:100%; scroll-behavior:smooth; }
+body {
+  margin:0; background:var(--bg); color:var(--ink);
+  font:400 16px/1.65 var(--sans);
+  -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+  overflow-x:hidden;
+}
+body::before {
+  content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+  background:
+    radial-gradient(900px 500px at 12% -8%, rgba(76,141,255,.10), transparent 60%),
+    radial-gradient(760px 420px at 92% 4%, rgba(167,139,250,.07), transparent 62%);
+}
+main,header,footer { position:relative; z-index:1; }
+h1,h2,h3,h4 { margin:0; font-weight:640; letter-spacing:-.021em; line-height:1.18; }
+h1 { font-size:clamp(2.1rem,5.2vw,3.5rem); letter-spacing:-.033em; }
+h2 { font-size:clamp(1.45rem,2.9vw,2rem); letter-spacing:-.026em; }
+h3 { font-size:1.075rem; letter-spacing:-.014em; }
+p { margin:0 0 1em; color:var(--ink-dim); }
+p:last-child { margin-bottom:0; }
+a { color:var(--accent); text-decoration:none; }
+a:hover { text-decoration:underline; text-underline-offset:3px; }
+strong,b { color:var(--ink); font-weight:620; }
+code,.mono { font-family:var(--mono); font-size:.875em; }
+code {
+  background:var(--surface-2); border:1px solid var(--line);
+  padding:.13em .42em; border-radius:5px; color:var(--ink);
+}
+.num { font-family:var(--mono); font-variant-numeric:tabular-nums; }
+.wrap { width:100%; max-width:var(--maxw); margin:0 auto; padding:0 24px; }
+.narrow { max-width:760px; }
+:focus-visible { outline:2px solid var(--accent); outline-offset:3px; border-radius:4px; }
+.skip {
+  position:absolute; left:-9999px; top:0; background:var(--accent); color:#04070d;
+  padding:10px 18px; border-radius:0 0 8px 0; font-weight:600; z-index:100;
+}
+.skip:focus { left:0; }
+.sr { position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+      overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
+
+.nav {
+  position:sticky; top:0; z-index:50;
+  background:rgba(8,9,10,.76); backdrop-filter:blur(14px) saturate(150%);
+  -webkit-backdrop-filter:blur(14px) saturate(150%);
+  border-bottom:1px solid var(--line);
+}
+.nav-in { display:flex; align-items:center; gap:8px; height:58px;
+          max-width:var(--maxw); margin:0 auto; padding:0 24px; }
+.brand { display:flex; align-items:center; gap:9px; font-weight:660;
+         letter-spacing:-.02em; color:var(--ink); margin-right:6px; font-size:.97rem; }
+.brand:hover { text-decoration:none; }
+.brand .dot { width:9px; height:9px; border-radius:3px;
+  background:linear-gradient(140deg,var(--accent),var(--teal)); flex:0 0 auto; }
+.nav-links { display:flex; gap:2px; margin-left:auto; align-items:center;
+             overflow-x:auto; scrollbar-width:none; }
+.nav-links::-webkit-scrollbar { display:none; }
+.nav-links a {
+  color:var(--ink-dim); font-size:.855rem; font-weight:500; padding:7px 11px;
+  border-radius:8px; white-space:nowrap; transition:color .16s, background .16s;
+}
+.nav-links a:hover { color:var(--ink); background:var(--surface-2); text-decoration:none; }
+.nav-links a[aria-current="page"] { color:var(--ink); background:var(--surface-3); }
+.nav-links a.ext { color:var(--ink-faint); }
+@media (max-width:720px){ .nav-in { padding:0 14px; } .brand span.full { display:none; } }
+
+.hero { padding:76px 0 44px; }
+.eyebrow {
+  display:inline-flex; align-items:center; gap:8px; font-family:var(--mono);
+  font-size:.72rem; letter-spacing:.13em; text-transform:uppercase;
+  color:var(--accent); background:var(--accent-glow);
+  border:1px solid rgba(76,141,255,.24); padding:5px 11px; border-radius:99px;
+  margin-bottom:20px;
+}
+.eyebrow.teal { color:var(--teal); background:rgba(45,212,191,.1);
+                border-color:rgba(45,212,191,.24); }
+.eyebrow.violet { color:var(--violet); background:rgba(167,139,250,.1);
+                  border-color:rgba(167,139,250,.24); }
+.eyebrow.amber { color:var(--amber); background:rgba(240,180,41,.1);
+                 border-color:rgba(240,180,41,.24); }
+.hero h1 { max-width:16ch; }
+.hero .grad {
+  background:linear-gradient(96deg,var(--ink) 18%,var(--accent) 62%,var(--teal) 96%);
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+}
+.lede { font-size:clamp(1.03rem,1.7vw,1.2rem); color:var(--ink-dim);
+        max-width:66ch; margin-top:20px; line-height:1.62; }
+.lede strong { color:var(--ink); }
+.hero-meta { display:flex; flex-wrap:wrap; gap:9px; margin-top:26px; }
+.chip {
+  display:inline-flex; align-items:center; gap:7px; font-size:.79rem;
+  color:var(--ink-dim); background:var(--surface); border:1px solid var(--line);
+  padding:6px 12px; border-radius:99px; font-family:var(--mono);
+}
+.chip b { color:var(--ink); font-weight:600; }
+section { padding:52px 0; }
+section + section { border-top:1px solid var(--line); }
+.sec-head { margin-bottom:28px; max-width:74ch; }
+.sec-head h2 { margin-bottom:12px; }
+.sec-head p { font-size:1rem; }
+.grid { display:grid; gap:16px; }
+.g2 { grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); }
+.g3 { grid-template-columns:repeat(auto-fit,minmax(232px,1fr)); }
+.g4 { grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); }
+.split { display:grid; gap:22px; grid-template-columns:1.35fr .95fr; align-items:start; }
+@media (max-width:860px){ .split { grid-template-columns:1fr; } }
+footer.ft { border-top:1px solid var(--line); padding:38px 0 56px; margin-top:26px;
+            color:var(--ink-faint); font-size:.86rem; }
+.ft-in { display:flex; flex-wrap:wrap; gap:18px; justify-content:space-between; }
+.ft a { color:var(--ink-dim); }
+
+.card {
+  background:linear-gradient(180deg,var(--surface) 0%,var(--bg-soft) 100%);
+  border:1px solid var(--line); border-radius:var(--radius); padding:20px 22px;
+  transition:border-color .22s var(--ease), transform .22s var(--ease),
+             box-shadow .22s var(--ease);
+}
+.card.pad-lg { padding:26px 28px; }
+.card.hover:hover { border-color:var(--line-strong); transform:translateY(-3px);
+                    box-shadow:var(--shadow-lg); }
+a.card { display:block; color:inherit; }
+a.card:hover { text-decoration:none; }
+.card h3 { margin-bottom:7px; }
+.card p { font-size:.92rem; }
+.kpi { background:var(--surface); border:1px solid var(--line);
+       border-radius:var(--radius); padding:18px 20px; position:relative;
+       overflow:hidden; }
+.kpi::after { content:''; position:absolute; left:0; top:0; bottom:0; width:2px;
+              background:linear-gradient(180deg,var(--accent),transparent); opacity:.55; }
+.kpi .v { font-family:var(--mono); font-variant-numeric:tabular-nums;
+          font-size:clamp(1.5rem,3.1vw,1.95rem); font-weight:600;
+          letter-spacing:-.03em; color:var(--ink); line-height:1.1; }
+.kpi .v.sm { font-size:1.16rem; letter-spacing:-.01em; }
+.kpi .k { font-size:.79rem; font-weight:600; color:var(--ink); margin-top:8px;
+          letter-spacing:-.005em; }
+.kpi .d { font-size:.77rem; color:var(--ink-faint); margin-top:5px; line-height:1.5; }
+.kpi.teal::after   { background:linear-gradient(180deg,var(--teal),transparent); }
+.kpi.violet::after { background:linear-gradient(180deg,var(--violet),transparent); }
+.kpi.amber::after  { background:linear-gradient(180deg,var(--amber),transparent); }
+.kpi.rose::after   { background:linear-gradient(180deg,var(--rose),transparent); }
+.note {
+  border-left:2px solid var(--line-strong); padding:2px 0 2px 16px;
+  color:var(--ink-dim); font-size:.9rem; margin:16px 0 0;
+}
+.box {
+  border:1px solid var(--line); border-radius:var(--radius-sm);
+  padding:15px 17px; margin:16px 0 0; background:var(--surface);
+  font-size:.91rem; color:var(--ink-dim);
+}
+.box .bt {
+  display:flex; align-items:center; gap:8px; font-size:.71rem; font-weight:700;
+  letter-spacing:.11em; text-transform:uppercase; margin-bottom:8px;
+  font-family:var(--mono);
+}
+.box.finding    { border-color:rgba(76,141,255,.3);  background:rgba(76,141,255,.045); }
+.box.finding .bt{ color:var(--accent); }
+.box.why        { border-color:rgba(45,212,191,.3);  background:rgba(45,212,191,.04); }
+.box.why .bt    { color:var(--teal); }
+.box.limit      { border-color:rgba(240,180,41,.3);  background:rgba(240,180,41,.04); }
+.box.limit .bt  { color:var(--amber); }
+.box.warn       { border-color:rgba(248,113,113,.32); background:rgba(248,113,113,.045); }
+.box.warn .bt   { color:var(--rose); }
+.box.method     { border-color:rgba(167,139,250,.3); background:rgba(167,139,250,.04); }
+.box.method .bt { color:var(--violet); }
+.box b, .box strong { color:var(--ink); }
+details.exp {
+  border:1px solid var(--line); border-radius:var(--radius-sm); margin:16px 0 0;
+  background:var(--surface); overflow:hidden;
+}
+details.exp > summary {
+  cursor:pointer; padding:13px 17px; font-size:.87rem; font-weight:600;
+  color:var(--ink); list-style:none; display:flex; align-items:center; gap:10px;
+  transition:background .16s;
+}
+details.exp > summary::-webkit-details-marker { display:none; }
+details.exp > summary::before {
+  content:'+'; font-family:var(--mono); color:var(--accent); font-weight:700;
+  font-size:1rem; width:14px; flex:0 0 auto; transition:transform .2s var(--ease);
+}
+details.exp[open] > summary::before { content:'\2212'; }
+details.exp > summary:hover { background:var(--surface-2); }
+details.exp .exp-body {
+  padding:2px 17px 16px; font-size:.89rem; color:var(--ink-dim);
+  border-top:1px solid var(--line);
+}
+details.exp .exp-body > :first-child { margin-top:13px; }
+.tbl { width:100%; border-collapse:collapse; font-size:.87rem; }
+.tbl th {
+  text-align:left; font-weight:600; color:var(--ink-faint); font-size:.72rem;
+  letter-spacing:.08em; text-transform:uppercase; padding:0 14px 9px 0;
+  border-bottom:1px solid var(--line); white-space:nowrap;
+}
+.tbl td { padding:9px 14px 9px 0; border-bottom:1px solid var(--line);
+          color:var(--ink-dim); vertical-align:top; }
+.tbl tr:last-child td { border-bottom:0; }
+.tbl td.n { font-family:var(--mono); font-variant-numeric:tabular-nums; color:var(--ink); }
+.tbl tr.hi td { background:rgba(76,141,255,.05); }
+.scroll-x { overflow-x:auto; margin:0 -22px; padding:0 22px; }
+.pill { display:inline-block; font-family:var(--mono); font-size:.71rem;
+        padding:2.5px 8px; border-radius:99px; border:1px solid var(--line);
+        color:var(--ink-dim); background:var(--surface-2); white-space:nowrap; }
+.pill.on   { background:rgba(74,222,128,.13); color:var(--green);
+             border-color:rgba(74,222,128,.3); }
+.pill.off  { background:rgba(248,113,113,.12); color:var(--rose);
+             border-color:rgba(248,113,113,.3); }
+.pill.wait { background:rgba(240,180,41,.12); color:var(--amber);
+             border-color:rgba(240,180,41,.28); }
+.tl { position:relative; padding-left:26px; }
+.tl::before { content:''; position:absolute; left:6px; top:5px; bottom:5px;
+              width:1px; background:var(--line); }
+.tl-i { position:relative; padding-bottom:20px; }
+.tl-i:last-child { padding-bottom:0; }
+.tl-i::before {
+  content:''; position:absolute; left:-24px; top:6px; width:9px; height:9px;
+  border-radius:99px; background:var(--surface-3); border:2px solid var(--line-strong);
+}
+.tl-i.done::before { background:var(--accent); border-color:var(--accent); }
+.tl-i .tl-h { font-size:.9rem; font-weight:620; color:var(--ink); }
+.tl-i .tl-d { font-size:.84rem; color:var(--ink-dim); margin-top:3px; }
+.tl-i .tl-t { font-family:var(--mono); font-size:.71rem; color:var(--ink-faint); }
+.btn {
+  display:inline-flex; align-items:center; gap:9px; padding:11px 19px;
+  border-radius:10px; font-size:.9rem; font-weight:600; border:1px solid transparent;
+  transition:transform .18s var(--ease), background .18s, border-color .18s;
+}
+.btn:hover { text-decoration:none; transform:translateY(-1.5px); }
+.btn.pri { background:var(--accent); color:#04070d; }
+.btn.pri:hover { background:#6ba1ff; }
+.btn.sec { background:var(--surface-2); color:var(--ink); border-color:var(--line-strong); }
+.btn.sec:hover { background:var(--surface-3); }
+.btn-row { display:flex; flex-wrap:wrap; gap:11px; margin-top:30px; }
+.next {
+  display:flex; align-items:center; justify-content:space-between; gap:18px;
+  padding:22px 24px; border:1px solid var(--line); border-radius:var(--radius);
+  background:linear-gradient(100deg,var(--surface),var(--bg-soft));
+  transition:border-color .22s, transform .22s var(--ease);
+}
+.next:hover { border-color:var(--accent); transform:translateY(-2px); text-decoration:none; }
+.next .nx-k { font-family:var(--mono); font-size:.71rem; letter-spacing:.11em;
+              text-transform:uppercase; color:var(--ink-faint); }
+.next .nx-t { font-size:1.06rem; font-weight:620; color:var(--ink); margin-top:5px; }
+.next .nx-d { font-size:.87rem; color:var(--ink-dim); margin-top:4px; }
+.next .arw { color:var(--accent); font-size:1.3rem; flex:0 0 auto; }
+
+.chart-wrap { position:relative; }
+.chart-wrap svg { display:block; width:100%; height:auto; overflow:visible; }
+.c-lbl  { font-family:var(--sans); font-size:12.5px; fill:var(--ink-dim); }
+.c-lbl.k{ fill:var(--ink); font-weight:560; }
+.c-val  { font-family:var(--mono); font-size:12px; fill:var(--ink);
+          font-variant-numeric:tabular-nums; }
+.c-ax   { stroke:var(--line); stroke-width:1; }
+.c-grid { stroke:var(--line); stroke-width:1; stroke-dasharray:2 5; opacity:.65; }
+.c-bar  { rx:4; transform-origin:left center; transition:opacity .18s; }
+.c-row  { cursor:default; }
+.c-row:hover .c-bar { opacity:.82; }
+.c-row.dim { opacity:.28; }
+.c-hit  { fill:transparent; }
+.reveal .c-bar { animation:barIn .85s var(--ease) both; }
+.reveal .c-line { animation:lineIn 1.15s var(--ease) both; }
+.reveal .c-dot { animation:dotIn .4s var(--ease) both; }
+@keyframes barIn { from { transform:scaleX(0); } to { transform:scaleX(1); } }
+@keyframes lineIn { from { stroke-dashoffset:var(--len); } to { stroke-dashoffset:0; } }
+@keyframes dotIn { from { opacity:0; transform:scale(.3); } to { opacity:1; transform:scale(1); } }
+.c-line { fill:none; stroke-width:2.25; stroke-linecap:round; stroke-linejoin:round;
+          stroke-dasharray:var(--len); }
+.legend { display:flex; flex-wrap:wrap; gap:7px; margin-top:16px; }
+.legend button {
+  display:inline-flex; align-items:center; gap:7px; font:inherit; font-size:.79rem;
+  color:var(--ink-dim); background:var(--surface-2); border:1px solid var(--line);
+  padding:5px 11px; border-radius:99px; cursor:pointer;
+  transition:background .16s, color .16s, opacity .16s;
+}
+.legend button:hover { color:var(--ink); background:var(--surface-3); }
+.legend button[aria-pressed="false"] { opacity:.4; }
+.legend i { width:9px; height:9px; border-radius:3px; flex:0 0 auto; }
+.tip {
+  position:fixed; pointer-events:none; opacity:0; z-index:80;
+  background:var(--surface-3); border:1px solid var(--line-strong);
+  border-radius:9px; padding:9px 12px; font-size:.8rem; color:var(--ink);
+  box-shadow:var(--shadow-lg); transition:opacity .13s; max-width:280px;
+  line-height:1.5;
+}
+.tip.show { opacity:1; }
+.tip .tt { font-weight:640; margin-bottom:3px; }
+.tip .td { color:var(--ink-dim); font-size:.76rem; }
+
+/* Scoped to .js, which a one-line inline script in <head> adds. With JavaScript
+   disabled or broken the rule never applies and every section is simply visible.
+   Hiding content unconditionally and relying on script to reveal it would make a
+   scroll animation load-bearing for whether the page has any content at all. */
+.js [data-rv] { opacity:0; transform:translateY(14px);
+                transition:opacity .62s var(--ease), transform .62s var(--ease); }
+.js [data-rv].in { opacity:1; transform:none; }
+@media (prefers-reduced-motion:reduce) {
+  html { scroll-behavior:auto; }
+  *,*::before,*::after { animation-duration:.001ms !important;
+    animation-iteration-count:1 !important; transition-duration:.001ms !important; }
+  .js [data-rv] { opacity:1; transform:none; }
+  .reveal .c-bar,.reveal .c-line,.reveal .c-dot { animation:none; }
+  .c-line { stroke-dasharray:none; }
+}
+
+.stage { display:grid; gap:16px; grid-template-columns:1fr 340px; align-items:start; }
+@media (max-width:960px){ .stage { grid-template-columns:1fr; } }
+.picker { display:flex; flex-wrap:wrap; gap:7px; margin-bottom:20px; }
+.picker button {
+  font:inherit; font-size:.8rem; padding:6px 12px; cursor:pointer; color:var(--ink-dim);
+  background:var(--surface); border:1px solid var(--line); border-radius:99px;
+  transition:background .16s, color .16s, border-color .16s;
+}
+.picker button:hover { color:var(--ink); border-color:var(--line-strong); }
+.picker button.on { background:var(--accent); border-color:var(--accent); color:#04070d;
+                    font-weight:600; }
+.picker .ty { opacity:.7; }
+.scrub { display:flex; align-items:center; gap:16px; margin:2px 0 18px; flex-wrap:wrap; }
+.scrub input[type=range] {
+  flex:1; min-width:200px; -webkit-appearance:none; appearance:none; height:5px;
+  border-radius:99px; background:var(--surface-3); outline:none; cursor:pointer;
+}
+.scrub input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance:none; width:17px; height:17px; border-radius:99px;
+  background:var(--accent); border:3px solid var(--bg); cursor:grab;
+  box-shadow:0 0 0 1px var(--accent);
+}
+.scrub input[type=range]::-moz-range-thumb {
+  width:14px; height:14px; border-radius:99px; background:var(--accent);
+  border:3px solid var(--bg); cursor:grab;
+}
+.daylab { font-family:var(--mono); font-size:.9rem; color:var(--ink); min-width:210px; }
+.daylab .d2 { color:var(--ink-faint); font-size:.76rem; display:block; margin-top:2px;
+              font-family:var(--sans); }
+.playbtn {
+  font:inherit; font-size:.8rem; padding:7px 15px; border-radius:8px; cursor:pointer;
+  background:var(--surface-2); color:var(--ink); border:1px solid var(--line-strong);
+  transition:background .16s;
+}
+.playbtn:hover { background:var(--surface-3); }
+.flow { display:flex; align-items:stretch; gap:6px; overflow-x:auto; padding:8px 2px 12px; }
+.node {
+  flex:0 0 auto; min-width:156px; border:1px solid var(--line); border-radius:11px;
+  padding:11px 13px; background:var(--surface); position:relative;
+  transition:border-color .35s var(--ease), box-shadow .35s var(--ease),
+             background .35s var(--ease);
+}
+.node.lit {
+  border-color:var(--rose); background:rgba(248,113,113,.07);
+  box-shadow:0 0 0 1px rgba(248,113,113,.28), 0 0 26px -6px rgba(248,113,113,.4);
+}
+.node .who { font-size:.83rem; font-weight:620; color:var(--ink); line-height:1.35; }
+.node .id { font-family:var(--mono); font-size:.7rem; color:var(--ink-faint); margin-top:2px; }
+.node .amt { font-family:var(--mono); font-size:.75rem; margin-top:7px; color:var(--ink-dim); }
+.node .amt b { color:var(--ink); font-weight:600; }
+.node .flag {
+  position:absolute; top:-8px; right:9px; font-size:.62rem; font-family:var(--mono);
+  background:var(--rose); color:#1a0505; padding:2px 7px; border-radius:99px;
+  font-weight:700; opacity:0; transform:translateY(-3px); transition:all .3s var(--ease);
+}
+.node.lit .flag { opacity:1; transform:none; }
+.arrow { flex:0 0 auto; align-self:center; color:var(--ink-faint); font-size:15px; }
+.det { display:flex; gap:11px; align-items:flex-start; padding:11px 0;
+       border-bottom:1px solid var(--line); }
 .det:last-child { border-bottom:0; }
-.det .pill { flex:0 0 auto; font-size:11px; padding:1px 7px; border-radius:99px;
-  border:1px solid var(--line); color:var(--muted); }
-.det.fired .pill { background:var(--warn); border-color:var(--warn); color:#fff; }
-.det .what { font-weight:600; }
-.det .why { color:var(--muted); }
-table.txns { border-collapse:collapse; width:100%; font-size:12.5px;
-  font-variant-numeric:tabular-nums; }
-table.txns th { text-align:left; color:var(--muted); font-weight:500;
-  border-bottom:1px solid var(--line); padding:4px 8px 4px 0; }
-table.txns td { padding:3px 8px 3px 0; border-bottom:1px solid var(--line); }
-table.txns td.dr { color:var(--warn); } table.txns td.cr { color:var(--bar2); }
-.stat { display:flex; flex-wrap:wrap; gap:22px; margin:2px 0 14px; }
-.stat div { font-size:12.5px; color:var(--muted); }
-.stat b { display:block; font-size:17px; color:var(--ink); font-variant-numeric:tabular-nums; }
+.det .when {
+  flex:0 0 auto; font-family:var(--mono); font-size:.67rem; padding:3px 8px;
+  border-radius:99px; border:1px solid var(--line); color:var(--ink-faint);
+  background:var(--surface-2); white-space:nowrap; transition:all .3s var(--ease);
+}
+.det.fired .when { background:var(--rose); border-color:var(--rose); color:#1a0505;
+                   font-weight:700; }
+.det .dw { font-family:var(--mono); font-size:.82rem; font-weight:600; color:var(--ink-dim); }
+.det.fired .dw { color:var(--rose); }
+.det .dd { font-size:.79rem; color:var(--ink-faint); margin-top:3px; line-height:1.5; }
+.narr {
+  font-size:.92rem; color:var(--ink-dim); border-left:2px solid var(--accent);
+  padding:4px 0 4px 15px; margin:0; line-height:1.62;
+}
+.narr b { color:var(--ink); }
+.susp { display:flex; align-items:center; gap:11px; margin-top:15px; }
+.susp .bars { display:flex; gap:4px; flex:1; }
+.susp .bars i { height:6px; flex:1; border-radius:99px; background:var(--surface-3);
+                transition:background .35s var(--ease); }
+.susp .bars i.on { background:var(--amber); }
+.susp .bars i.on.hot { background:var(--rose); }
+.susp .lab { font-family:var(--mono); font-size:.71rem; color:var(--ink-faint);
+             white-space:nowrap; }
+.txr { max-height:330px; overflow-y:auto; }
+.txr table { width:100%; border-collapse:collapse; }
+.txr th { position:sticky; top:0; background:var(--surface); text-align:left;
+          font-size:.66rem; letter-spacing:.07em; text-transform:uppercase;
+          color:var(--ink-faint); font-weight:700; padding:7px 10px 7px 0;
+          border-bottom:1px solid var(--line); }
+.txr td { padding:6px 10px 6px 0; border-bottom:1px solid var(--line);
+          color:var(--ink-dim); font-family:var(--mono); font-size:.745rem;
+          white-space:nowrap; }
+.txr td.dr { color:var(--rose); } .txr td.cr { color:var(--green); }
+.txr td.na { font-family:var(--sans); color:var(--ink-dim); white-space:normal; }
+.txr tr.new td { animation:rowIn .45s var(--ease) both; }
+@keyframes rowIn { from { opacity:0; transform:translateX(-6px); } to { opacity:1; transform:none; } }
+.side .card { margin-bottom:14px; }
+.side .card:last-child { margin-bottom:0; }
+.sh { font-size:.7rem; letter-spacing:.11em; text-transform:uppercase;
+      color:var(--ink-faint); font-family:var(--mono); margin:0 0 11px; font-weight:700; }
+.kv { display:flex; justify-content:space-between; gap:12px; padding:7px 0;
+      border-bottom:1px solid var(--line); font-size:.82rem; }
+.kv:last-child { border-bottom:0; }
+.kv .k { color:var(--ink-faint); }
+.kv .v { color:var(--ink); font-family:var(--mono); text-align:right;
+         font-variant-numeric:tabular-nums; }
+@media (prefers-reduced-motion:reduce) { .txr tr.new td { animation:none; } }
 </style>
-<h1>LaunderLab — Story Mode</h1>
-<p class="sub">Scrub the day slider to replay a real injected scheme. An account outlines in red only when a real detector has actually fired on it by that day — never because it is in the answer key. Regenerate with <code>python -m launderlab story</code>.</p>
-<div class="picker"><button type="button">D0 · dormant_reactivation</button><button type="button">D1 · dormant_reactivation</button><button type="button">D2 · dormant_reactivation</button><button type="button">G0 · high_risk_geography</button><button type="button">G1 · high_risk_geography</button><button type="button">G2 · high_risk_geography</button><button type="button">M0 · layering</button><button type="button">M1 · layering</button><button type="button">M2 · layering</button><button type="button">R0 · round_tripping</button><button type="button">R1 · round_tripping</button><button type="button">R2 · round_tripping</button><button type="button">H0 · shell_company</button><button type="button">H1 · shell_company</button><button type="button">H2 · shell_company</button><button type="button">S0 · structuring</button><button type="button">S1 · structuring</button><button type="button">S2 · structuring</button></div><div class="card"><div class="stat" id="stats"></div><div class="scrub"><span class="day" id="day"></span><input type="range" id="scrub" min="0" value="0" step="1"></div><div class="flow" id="flow"></div></div><h2>What the detection stack saw</h2><div class="card" id="dets"></div><p class="note" id="outcome"></p><div id="prior"></div><h2>The scheme's own transactions, up to the day above</h2><div class="card"><table class="txns" id="txns"></table></div><h2>Detection latency — how long a scheme runs before anything fires</h2><div class="card"><svg viewBox="0 0 760 170" width="100%" style="max-width:760px" role="img" aria-label="bar chart of 6 values"><text class="lbl" x="182" y="19" text-anchor="end">structuring  8/8 caught</text><rect class="bar" x="190" y="8" width="512.0" height="16" rx="2"></rect><text class="val" x="708.0" y="19">9.0d</text><text class="lbl" x="182" y="45" text-anchor="end">shell_company  5/5 caught</text><rect class="bar" x="190" y="34" width="341.3" height="16" rx="2"></rect><text class="val" x="537.3" y="45">6.0d</text><text class="lbl" x="182" y="71" text-anchor="end">round_tripping  5/5 caught</text><rect class="bar" x="190" y="60" width="227.6" height="16" rx="2"></rect><text class="val" x="423.6" y="71">4.0d</text><text class="lbl" x="182" y="97" text-anchor="end">layering  8/8 caught</text><rect class="bar" x="190" y="86" width="56.9" height="16" rx="2"></rect><text class="val" x="252.9" y="97">1.0d</text><text class="lbl" x="182" y="123" text-anchor="end">dormant_reactivation  3/5 caught</text><text class="val" x="196.0" y="123">0.0d</text><text class="lbl" x="182" y="149" text-anchor="end">high_risk_geography  5/5 caught</text><text class="val" x="196.0" y="149">0.0d</text><line class="axis" x1="190" y1="2" x2="190" y2="164"></line></svg></div><p class="note">Median days from a scheme&#x27;s first transaction to the first day any detector could have fired on it, measured by re-running the real rules engine and graph detector against the ledger truncated to each day. A zero-length bar means no scheme of that typology was ever caught, not that it was caught instantly — 2 of 36 schemes were never seen at all. Screening and ML are excluded: one answers an identity question that has no firing day, the other emits a ranking rather than an event.</p><h2>How much had already moved when the alert fired</h2><div class="card"><svg viewBox="0 0 760 170" width="100%" style="max-width:760px" role="img" aria-label="bar chart of 6 values"><text class="lbl" x="182" y="19" text-anchor="end">dormant_reactivation  n=3</text><rect class="bar" x="190" y="8" width="512.0" height="16" rx="2"></rect><text class="val" x="708.0" y="19">100%</text><text class="lbl" x="182" y="45" text-anchor="end">round_tripping  n=5</text><rect class="bar" x="190" y="34" width="512.0" height="16" rx="2"></rect><text class="val" x="708.0" y="45">100%</text><text class="lbl" x="182" y="71" text-anchor="end">high_risk_geography  n=5</text><rect class="bar" x="190" y="60" width="306.8" height="16" rx="2"></rect><text class="val" x="502.8" y="71">60%</text><text class="lbl" x="182" y="97" text-anchor="end">shell_company  n=5</text><rect class="bar" x="190" y="86" width="299.5" height="16" rx="2"></rect><text class="val" x="495.5" y="97">58%</text><text class="lbl" x="182" y="123" text-anchor="end">structuring  n=8</text><rect class="bar" x="190" y="112" width="241.2" height="16" rx="2"></rect><text class="val" x="437.2" y="123">47%</text><text class="lbl" x="182" y="149" text-anchor="end">layering  n=8</text><rect class="bar" x="190" y="138" width="233.7" height="16" rx="2"></rect><text class="val" x="429.7" y="149">46%</text><line class="axis" x1="190" y1="2" x2="190" y2="164"></line></svg></div><p class="note">Median share of a scheme&#x27;s labelled transaction value that had already posted on the day its first alert fired. A short bar is a scheme caught with money still stoppable; a full bar is an alert that could only ever arrive after the fact. Three rules are structurally incapable of firing earlier — round_trip needs the return leg and dormancy_burst needs the cash-out, so the evidence they require does not exist until the scheme has completed. That is a property of the detection design, not a tuning mistake, and no threshold fixes it. This counts transaction value, so a round trip&#x27;s departure and return are both included; it measures progress through a scheme, not loss.</p><script>const STORIES = [{"scheme_id": "D0", "typology": "dormant_reactivation", "accounts": ["A000910"], "names": {"A000910": "Shalini Sheikh"}, "started": "2026-08-07", "ended": "2026-08-07", "ran_days": 1, "calendar": ["2026-08-07"], "latency": 0, "moved_before_alert": 1.0, "caught_on": "2026-08-07", "cases": [], "txns": [{"day": "2026-08-07", "account_id": "A000910", "direction": "CR", "channel": "IMPS", "amount": 1775000.0, "role": "reactivation", "counterparty": "", "narration": "IMPS/CR/746397/cust6645@okhdfc"}, {"day": "2026-08-07", "account_id": "A000910", "direction": "DR", "channel": "UPI", "amount": 588000.0, "role": "cashout", "counterparty": "", "narration": "UPI/DR/978163/cust8425@okhdfc"}, {"day": "2026-08-07", "account_id": "A000910", "direction": "DR", "channel": "UPI", "amount": 548000.0, "role": "cashout", "counterparty": "", "narration": "UPI/DR/539740/cust9216@oksbi"}, {"day": "2026-08-07", "account_id": "A000910", "direction": "DR", "channel": "UPI", "amount": 567902.0, "role": "cashout", "counterparty": "", "narration": "UPI/DR/667456/cust9441@oksbi"}], "detections": [{"layer": "rules", "detector": "dormancy_burst", "account_id": "A000910", "day": "2026-08-07", "detail": "Rs 1,775,000 after a quiet stretch, 50%+ cashed out within 24h"}], "prior": []}, {"scheme_id": "D1", "typology": "dormant_reactivation", "accounts": ["A000755"], "names": {"A000755": "Manisha Jayaraman"}, "started": "2026-08-05", "ended": "2026-08-06", "ran_days": 2, "calendar": ["2026-08-05", "2026-08-06"], "latency": null, "moved_before_alert": null, "caught_on": null, "cases": [], "txns": [{"day": "2026-08-05", "account_id": "A000755", "direction": "CR", "channel": "IMPS", "amount": 1685000.0, "role": "reactivation", "counterparty": "", "narration": "IMPS/CR/723453/cust1894@okhdfc"}, {"day": "2026-08-05", "account_id": "A000755", "direction": "DR", "channel": "UPI", "amount": 440000.0, "role": "cashout", "counterparty": "", "narration": "UPI/DR/872538/cust7587@oksbi"}, {"day": "2026-08-06", "account_id": "A000755", "direction": "DR", "channel": "UPI", "amount": 581000.0, "role": "cashout", "counterparty": "", "narration": "UPI/DR/232843/cust9045@oksbi"}, {"day": "2026-08-06", "account_id": "A000755", "direction": "DR", "channel": "UPI", "amount": 513420.0, "role": "cashout", "counterparty": "", "narration": "UPI/DR/981031/cust3332@oksbi"}], "detections": [], "prior": []}, {"scheme_id": "D2", "typology": "dormant_reactivation", "accounts": ["A001145"], "names": {"A001145": "Namrata Desai"}, "started": "2026-08-02", "ended": "2026-08-02", "ran_days": 1, "calendar": ["2026-08-02"], "latency": null, "moved_before_alert": null, "caught_on": null, "cases": [], "txns": [{"day": "2026-08-02", "account_id": "A001145", "direction": "CR", "channel": "IMPS", "amount": 345000.0, "role": "reactivation", "counterparty": "", "narration": "IMPS/CR/293892/cust1627@okicici"}, {"day": "2026-08-02", "account_id": "A001145", "direction": "DR", "channel": "ATM", "amount": 93000.0, "role": "cashout", "counterparty": "", "narration": "ATM-CASH/DR/92"}, {"day": "2026-08-02", "account_id": "A001145", "direction": "DR", "channel": "UPI", "amount": 84000.0, "role": "cashout", "counterparty": "", "narration": "UPI/DR/212480/cust9040@oksbi"}, {"day": "2026-08-02", "account_id": "A001145", "direction": "DR", "channel": "UPI", "amount": 76000.0, "role": "cashout", "counterparty": "", "narration": "UPI/DR/620777/cust2076@oksbi"}, {"day": "2026-08-02", "account_id": "A001145", "direction": "DR", "channel": "ATM", "amount": 65769.0, "role": "cashout", "counterparty": "", "narration": "ATM-CASH/DR/14"}], "detections": [], "prior": []}, {"scheme_id": "G0", "typology": "high_risk_geography", "accounts": ["A000715"], "names": {"A000715": "Balaji Malhotra"}, "started": "2026-07-07", "ended": "2026-07-11", "ran_days": 5, "calendar": ["2026-07-07", "2026-07-08", "2026-07-09", "2026-07-10", "2026-07-11"], "latency": 0, "moved_before_alert": 0.7037399314006096, "caught_on": "2026-07-07", "cases": [{"case_id": 41, "band": "medium"}], "txns": [{"day": "2026-07-07", "account_id": "A000715", "direction": "CR", "channel": "INT", "amount": 545352.0, "role": "greylist", "counterparty": "REMITTANCE SYRIA SY", "narration": "INT/CR/378745/REMITTANCE SYRIA SY"}, {"day": "2026-07-11", "account_id": "A000715", "direction": "DR", "channel": "INT", "amount": 229582.0, "role": "greylist", "counterparty": "REMITTANCE TURKEY TR", "narration": "INT/DR/631089/REMITTANCE TURKEY TR"}], "detections": [{"layer": "rules", "detector": "high_risk_geography", "account_id": "A000715", "day": "2026-07-07", "detail": "International transfer tied to Syria"}], "prior": []}, {"scheme_id": "G1", "typology": "high_risk_geography", "accounts": ["A000776"], "names": {"A000776": "Viktor Anatolyevich Petrov"}, "started": "2026-07-05", "ended": "2026-07-10", "ran_days": 6, "calendar": ["2026-07-05", "2026-07-06", "2026-07-07", "2026-07-08", "2026-07-09", "2026-07-10"], "latency": 0, "moved_before_alert": 0.4306946022581867, "caught_on": "2026-07-05", "cases": [{"case_id": 1, "band": "high"}], "txns": [{"day": "2026-07-05", "account_id": "A000776", "direction": "DR", "channel": "INT", "amount": 336593.0, "role": "greylist", "counterparty": "REMITTANCE YEMEN YE", "narration": "INT/DR/577027/REMITTANCE YEMEN YE"}, {"day": "2026-07-09", "account_id": "A000776", "direction": "DR", "channel": "INT", "amount": 46207.0, "role": "greylist", "counterparty": "REMITTANCE TURKEY TR", "narration": "INT/DR/331085/REMITTANCE TURKEY TR"}, {"day": "2026-07-10", "account_id": "A000776", "direction": "CR", "channel": "INT", "amount": 398712.0, "role": "greylist", "counterparty": "REMITTANCE TURKEY TR", "narration": "INT/CR/223270/REMITTANCE TURKEY TR"}], "detections": [{"layer": "rules", "detector": "high_risk_geography", "account_id": "A000776", "day": "2026-07-05", "detail": "International transfer tied to Yemen"}], "prior": []}, {"scheme_id": "G2", "typology": "high_risk_geography", "accounts": ["A000791"], "names": {"A000791": "Hemant Ranganathan"}, "started": "2026-07-12", "ended": "2026-07-24", "ran_days": 13, "calendar": ["2026-07-12", "2026-07-13", "2026-07-14", "2026-07-15", "2026-07-16", "2026-07-17", "2026-07-18", "2026-07-19", "2026-07-20", "2026-07-21", "2026-07-22", "2026-07-23", "2026-07-24"], "latency": 0, "moved_before_alert": 0.4172996830624217, "caught_on": "2026-07-12", "cases": [{"case_id": 37, "band": "medium"}], "txns": [{"day": "2026-07-12", "account_id": "A000791", "direction": "CR", "channel": "INT", "amount": 380647.0, "role": "greylist", "counterparty": "REMITTANCE SOUTH SUDAN SS", "narration": "INT/CR/790486/REMITTANCE SOUTH SUDAN SS"}, {"day": "2026-07-24", "account_id": "A000791", "direction": "CR", "channel": "INT", "amount": 531520.0, "role": "blacklist", "counterparty": "REMITTANCE IRAN IR", "narration": "INT/CR/115862/REMITTANCE IRAN IR"}], "detections": [{"layer": "rules", "detector": "high_risk_geography", "account_id": "A000791", "day": "2026-07-12", "detail": "International transfer tied to South Sudan"}], "prior": []}, {"scheme_id": "M0", "typology": "layering", "accounts": ["A000859", "A000669", "A001089", "A000432"], "names": {"A000859": "Anjali Seth", "A000669": "Naveen Kapoor", "A001089": "Bhavya Sahu", "A000432": "Nadia Mohan"}, "started": "2026-07-03", "ended": "2026-07-06", "ran_days": 4, "calendar": ["2026-07-03", "2026-07-04", "2026-07-05", "2026-07-06"], "latency": 1, "moved_before_alert": 0.4537998918898092, "caught_on": "2026-07-04", "cases": [{"case_id": 9, "band": "high"}, {"case_id": 11, "band": "high"}, {"case_id": 18, "band": "high"}, {"case_id": 16, "band": "high"}], "txns": [{"day": "2026-07-03", "account_id": "A000859", "direction": "CR", "channel": "IMPS", "amount": 1100000.0, "role": "source", "counterparty": "PRIME ARC ENTERPRISES", "narration": "IMPS/CR/149453/PRIME ARC ENTERPRISES"}, {"day": "2026-07-04", "account_id": "A000859", "direction": "DR", "channel": "UPI", "amount": 1051792.0, "role": "source", "counterparty": "Naveen Kapoor", "narration": "UPI/DR/751133/naveen.kapoor90@okicici"}, {"day": "2026-07-04", "account_id": "A000669", "direction": "CR", "channel": "UPI", "amount": 1051792.0, "role": "mule", "counterparty": "Anjali Seth", "narration": "UPI/CR/751133/anjali.seth72@okicici"}, {"day": "2026-07-05", "account_id": "A000669", "direction": "DR", "channel": "IMPS", "amount": 992949.0, "role": "mule", "counterparty": "Bhavya Sahu", "narration": "IMPS/DR/637007/bhavya.sahu79@okaxis"}, {"day": "2026-07-05", "account_id": "A001089", "direction": "CR", "channel": "IMPS", "amount": 992949.0, "role": "mule", "counterparty": "Naveen Kapoor", "narration": "IMPS/CR/637007/naveen.kapoor90@okicici"}, {"day": "2026-07-06", "account_id": "A001089", "direction": "DR", "channel": "IMPS", "amount": 934991.0, "role": "mule", "counterparty": "Nadia Mohan", "narration": "IMPS/DR/328107/nadia.mohan67@okaxis"}, {"day": "2026-07-06", "account_id": "A000432", "direction": "CR", "channel": "IMPS", "amount": 934991.0, "role": "sink", "counterparty": "Bhavya Sahu", "narration": "IMPS/CR/328107/bhavya.sahu79@okaxis"}], "detections": [{"layer": "rules", "detector": "rapid_pass_through", "account_id": "A000859", "day": "2026-07-04", "detail": "Rs 1,100,000 in, most of it out within 48h"}, {"layer": "graph", "detector": "pass_through_chain", "account_id": "A000669", "day": "2026-07-05", "detail": "2-hop pass-through chain, 94% of the entry amount retained"}, {"layer": "graph", "detector": "pass_through_chain", "account_id": "A000859", "day": "2026-07-05", "detail": "2-hop pass-through chain, 94% of the entry amount retained"}, {"layer": "graph", "detector": "pass_through_chain", "account_id": "A001089", "day": "2026-07-05", "detail": "2-hop pass-through chain, 94% of the entry amount retained"}, {"layer": "rules", "detector": "rapid_pass_through", "account_id": "A000669", "day": "2026-07-05", "detail": "Rs 1,051,792 in, most of it out within 48h"}, {"layer": "graph", "detector": "pass_through_chain", "account_id": "A000432", "day": "2026-07-06", "detail": "3-hop pass-through chain, 89% of the entry amount retained"}, {"layer": "rules", "detector": "rapid_pass_through", "account_id": "A001089", "day": "2026-07-06", "detail": "Rs 992,949 in, most of it out within 48h"}, {"layer": "rules", "detector": "rapid_pass_through", "account_id": "A000432", "day": "2026-07-08", "detail": "Rs 934,991 in, most of it out within 48h"}], "prior": []}, {"scheme_id": "M1", "typology": "layering", "accounts": ["A000134", "A000508", "A000075", "A000216"], "names": {"A000134": "Kalpana Mishra", "A000508": "Ahmed Pandey", "A000075": "Mukesh Chatterjee", "A000216": "Namrata Nath"}, "started": "2026-07-03", "ended": "2026-07-06", "ran_days": 4, "calendar": ["2026-07-03", "2026-07-04", "2026-07-05", "2026-07-06"], "latency": 1, "moved_before_alert": 0.4484759004379782, "caught_on": "2026-07-04", "cases": [{"case_id": 19, "band": "high"}, {"case_id": 20, "band": "high"}, {"case_id": 12, "band": "high"}], "txns": [{"day": "2026-07-03", "account_id": "A000134", "direction": "CR", "channel": "IMPS", "amount": 1430000.0, "role": "source", "counterparty": "STARCREST VENTURES", "narration": "IMPS/CR/499897/STARCREST VENTURES"}, {"day": "2026-07-04", "account_id": "A000134", "direction": "DR", "channel": "UPI", "amount": 1368776.0, "role": "source", "counterparty": "Ahmed Pandey", "narration": "UPI/DR/801728/ahmed.pandey59@okaxis"}, {"day": "2026-07-04", "account_id": "A000508", "direction": "CR", "channel": "UPI", "amount": 1368776.0, "role": "mule", "counterparty": "Kalpana Mishra", "narration": "UPI/CR/801728/kalpana.mishra40@okhdfc"}, {"day": "2026-07-05", "account_id": "A000508", "direction": "DR", "channel": "UPI", "amount": 1307027.0, "role": "mule", "counterparty": "Mukesh Chatterjee", "narration": "UPI/DR/612152/mukesh.chatterjee56@okicici"}, {"day": "2026-07-05", "account_id": "A000075", "direction": "CR", "channel": "UPI", "amount": 1307027.0, "role": "mule", "counterparty": "Ahmed Pandey", "narration": "UPI/CR/612152/ahmed.pandey59@okaxis"}, {"day": "2026-07-06", "account_id": "A000075", "direction": "DR", "channel": "UPI", "amount": 1255547.0, "role": "mule", "counterparty": "Namrata Nath", "narration": "UPI/DR/233839/namrata.nath12@oksbi"}, {"day": "2026-07-06", "account_id": "A000216", "direction": "CR", "channel": "UPI", "amount": 1255547.0, "role": "sink", "counterparty": "Mukesh Chatterjee", "narration": "UPI/CR/233839/mukesh.chatterjee56@okicici"}], "detections": [{"layer": "rules", "detector": "rapid_pass_through", "account_id": "A000134", "day": "2026-07-04", "detail": "Rs 1,430,000 in, most of it out within 48h"}, {"layer": "graph", "detector": "pass_through_chain", "account_id": "A000075", "day": "2026-07-05", "detail": "2-hop pass-through chain, 95% of the entry amount retained"}, {"layer": "graph", "detector": "pass_through_chain", "account_id": "A000134", "day": "2026-07-05", "detail": "2-hop pass-through chain, 95% of the entry amount retained"}, {"layer": "graph", "detector": "pass_through_chain", "account_id": "A000508", "day": "2026-07-05", "detail": "2-hop pass-through chain, 95% of the entry amount retained"}, {"layer": "rules", "detector": "rapid_pass_through", "account_id": "A000508", "day": "2026-07-05", "detail": "Rs 1,368,776 in, most of it out within 48h"}, {"layer": "graph", "detector": "pass_through_chain", "account_id": "A000216", "day": "2026-07-06", "detail": "3-hop pass-through chain, 92% of the entry amount retained"}, {"layer": "rules", "detector": "rapid_pass_through", "account_id": "A000075", "day": "2026-07-06", "detail": "Rs 1,307,027 in, most of it out within 48h"}], "prior": []}, {"scheme_id": "M2", "typology": "layering", "accounts": ["A000294", "A000436", "A000587", "A000605"], "names": {"A000294": "Sarika Nagarajan", "A000436": "Meenakshi Agarwal", "A000587": "Payal Bansal", "A000605": "Kavita Bose"}, "started": "2026-07-03", "ended": "2026-07-05", "ran_days": 3, "calendar": ["2026-07-03", "2026-07-04", "2026-07-05"], "latency": 1, "moved_before_alert": 0.7336333890474472, "caught_on": "2026-07-04", "cases": [{"case_id": 7, "band": "high"}, {"case_id": 10, "band": "high"}, {"case_id": 3, "band": "high"}], "txns": [{"day": "2026-07-03", "account_id": "A000294", "direction": "CR", "channel": "IMPS", "amount": 1110000.0, "role": "source", "counterparty": "STARCREST VENTURES", "narration": "IMPS/CR/314754/STARCREST VENTURES"}, {"day": "2026-07-04", "account_id": "A000294", "direction": "DR", "channel": "IMPS", "amount": 1047008.0, "role": "source", "counterparty": "Meenakshi Agarwal", "narration": "IMPS/DR/243326/meenakshi.agarwal76@oksbi"}, {"day": "2026-07-04", "account_id": "A000436", "direction": "CR", "channel": "IMPS", "amount": 1047008.0, "role": "mule", "counterparty": "Sarika Nagarajan", "narration": "IMPS/CR/243326/sarika.nagarajan79@okicici"}, {"day": "2026-07-04", "account_id": "A000436", "direction": "DR", "channel": "IMPS", "amount": 988541.0, "role": "mule", "counterparty": "Payal Bansal", "narration": "IMPS/DR/207624/payal.bansal50@okaxis"}, {"day": "2026-07-04", "account_id": "A000587", "direction": "CR", "channel": "IMPS", "amount": 988541.0, "role": "mule", "counterparty": "Meenakshi Agarwal", "narration": "IMPS/CR/207624/meenakshi.agarwal76@oksbi"}, {"day": "2026-07-05", "account_id": "A000587", "direction": "DR", "channel": "UPI", "amount": 940573.0, "role": "mule", "counterparty": "Kavita Bose", "narration": "UPI/DR/247119/kavita.bose95@okaxis"}, {"day": "2026-07-05", "account_id": "A000605", "direction": "CR", "channel": "UPI", "amount": 940573.0, "role": "sink", "counterparty": "Payal Bansal", "narration": "UPI/CR/247119/payal.bansal50@okaxis"}], "detections": [{"layer": "graph", "detector": "pass_through_chain", "account_id": "A000294", "day": "2026-07-04", "detail": "2-hop pass-through chain, 94% of the entry amount retained"}, {"layer": "graph", "detector": "pass_through_chain", "account_id": "A000436", "day": "2026-07-04", "detail": "2-hop pass-through chain, 94% of the entry amount retained"}, {"layer": "graph", "detector": "pass_through_chain", "account_id": "A000587", "day": "2026-07-04", "detail": "2-hop pass-through chain, 94% of the entry amount retained"}, {"layer": "rules", "detector": "rapid_pass_through", "account_id": "A000294", "day": "2026-07-04", "detail": "Rs 1,110,000 in, most of it out within 48h"}, {"layer": "rules", "detector": "rapid_pass_through", "account_id": "A000436", "day": "2026-07-04", "detail": "Rs 1,047,008 in, most of it out within 48h"}, {"layer": "graph", "detector": "pass_through_chain", "account_id": "A000605", "day": "2026-07-05", "detail": "3-hop pass-through chain, 90% of the entry amount retained"}, {"layer": "rules", "detector": "rapid_pass_through", "account_id": "A000587", "day": "2026-07-05", "detail": "Rs 988,541 in, most of it out within 48h"}], "prior": []}, {"scheme_id": "R0", "typology": "round_tripping", "accounts": ["A000097"], "names": {"A000097": "KAUR TRADERS"}, "started": "2026-07-08", "ended": "2026-07-12", "ran_days": 5, "calendar": ["2026-07-08", "2026-07-09", "2026-07-10", "2026-07-11", "2026-07-12"], "latency": 2, "moved_before_alert": 0.4909442318276652, "caught_on": "2026-07-10", "cases": [], "txns": [{"day": "2026-07-08", "account_id": "A000097", "direction": "DR", "channel": "RTGS", "amount": 38356.0, "role": "departure", "counterparty": "VELOCITY IMPEX", "narration": "RTGS/DR/879298/VELOCITY IMPEX INVESTMENT"}, {"day": "2026-07-12", "account_id": "A000097", "direction": "CR", "channel": "RTGS", "amount": 39771.0, "role": "return", "counterparty": "PRIME ARC ENTERPRISES", "narration": "RTGS/CR/237118/PRIME ARC ENTERPRISES INVESTMENT RETURN"}], "detections": [{"layer": "rules", "detector": "round_trip", "account_id": "A000097", "day": "2026-07-10", "detail": "Rs 34,671 left and came back within 12d"}], "prior": []}, {"scheme_id": "R1", "typology": "round_tripping", "accounts": ["A000734"], "names": {"A000734": "PANICKER TRADERS"}, "started": "2026-07-06", "ended": "2026-07-09", "ran_days": 4, "calendar": ["2026-07-06", "2026-07-07", "2026-07-08", "2026-07-09"], "latency": 3, "moved_before_alert": 1.0, "caught_on": "2026-07-09", "cases": [], "txns": [{"day": "2026-07-06", "account_id": "A000734", "direction": "DR", "channel": "RTGS", "amount": 63481.0, "role": "departure", "counterparty": "VELOCITY IMPEX", "narration": "RTGS/DR/551674/VELOCITY IMPEX INVESTMENT"}, {"day": "2026-07-09", "account_id": "A000734", "direction": "CR", "channel": "RTGS", "amount": 66529.0, "role": "return", "counterparty": "STARCREST VENTURES", "narration": "RTGS/CR/123060/STARCREST VENTURES INVESTMENT RETURN"}], "detections": [{"layer": "rules", "detector": "round_trip", "account_id": "A000734", "day": "2026-07-09", "detail": "Rs 63,481 left and came back within 12d"}], "prior": []}, {"scheme_id": "R2", "typology": "round_tripping", "accounts": ["A000022"], "names": {"A000022": "MANDAL TRADERS"}, "started": "2026-07-03", "ended": "2026-07-08", "ran_days": 6, "calendar": ["2026-07-03", "2026-07-04", "2026-07-05", "2026-07-06", "2026-07-07", "2026-07-08"], "latency": 5, "moved_before_alert": 1.0, "caught_on": "2026-07-08", "cases": [], "txns": [{"day": "2026-07-03", "account_id": "A000022", "direction": "DR", "channel": "RTGS", "amount": 51272.0, "role": "departure", "counterparty": "CRESTLINE OVERSEAS", "narration": "RTGS/DR/283042/CRESTLINE OVERSEAS INVESTMENT"}, {"day": "2026-07-08", "account_id": "A000022", "direction": "CR", "channel": "RTGS", "amount": 52382.0, "role": "return", "counterparty": "VELOCITY IMPEX", "narration": "RTGS/CR/436482/VELOCITY IMPEX INVESTMENT RETURN"}], "detections": [{"layer": "rules", "detector": "round_trip", "account_id": "A000022", "day": "2026-07-08", "detail": "Rs 51,272 left and came back within 12d"}], "prior": []}, {"scheme_id": "H0", "typology": "shell_company", "accounts": ["A001199"], "names": {"A001199": "RANGANATHAN TRADERS"}, "started": "2026-07-04", "ended": "2026-07-22", "ran_days": 19, "calendar": ["2026-07-04", "2026-07-05", "2026-07-06", "2026-07-07", "2026-07-08", "2026-07-09", "2026-07-10", "2026-07-11", "2026-07-12", "2026-07-13", "2026-07-14", "2026-07-15", "2026-07-16", "2026-07-17", "2026-07-18", "2026-07-19", "2026-07-20", "2026-07-21", "2026-07-22"], "latency": 5, "moved_before_alert": 0.5200710479573712, "caught_on": "2026-07-09", "cases": [], "txns": [{"day": "2026-07-04", "account_id": "A001199", "direction": "CR", "channel": "IMPS", "amount": 377000.0, "role": "integration", "counterparty": "VELOCITY IMPEX", "narration": "IMPS/CR/532753/VELOCITY IMPEX INV-1001"}, {"day": "2026-07-04", "account_id": "A001199", "direction": "CR", "channel": "IMPS", "amount": 398000.0, "role": "integration", "counterparty": "VELOCITY IMPEX", "narration": "IMPS/CR/516689/VELOCITY IMPEX INV-1002"}, {"day": "2026-07-08", "account_id": "A001199", "direction": "CR", "channel": "NEFT", "amount": 379000.0, "role": "integration", "counterparty": "VELOCITY IMPEX", "narration": "NEFT/CR/896141/VELOCITY IMPEX INV-1004"}, {"day": "2026-07-09", "account_id": "A001199", "direction": "CR", "channel": "IMPS", "amount": 310000.0, "role": "integration", "counterparty": "VELOCITY IMPEX", "narration": "IMPS/CR/801874/VELOCITY IMPEX INV-1007"}, {"day": "2026-07-10", "account_id": "A001199", "direction": "CR", "channel": "NEFT", "amount": 340000.0, "role": "integration", "counterparty": "VELOCITY IMPEX", "narration": "NEFT/CR/594754/VELOCITY IMPEX INV-1008"}, {"day": "2026-07-11", "account_id": "A001199", "direction": "CR", "channel": "IMPS", "amount": 366000.0, "role": "integration", "counterparty": "VELOCITY IMPEX", "narration": "IMPS/CR/850493/VELOCITY IMPEX INV-1003"}, {"day": "2026-07-21", "account_id": "A001199", "direction": "CR", "channel": "NEFT", "amount": 273000.0, "role": "integration", "counterparty": "VELOCITY IMPEX", "narration": "NEFT/CR/541024/VELOCITY IMPEX INV-1005"}, {"day": "2026-07-22", "account_id": "A001199", "direction": "CR", "channel": "NEFT", "amount": 372000.0, "role": "integration", "counterparty": "VELOCITY IMPEX", "narration": "NEFT/CR/268626/VELOCITY IMPEX INV-1006"}], "detections": [{"layer": "rules", "detector": "counterparty_concentration", "account_id": "A001199", "day": "2026-07-09", "detail": "72% of credits from one counterparty (VELOCITY IMPEX), Rs 1,464,000"}], "prior": []}, {"scheme_id": "H1", "typology": "shell_company", "accounts": ["A000353"], "names": {"A000353": "PILLAI TRADERS"}, "started": "2026-07-08", "ended": "2026-07-23", "ran_days": 16, "calendar": ["2026-07-08", "2026-07-09", "2026-07-10", "2026-07-11", "2026-07-12", "2026-07-13", "2026-07-14", "2026-07-15", "2026-07-16", "2026-07-17", "2026-07-18", "2026-07-19", "2026-07-20", "2026-07-21", "2026-07-22", "2026-07-23"], "latency": 0, "moved_before_alert": 0.4101226993865031, "caught_on": "2026-07-08", "cases": [], "txns": [{"day": "2026-07-08", "account_id": "A000353", "direction": "CR", "channel": "NEFT", "amount": 581000.0, "role": "integration", "counterparty": "BLUEHAVEN AGENCIES", "narration": "NEFT/CR/144452/BLUEHAVEN AGENCIES INV-1001"}, {"day": "2026-07-08", "account_id": "A000353", "direction": "CR", "channel": "IMPS", "amount": 756000.0, "role": "integration", "counterparty": "BLUEHAVEN AGENCIES", "narration": "IMPS/CR/424220/BLUEHAVEN AGENCIES INV-1004"}, {"day": "2026-07-12", "account_id": "A000353", "direction": "CR", "channel": "NEFT", "amount": 751000.0, "role": "integration", "counterparty": "BLUEHAVEN AGENCIES", "narration": "NEFT/CR/664629/BLUEHAVEN AGENCIES INV-1002"}, {"day": "2026-07-15", "account_id": "A000353", "direction": "CR", "channel": "IMPS", "amount": 636000.0, "role": "integration", "counterparty": "BLUEHAVEN AGENCIES", "narration": "IMPS/CR/127805/BLUEHAVEN AGENCIES INV-1003"}, {"day": "2026-07-23", "account_id": "A000353", "direction": "CR", "channel": "IMPS", "amount": 536000.0, "role": "integration", "counterparty": "BLUEHAVEN AGENCIES", "narration": "IMPS/CR/510710/BLUEHAVEN AGENCIES INV-1005"}], "detections": [{"layer": "rules", "detector": "counterparty_concentration", "account_id": "A000353", "day": "2026-07-08", "detail": "59% of credits from one counterparty (SHREE BALAJI AGENCIES), Rs 2,490,000"}], "prior": []}, {"scheme_id": "H2", "typology": "shell_company", "accounts": ["A001023"], "names": {"A001023": "PATEL TRADERS"}, "started": "2026-07-05", "ended": "2026-07-27", "ran_days": 23, "calendar": ["2026-07-05", "2026-07-06", "2026-07-07", "2026-07-08", "2026-07-09", "2026-07-10", "2026-07-11", "2026-07-12", "2026-07-13", "2026-07-14", "2026-07-15", "2026-07-16", "2026-07-17", "2026-07-18", "2026-07-19", "2026-07-20", "2026-07-21", "2026-07-22", "2026-07-23", "2026-07-24", "2026-07-25", "2026-07-26", "2026-07-27"], "latency": 6, "moved_before_alert": 0.5849462365591398, "caught_on": "2026-07-11", "cases": [], "txns": [{"day": "2026-07-05", "account_id": "A001023", "direction": "CR", "channel": "IMPS", "amount": 314000.0, "role": "integration", "counterparty": "BLUEHAVEN AGENCIES", "narration": "IMPS/CR/483615/BLUEHAVEN AGENCIES INV-1004"}, {"day": "2026-07-08", "account_id": "A001023", "direction": "CR", "channel": "NEFT", "amount": 265000.0, "role": "integration", "counterparty": "BLUEHAVEN AGENCIES", "narration": "NEFT/CR/246520/BLUEHAVEN AGENCIES INV-1007"}, {"day": "2026-07-11", "account_id": "A001023", "direction": "CR", "channel": "NEFT", "amount": 224000.0, "role": "integration", "counterparty": "BLUEHAVEN AGENCIES", "narration": "NEFT/CR/437791/BLUEHAVEN AGENCIES INV-1003"}, {"day": "2026-07-11", "account_id": "A001023", "direction": "CR", "channel": "NEFT", "amount": 285000.0, "role": "integration", "counterparty": "BLUEHAVEN AGENCIES", "narration": "NEFT/CR/226216/BLUEHAVEN AGENCIES INV-1001"}, {"day": "2026-07-13", "account_id": "A001023", "direction": "CR", "channel": "NEFT", "amount": 214000.0, "role": "integration", "counterparty": "BLUEHAVEN AGENCIES", "narration": "NEFT/CR/693410/BLUEHAVEN AGENCIES INV-1002"}, {"day": "2026-07-20", "account_id": "A001023", "direction": "CR", "channel": "NEFT", "amount": 249000.0, "role": "integration", "counterparty": "BLUEHAVEN AGENCIES", "narration": "NEFT/CR/167504/BLUEHAVEN AGENCIES INV-1005"}, {"day": "2026-07-27", "account_id": "A001023", "direction": "CR", "channel": "NEFT", "amount": 309000.0, "role": "integration", "counterparty": "BLUEHAVEN AGENCIES", "narration": "NEFT/CR/182229/BLUEHAVEN AGENCIES INV-1006"}], "detections": [{"layer": "rules", "detector": "counterparty_concentration", "account_id": "A001023", "day": "2026-07-11", "detail": "57% of credits from one counterparty (BLUEHAVEN AGENCIES), Rs 1,088,000"}], "prior": []}, {"scheme_id": "S0", "typology": "structuring", "accounts": ["A000630"], "names": {"A000630": "CHAUHAN TRADERS"}, "started": "2026-07-03", "ended": "2026-07-22", "ran_days": 20, "calendar": ["2026-07-03", "2026-07-04", "2026-07-05", "2026-07-06", "2026-07-07", "2026-07-08", "2026-07-09", "2026-07-10", "2026-07-11", "2026-07-12", "2026-07-13", "2026-07-14", "2026-07-15", "2026-07-16", "2026-07-17", "2026-07-18", "2026-07-19", "2026-07-20", "2026-07-21", "2026-07-22"], "latency": 5, "moved_before_alert": 0.37899, "caught_on": "2026-07-08", "cases": [{"case_id": 29, "band": "medium"}], "txns": [{"day": "2026-07-03", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 45695.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/154864/BR-70"}, {"day": "2026-07-03", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 86310.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/489759/BR-89"}, {"day": "2026-07-04", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 74529.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/610471/BR-32"}, {"day": "2026-07-04", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 62937.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/349988/BR-60"}, {"day": "2026-07-05", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 69935.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/299447/BR-40"}, {"day": "2026-07-05", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 68553.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/767510/BR-41"}, {"day": "2026-07-05", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 59212.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/208883/BR-23"}, {"day": "2026-07-05", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 63766.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/391674/BR-62"}, {"day": "2026-07-07", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 73591.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/686538/BR-93"}, {"day": "2026-07-07", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 64429.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/205954/BR-11"}, {"day": "2026-07-07", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 78695.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/757713/BR-29"}, {"day": "2026-07-07", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 85218.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/502392/BR-24"}, {"day": "2026-07-08", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 62517.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/731262/BR-92"}, {"day": "2026-07-08", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 89987.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/972102/BR-77"}, {"day": "2026-07-09", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 56899.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/382270/BR-62"}, {"day": "2026-07-09", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 35994.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/759530/BR-80"}, {"day": "2026-07-09", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 85934.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/191377/BR-49"}, {"day": "2026-07-09", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 72272.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/605954/BR-87"}, {"day": "2026-07-10", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 84447.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/104816/BR-94"}, {"day": "2026-07-10", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 66531.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/131197/BR-18"}, {"day": "2026-07-11", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 76105.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/725440/BR-72"}, {"day": "2026-07-12", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 74829.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/740097/BR-41"}, {"day": "2026-07-12", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 81675.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/855345/BR-18"}, {"day": "2026-07-13", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 66798.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/894863/BR-25"}, {"day": "2026-07-13", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 39192.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/176963/BR-19"}, {"day": "2026-07-15", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 71744.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/988468/BR-97"}, {"day": "2026-07-15", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 45451.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/100493/BR-44"}, {"day": "2026-07-15", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 45351.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/176586/BR-82"}, {"day": "2026-07-17", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 91601.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/607221/BR-83"}, {"day": "2026-07-17", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 42542.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/910223/BR-88"}, {"day": "2026-07-17", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 93819.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/304809/BR-76"}, {"day": "2026-07-20", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 62861.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/366332/BR-50"}, {"day": "2026-07-20", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 73486.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/633584/BR-34"}, {"day": "2026-07-21", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 53133.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/253468/BR-37"}, {"day": "2026-07-21", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 89286.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/213039/BR-47"}, {"day": "2026-07-21", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 39418.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/120584/BR-36"}, {"day": "2026-07-22", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 89405.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/586470/BR-51"}, {"day": "2026-07-22", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 75853.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/393831/BR-37"}], "detections": [{"layer": "rules", "detector": "structuring_burst", "account_id": "A000630", "day": "2026-07-08", "detail": "26 cash deposits under Rs 100,000 totaling Rs 1,671,220"}], "prior": []}, {"scheme_id": "S1", "typology": "structuring", "accounts": ["A000630"], "names": {"A000630": "CHAUHAN TRADERS"}, "started": "2026-07-03", "ended": "2026-07-21", "ran_days": 19, "calendar": ["2026-07-03", "2026-07-04", "2026-07-05", "2026-07-06", "2026-07-07", "2026-07-08", "2026-07-09", "2026-07-10", "2026-07-11", "2026-07-12", "2026-07-13", "2026-07-14", "2026-07-15", "2026-07-16", "2026-07-17", "2026-07-18", "2026-07-19", "2026-07-20", "2026-07-21"], "latency": 5, "moved_before_alert": 0.2637869230769231, "caught_on": "2026-07-08", "cases": [{"case_id": 29, "band": "medium"}], "txns": [{"day": "2026-07-03", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 64366.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/576926/BR-34"}, {"day": "2026-07-03", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 92901.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/917107/BR-28"}, {"day": "2026-07-03", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 42202.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/186793/BR-14"}, {"day": "2026-07-03", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 64853.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/696444/BR-93"}, {"day": "2026-07-04", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 56677.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/214315/BR-90"}, {"day": "2026-07-05", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 57418.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/221194/BR-42"}, {"day": "2026-07-05", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 36303.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/131740/BR-73"}, {"day": "2026-07-05", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 41873.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/639525/BR-13"}, {"day": "2026-07-06", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 53635.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/509178/BR-21"}, {"day": "2026-07-07", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 65913.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/641615/BR-76"}, {"day": "2026-07-07", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 38154.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/306440/BR-90"}, {"day": "2026-07-08", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 71551.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/594248/BR-45"}, {"day": "2026-07-09", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 81123.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/958097/BR-92"}, {"day": "2026-07-09", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 81281.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/330243/BR-84"}, {"day": "2026-07-09", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 42447.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/756129/BR-76"}, {"day": "2026-07-09", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 53684.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/287365/BR-11"}, {"day": "2026-07-10", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 56983.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/917832/BR-88"}, {"day": "2026-07-10", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 34643.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/462534/BR-79"}, {"day": "2026-07-11", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 93778.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/811201/BR-45"}, {"day": "2026-07-12", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 91638.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/741474/BR-35"}, {"day": "2026-07-12", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 54149.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/435958/BR-43"}, {"day": "2026-07-12", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 39291.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/604319/BR-12"}, {"day": "2026-07-13", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 78549.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/241088/BR-73"}, {"day": "2026-07-13", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 37212.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/818427/BR-70"}, {"day": "2026-07-14", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 67455.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/167254/BR-45"}, {"day": "2026-07-15", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 74942.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/530421/BR-59"}, {"day": "2026-07-15", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 76302.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/764978/BR-65"}, {"day": "2026-07-15", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 51728.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/738443/BR-19"}, {"day": "2026-07-16", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 62943.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/659018/BR-52"}, {"day": "2026-07-16", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 68049.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/870743/BR-98"}, {"day": "2026-07-17", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 35549.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/968983/BR-14"}, {"day": "2026-07-17", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 37996.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/541887/BR-45"}, {"day": "2026-07-17", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 54940.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/353214/BR-51"}, {"day": "2026-07-18", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 38182.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/948444/BR-18"}, {"day": "2026-07-18", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 42320.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/111856/BR-57"}, {"day": "2026-07-18", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 71908.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/979879/BR-89"}, {"day": "2026-07-18", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 35448.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/137932/BR-32"}, {"day": "2026-07-19", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 62763.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/459162/BR-94"}, {"day": "2026-07-19", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 37658.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/442325/BR-93"}, {"day": "2026-07-19", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 72464.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/892940/BR-30"}, {"day": "2026-07-20", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 79188.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/817742/BR-35"}, {"day": "2026-07-20", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 49572.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/146624/BR-26"}, {"day": "2026-07-21", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 44800.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/794435/BR-58"}, {"day": "2026-07-21", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 34422.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/780826/BR-82"}, {"day": "2026-07-21", "account_id": "A000630", "direction": "CR", "channel": "CASH", "amount": 70747.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/585094/BR-79"}], "detections": [{"layer": "rules", "detector": "structuring_burst", "account_id": "A000630", "day": "2026-07-08", "detail": "26 cash deposits under Rs 100,000 totaling Rs 1,671,220"}], "prior": []}, {"scheme_id": "S2", "typology": "structuring", "accounts": ["A001114"], "names": {"A001114": "KAUR TRADERS"}, "started": "2026-07-03", "ended": "2026-07-22", "ran_days": 20, "calendar": ["2026-07-03", "2026-07-04", "2026-07-05", "2026-07-06", "2026-07-07", "2026-07-08", "2026-07-09", "2026-07-10", "2026-07-11", "2026-07-12", "2026-07-13", "2026-07-14", "2026-07-15", "2026-07-16", "2026-07-17", "2026-07-18", "2026-07-19", "2026-07-20", "2026-07-21", "2026-07-22"], "latency": 10, "moved_before_alert": 0.5210111538461538, "caught_on": "2026-07-13", "cases": [{"case_id": 35, "band": "medium"}], "txns": [{"day": "2026-07-03", "account_id": "A001114", "direction": "CR", "channel": "CASH", "amount": 62047.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/263084/BR-39"}, {"day": "2026-07-03", "account_id": "A001114", "direction": "CR", "channel": "CASH", "amount": 50060.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/697583/BR-97"}, {"day": "2026-07-03", "account_id": "A001114", "direction": "CR", "channel": "CASH", "amount": 67765.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/858752/BR-55"}, {"day": "2026-07-03", "account_id": "A001114", "direction": "CR", "channel": "CASH", "amount": 81015.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/533483/BR-77"}, {"day": "2026-07-05", "account_id": "A001114", "direction": "CR", "channel": "CASH", "amount": 46897.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/509871/BR-69"}, {"day": "2026-07-05", "account_id": "A001114", "direction": "CR", "channel": "CASH", "amount": 58233.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/125485/BR-14"}, {"day": "2026-07-05", "account_id": "A001114", "direction": "CR", "channel": "CASH", "amount": 71192.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/533873/BR-61"}, {"day": "2026-07-06", "account_id": "A001114", "direction": "CR", "channel": "CASH", "amount": 65531.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/824552/BR-31"}, {"day": "2026-07-07", "account_id": "A001114", "direction": "CR", "channel": "CASH", "amount": 88537.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/861870/BR-21"}, {"day": "2026-07-07", "account_id": "A001114", "direction": "CR", "channel": "CASH", "amount": 90270.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/220530/BR-36"}, {"day": "2026-07-08", "account_id": "A001114", "direction": "CR", "channel": "CASH", "amount": 26534.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/930838/BR-11"}, {"day": "2026-07-08", "account_id": "A001114", "direction": "CR", "channel": "CASH", "amount": 92266.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/805626/BR-22"}, {"day": "2026-07-09", "account_id": "A001114", "direction": "CR", "channel": "CASH", "amount": 42500.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/576002/BR-56"}, {"day": "2026-07-09", "account_id": "A001114", "direction": "CR", "channel": "CASH", "amount": 66949.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/303992/BR-22"}, {"day": "2026-07-10", "account_id": "A001114", "direction": "CR", "channel": "CASH", "amount": 69869.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/209980/BR-73"}, {"day": "2026-07-11", "account_id": "A001114", "direction": "CR", "channel": "CASH", "amount": 78408.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/616986/BR-26"}, {"day": "2026-07-11", "account_id": "A001114", "direction": "CR", "channel": "CASH", "amount": 87720.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/656114/BR-65"}, {"day": "2026-07-11", "account_id": "A001114", "direction": "CR", "channel": "CASH", "amount": 92705.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/555917/BR-63"}, {"day": "2026-07-13", "account_id": "A001114", "direction": "CR", "channel": "CASH", "amount": 38887.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/955341/BR-70"}, {"day": "2026-07-13", "account_id": "A001114", "direction": "CR", "channel": "CASH", "amount": 77244.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/973410/BR-34"}, {"day": "2026-07-14", "account_id": "A001114", "direction": "CR", "channel": "CASH", "amount": 67511.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/732425/BR-50"}, {"day": "2026-07-14", "account_id": "A001114", "direction": "CR", "channel": "CASH", "amount": 53677.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/838943/BR-74"}, {"day": "2026-07-14", "account_id": "A001114", "direction": "CR", "channel": "CASH", "amount": 68948.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/304604/BR-87"}, {"day": "2026-07-16", "account_id": "A001114", "direction": "CR", "channel": "CASH", "amount": 78428.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/627616/BR-10"}, {"day": "2026-07-16", "account_id": "A001114", "direction": "CR", "channel": "CASH", "amount": 53202.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/550972/BR-36"}, {"day": "2026-07-19", "account_id": "A001114", "direction": "CR", "channel": "CASH", "amount": 77675.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/621821/BR-35"}, {"day": "2026-07-19", "account_id": "A001114", "direction": "CR", "channel": "CASH", "amount": 82915.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/300751/BR-63"}, {"day": "2026-07-19", "account_id": "A001114", "direction": "CR", "channel": "CASH", "amount": 90917.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/939981/BR-82"}, {"day": "2026-07-20", "account_id": "A001114", "direction": "CR", "channel": "CASH", "amount": 69948.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/522344/BR-90"}, {"day": "2026-07-20", "account_id": "A001114", "direction": "CR", "channel": "CASH", "amount": 75119.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/326672/BR-79"}, {"day": "2026-07-20", "account_id": "A001114", "direction": "CR", "channel": "CASH", "amount": 88644.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/696369/BR-71"}, {"day": "2026-07-21", "account_id": "A001114", "direction": "CR", "channel": "CASH", "amount": 73189.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/814044/BR-69"}, {"day": "2026-07-21", "account_id": "A001114", "direction": "CR", "channel": "CASH", "amount": 52266.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/635265/BR-89"}, {"day": "2026-07-22", "account_id": "A001114", "direction": "CR", "channel": "CASH", "amount": 47760.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/372863/BR-26"}, {"day": "2026-07-22", "account_id": "A001114", "direction": "CR", "channel": "CASH", "amount": 70050.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/314188/BR-90"}, {"day": "2026-07-22", "account_id": "A001114", "direction": "CR", "channel": "CASH", "amount": 89006.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/764803/BR-15"}, {"day": "2026-07-22", "account_id": "A001114", "direction": "CR", "channel": "CASH", "amount": 62096.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/664470/BR-15"}, {"day": "2026-07-22", "account_id": "A001114", "direction": "CR", "channel": "CASH", "amount": 44020.0, "role": "placement", "counterparty": "", "narration": "CASH DEP/CR/243094/BR-39"}], "detections": [{"layer": "rules", "detector": "structuring_burst", "account_id": "A001114", "day": "2026-07-13", "detail": "25 cash deposits under Rs 100,000 totaling Rs 1,685,629"}], "prior": []}];const OPEN_ON = 14;
-const fmt = n => 'Rs ' + Math.round(n).toLocaleString('en-IN');
+<script>document.documentElement.className+=" js";</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="nav"><div class="nav-in"><a class="brand" href="index.html"><span class="dot"></span>LaunderLab</a><nav class="nav-links" aria-label="Sections"><a href="index.html">Overview</a><a href="story.html" aria-current="page">Story Mode</a><a href="results.html">Results</a><a href="redteam.html">Red Team</a><a href="multibank.html">Cross-Bank</a><a class="ext" href="https://github.com/Dhanu2626/launderlab" rel="noopener">GitHub &#8599;</a></nav></div></header>
+<main id="main">
+<div class="hero"><div class="wrap"><span class="eyebrow teal" data-rv="0">Story Mode · Phase 9.1</span><h1 data-rv="1"><span class="grad">Watch the detection stack close in</span></h1><p class="lede" data-rv="2">Scrub a day at a time through a <strong>real injected scheme</strong>. An account outlines in red only when a real detector has actually fired on it by that day &mdash; never because it is in the answer key. It is in the answer key the entire time; that is exactly the point.</p><div class="hero-meta" data-rv="3"><span class="chip"><b>36</b> schemes replayed</span><span class="chip"><b>34/36</b> ever caught</span><span class="chip"><b>nightly</b> re-detection cadence</span></div></div></div><section id="replay"><div class="wrap"><div class="sec-head" data-rv="0"><span class="eyebrow teal">Investigation replay</span><h2>Pick a scheme. Drag the day. Watch what an analyst would have seen.</h2><p>Every frame re-runs the <em>unmodified</em> rules engine and graph detector against a view of the ledger truncated to that day. There is no second, day-aware copy of a rule that could disagree with the one being graded.</p></div><div class="picker" role="group" aria-label="Choose a scheme to replay"><button type="button" aria-pressed="false">D0<span class="ty"> · dormant_reactivation</span></button><button type="button" aria-pressed="false">D1<span class="ty"> · dormant_reactivation</span></button><button type="button" aria-pressed="false">D2<span class="ty"> · dormant_reactivation</span></button><button type="button" aria-pressed="false">G0<span class="ty"> · high_risk_geography</span></button><button type="button" aria-pressed="false">G1<span class="ty"> · high_risk_geography</span></button><button type="button" aria-pressed="false">G2<span class="ty"> · high_risk_geography</span></button><button type="button" aria-pressed="false">M0<span class="ty"> · layering</span></button><button type="button" aria-pressed="false">M1<span class="ty"> · layering</span></button><button type="button" aria-pressed="false">M2<span class="ty"> · layering</span></button><button type="button" aria-pressed="false">R0<span class="ty"> · round_tripping</span></button><button type="button" aria-pressed="false">R1<span class="ty"> · round_tripping</span></button><button type="button" aria-pressed="false">R2<span class="ty"> · round_tripping</span></button><button type="button" aria-pressed="false">H0<span class="ty"> · shell_company</span></button><button type="button" aria-pressed="false">H1<span class="ty"> · shell_company</span></button><button type="button" aria-pressed="false">H2<span class="ty"> · shell_company</span></button><button type="button" aria-pressed="false">S0<span class="ty"> · structuring</span></button><button type="button" aria-pressed="false">S1<span class="ty"> · structuring</span></button><button type="button" aria-pressed="false">S2<span class="ty"> · structuring</span></button></div><div class="stage"><div><div class="card pad-lg" data-rv="0"><div class="scrub"><span class="daylab"><span id="daynum">&mdash;</span><span class="d2" id="dayoff"></span></span><input type="range" id="scrub" min="0" value="0" step="1" aria-label="Replay day"><button class="playbtn" id="play" type="button">Replay</button></div><div class="flow" id="flow"></div><div class="susp"><span class="lab">Evidence</span><span class="bars" id="suspbars"></span><span class="lab" id="susplab"></span></div><p class="narr" id="narr" style="margin-top:16px" aria-live="polite"></p></div><div class="card pad-lg" style="margin-top:14px" data-rv="1"><p class="sh">Transaction explorer</p><div class="txr"><table id="txns"></table></div></div></div><div class="side" data-rv="1"><div class="card"><p class="sh">Account profile</p><div id="profile"></div></div><div class="card"><p class="sh">Investigation panel</p><div class="kv"><span class="k">Value posted</span><span class="v" id="kmoved">&mdash;</span></div><div class="kv"><span class="k">Share of scheme</span><span class="v" id="kshare">&mdash;</span></div><div class="kv"><span class="k">Detectors fired</span><span class="v" id="kfired">&mdash;</span></div></div><div class="card"><p class="sh">Detector reasoning</p><div id="dets"></div></div></div></div></div></section><section id="latency"><div class="wrap"><div class="sec-head" data-rv="0"><span class="eyebrow ">The measurement</span><h2>How long a scheme runs before anything fires</h2><p>Every detection figure this project had published was scored against the <em>finished</em> world &mdash; which quietly assumes a bank may wait until the crime is over before deciding it happened. Real monitoring runs nightly against the ledger so far. Nothing here had ever answered how long that takes.</p></div><div class="grid g3" data-rv="1"><div class="kpi amber"><div class="v">9d</div><div class="k">Slowest to detect</div><div class="d"><code>structuring</code> needs the longest to accumulate enough evidence to fire at all</div></div><div class="kpi rose"><div class="v">100%</div><div class="k">Worst exposure at first alert</div><div class="d"><code>dormant_reactivation</code> is caught with this share of its value already moved</div></div><div class="kpi violet"><div class="v">34/36</div><div class="k">Schemes ever caught</div><div class="d">The rest ran to completion with no detector firing at any point</div></div></div><div style="height:18px"></div><div class="card pad-lg" data-rv="1" data-chart><div class="chart-wrap"><svg viewBox="0 0 780 214" role="img" aria-label="Bar chart, 6 values"><defs><linearGradient id="bg0" x1="0" x2="1" y1="0" y2="0"><stop offset="0%" stop-color="var(--c1)" stop-opacity=".95"/><stop offset="100%" stop-color="var(--c1)" stop-opacity=".55"/></linearGradient><linearGradient id="bg1" x1="0" x2="1" y1="0" y2="0"><stop offset="0%" stop-color="var(--c2)" stop-opacity=".95"/><stop offset="100%" stop-color="var(--c2)" stop-opacity=".55"/></linearGradient></defs><g class="c-row" data-tip="structuring  8/8 caught" data-tip-d="" tabindex="0"><rect class="c-hit" x="0" y="3" width="780" height="32"></rect><text class="c-lbl k" x="218" y="23" text-anchor="end">structuring  8/8 caught</text><rect class="c-bar" x="232" y="10" width="474.0" height="18" fill="url(#bg0)" style="animation-delay:0ms"></rect><text class="c-val" x="715.0" y="23">9.0d</text></g><g class="c-row" data-tip="shell_company  5/5 caught" data-tip-d="" tabindex="0"><rect class="c-hit" x="0" y="37" width="780" height="32"></rect><text class="c-lbl k" x="218" y="57" text-anchor="end">shell_company  5/5 caught</text><rect class="c-bar" x="232" y="44" width="316.0" height="18" fill="url(#bg0)" style="animation-delay:70ms"></rect><text class="c-val" x="557.0" y="57">6.0d</text></g><g class="c-row" data-tip="round_tripping  5/5 caught" data-tip-d="" tabindex="0"><rect class="c-hit" x="0" y="71" width="780" height="32"></rect><text class="c-lbl k" x="218" y="91" text-anchor="end">round_tripping  5/5 caught</text><rect class="c-bar" x="232" y="78" width="210.7" height="18" fill="url(#bg0)" style="animation-delay:140ms"></rect><text class="c-val" x="451.7" y="91">4.0d</text></g><g class="c-row" data-tip="layering  8/8 caught" data-tip-d="" tabindex="0"><rect class="c-hit" x="0" y="105" width="780" height="32"></rect><text class="c-lbl k" x="218" y="125" text-anchor="end">layering  8/8 caught</text><rect class="c-bar" x="232" y="112" width="52.7" height="18" fill="url(#bg0)" style="animation-delay:210ms"></rect><text class="c-val" x="293.7" y="125">1.0d</text></g><g class="c-row" data-tip="dormant_reactivation  3/5 caught" data-tip-d="" tabindex="0"><rect class="c-hit" x="0" y="139" width="780" height="32"></rect><text class="c-lbl k" x="218" y="159" text-anchor="end">dormant_reactivation  3/5 caught</text><text class="c-val" x="241.0" y="159">0.0d</text></g><g class="c-row" data-tip="high_risk_geography  5/5 caught" data-tip-d="" tabindex="0"><rect class="c-hit" x="0" y="173" width="780" height="32"></rect><text class="c-lbl k" x="218" y="193" text-anchor="end">high_risk_geography  5/5 caught</text><text class="c-val" x="241.0" y="193">0.0d</text></g><line class="c-ax" x1="232" y1="2" x2="232" y2="206"/></svg></div><p class="note">Median days from a scheme&#x27;s first transaction to the first day any detector could have fired on it, measured by re-running the real rules engine and graph detector against the ledger truncated to each day. A zero-length bar means no scheme of that typology was ever caught, not that it was caught instantly — 2 of 36 schemes were never seen at all. Screening and ML are excluded: one answers an identity question that has no firing day, the other emits a ranking rather than an event.</p></div><div style="height:16px"></div><div class="card pad-lg" data-rv="1" data-chart><div class="chart-wrap"><svg viewBox="0 0 780 214" role="img" aria-label="Bar chart, 6 values"><defs><linearGradient id="bg0" x1="0" x2="1" y1="0" y2="0"><stop offset="0%" stop-color="var(--c1)" stop-opacity=".95"/><stop offset="100%" stop-color="var(--c1)" stop-opacity=".55"/></linearGradient><linearGradient id="bg1" x1="0" x2="1" y1="0" y2="0"><stop offset="0%" stop-color="var(--c2)" stop-opacity=".95"/><stop offset="100%" stop-color="var(--c2)" stop-opacity=".55"/></linearGradient></defs><g class="c-row" data-tip="dormant_reactivation  n=3" data-tip-d="" tabindex="0"><rect class="c-hit" x="0" y="3" width="780" height="32"></rect><text class="c-lbl k" x="218" y="23" text-anchor="end">dormant_reactivation  n=3</text><rect class="c-bar" x="232" y="10" width="474.0" height="18" fill="url(#bg0)" style="animation-delay:0ms"></rect><text class="c-val" x="715.0" y="23">100%</text></g><g class="c-row" data-tip="round_tripping  n=5" data-tip-d="" tabindex="0"><rect class="c-hit" x="0" y="37" width="780" height="32"></rect><text class="c-lbl k" x="218" y="57" text-anchor="end">round_tripping  n=5</text><rect class="c-bar" x="232" y="44" width="474.0" height="18" fill="url(#bg0)" style="animation-delay:70ms"></rect><text class="c-val" x="715.0" y="57">100%</text></g><g class="c-row" data-tip="high_risk_geography  n=5" data-tip-d="" tabindex="0"><rect class="c-hit" x="0" y="71" width="780" height="32"></rect><text class="c-lbl k" x="218" y="91" text-anchor="end">high_risk_geography  n=5</text><rect class="c-bar" x="232" y="78" width="284.0" height="18" fill="url(#bg0)" style="animation-delay:140ms"></rect><text class="c-val" x="525.0" y="91">60%</text></g><g class="c-row" data-tip="shell_company  n=5" data-tip-d="" tabindex="0"><rect class="c-hit" x="0" y="105" width="780" height="32"></rect><text class="c-lbl k" x="218" y="125" text-anchor="end">shell_company  n=5</text><rect class="c-bar" x="232" y="112" width="277.3" height="18" fill="url(#bg0)" style="animation-delay:210ms"></rect><text class="c-val" x="518.3" y="125">58%</text></g><g class="c-row" data-tip="structuring  n=8" data-tip-d="" tabindex="0"><rect class="c-hit" x="0" y="139" width="780" height="32"></rect><text class="c-lbl k" x="218" y="159" text-anchor="end">structuring  n=8</text><rect class="c-bar" x="232" y="146" width="223.3" height="18" fill="url(#bg0)" style="animation-delay:280ms"></rect><text class="c-val" x="464.3" y="159">47%</text></g><g class="c-row" data-tip="layering  n=8" data-tip-d="" tabindex="0"><rect class="c-hit" x="0" y="173" width="780" height="32"></rect><text class="c-lbl k" x="218" y="193" text-anchor="end">layering  n=8</text><rect class="c-bar" x="232" y="180" width="216.3" height="18" fill="url(#bg0)" style="animation-delay:350ms"></rect><text class="c-val" x="457.3" y="193">46%</text></g><line class="c-ax" x1="232" y1="2" x2="232" y2="206"/></svg></div><p class="note">Median share of a scheme&#x27;s labelled transaction value that had already posted on the day its first alert fired. A short bar is a scheme caught with money still stoppable; a full bar is an alert that could only ever arrive after the fact. Three rules are structurally incapable of firing earlier — round_trip needs the return leg and dormancy_burst needs the cash-out, so the evidence they require does not exist until the scheme has completed. That is a property of the detection design, not a tuning mistake, and no threshold fixes it. This counts transaction value, so a round trip&#x27;s departure and return are both included; it measures progress through a scheme, not loss.</p></div><div class="box finding"><div class="bt">Latency and usefulness are nearly inverted</div><p><code>round_tripping</code> is caught in a median of four days &mdash; fast &mdash; with <strong>100% of the money already moved</strong>, every time. That is not a tuning problem. The rule fires on money leaving and coming back, so it needs the return leg to exist before it has anything to see, and the return leg is the last act of the scheme. It is structurally incapable of alerting while a rupee is still stoppable. Meanwhile <code>structuring</code> &mdash; the slowest, the worst bar on the latency chart &mdash; is caught with roughly half the scheme still to come.</p></div><div class="box why"><div class="bt">Why this is a different axis, not a better number</div><p>Detection rate asks <em>whether</em> a control fires. This asks <em>when</em> &mdash; and then whether that was soon enough to matter. A control can score perfectly on the first and be worthless on the second, and no amount of threshold tuning moves it: the shape of the evidence the rule requires is what decides it.</p></div><details class="exp"><summary>Engineering note: how the day-by-day re-detection works</summary><div class="exp-body"><p>A DuckDB view named <code>transactions</code> shadows the real table through <code>search_path</code>, so the SQL every rule already contains does the filtering for free. The detectors are the real ones, called exactly as they are everywhere else. A test asserts the truncation really truncates by counting rows through the view &mdash; because if the shadowing ever silently stopped working, every scheme would report as detected on day one, which is a flattering number with nothing failing.</p></div></details><details class="exp"><summary>Why screening and ML are excluded from this measurement</summary><div class="exp-body"><p>Screening asks an identity question: a customer is on a watchlist on day 0 and on day 39, so &ldquo;when did it fire&rdquo; has no meaning for it. The ML layer emits a ranking rather than an event, and re-fitting an unsupervised model once per day would measure the model&rsquo;s day-to-day instability rather than the scheme&rsquo;s visibility. The red team benchmark drew the same boundary for the same reason.</p></div></details></div></section><section id="limits"><div class="wrap"><div class="sec-head" data-rv="0"><span class="eyebrow amber">Limitations</span><h2>What this replay does not show</h2></div><div class="grid g2" data-rv="0"><div class="card"><h3>Latency can under-report, never over-report</h3><p>A rule that never fires reports no latency at all rather than a flattering one. A detection dated before the scheme's own first transaction would mean the replay leaked future rows, and a test asserts it never does.</p></div><div class="card"><h3>Exposure counts transaction value, not loss</h3><p>A round trip's departure and return are both labelled, so the same money is counted twice. It is a fair progress measure through a scheme; the rupee figure underneath it is not a loss number and is never presented as one.</p></div><div class="card"><h3>Alerts predating a scheme are excluded</h3><p>A scheme is injected into an account that already has a life. Crediting a pre-existing alert to the scheme would report a detection the scheme did not cause, and could even produce a negative latency.</p></div><div class="card"><h3>Nightly is an assumption about cadence</h3><p>This models a stack re-run once a day. A bank running intraday monitoring would see shorter latencies; one running weekly batches would see longer ones.</p></div></div></div></section><section id="next"><div class="wrap"><div class="sec-head" data-rv="0"><span class="eyebrow ">Next</span><h2>Continue</h2></div><a class="next" href="results.html" data-rv="0"><div><div class="nx-k">Measured results</div><div class="nx-t">Every detector, graded against the answer key</div><div class="nx-d">Detection rate, precision, queue composition, and what the stack costs to run.</div></div><div class="arw" aria-hidden="true">&#8594;</div></a></div></section>
+</main>
+<footer class="ft"><div class="wrap"><div class="ft-in"><div>An open adversarial range for AML detection testing.<br>All data synthetic. All typologies from public FATF / FinCEN / RBI advisories.</div><div>Built by Dhanush Jangadi &middot; <a href="https://github.com/Dhanu2626/launderlab" rel="noopener">Source on GitHub</a><br>Every figure is rendered from the project&rsquo;s scoring modules, never typed by hand.</div></div></div></footer>
+<script>
+(function(){
+  var RM = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-let current = STORIES[0], calendar = [], at = 0;
+  /* Scroll reveal. Falls back to fully visible if IntersectionObserver is
+     missing -- content must never depend on an animation having run. */
+  var rv = document.querySelectorAll('[data-rv]');
+  if (!('IntersectionObserver' in window) || RM) {
+    rv.forEach(function(el){ el.classList.add('in'); });
+  } else {
+    var io = new IntersectionObserver(function(es){
+      es.forEach(function(e){
+        if (!e.isIntersecting) return;
+        var el = e.target, d = +(el.getAttribute('data-rv') || 0);
+        setTimeout(function(){ el.classList.add('in'); }, d * 60);
+        io.unobserve(el);
+      });
+    }, { rootMargin:'0px 0px -8% 0px', threshold:.08 });
+    rv.forEach(function(el){ io.observe(el); });
+  }
 
-function pick(i) {
-  current = STORIES[i]; calendar = current.calendar; at = calendar.length - 1;
-  document.querySelectorAll('.picker button').forEach((b,j) => b.classList.toggle('on', i===j));
-  const slider = document.getElementById('scrub');
-  slider.max = calendar.length - 1; slider.value = at;
-  draw();
-}
+  /* Count-up. The element's text is already correct in the DOM; this only
+     replays toward it, and restores the exact original string at the end so no
+     rounding here can ever alter a published figure. */
+  function countUp(el){
+    var target = el.getAttribute('data-count'), final = el.textContent;
+    var n = parseFloat(target);
+    if (isNaN(n) || RM) return;
+    var dec = (target.split('.')[1] || '').length, t0 = null, dur = 950;
+    function step(ts){
+      if (!t0) t0 = ts;
+      var p = Math.min((ts - t0) / dur, 1), e = 1 - Math.pow(1 - p, 3);
+      el.textContent = final.replace(target, (n * e).toFixed(dec));
+      if (p < 1) requestAnimationFrame(step); else el.textContent = final;
+    }
+    requestAnimationFrame(step);
+  }
+  var cu = document.querySelectorAll('[data-count]');
+  if ('IntersectionObserver' in window && !RM) {
+    var io2 = new IntersectionObserver(function(es){
+      es.forEach(function(e){ if (e.isIntersecting) { countUp(e.target); io2.unobserve(e.target); } });
+    }, { threshold:.5 });
+    cu.forEach(function(el){ io2.observe(el); });
+  }
 
-function draw() {
-  const s = current, today = calendar[at];
-  const upto = s.txns.filter(t => t.day <= today);
-  document.getElementById('day').textContent =
-    today + '  (day ' + (at+1) + ' of ' + calendar.length + ')';
+  /* Chart draw-in */
+  var charts = document.querySelectorAll('.chart-wrap');
+  if ('IntersectionObserver' in window && !RM) {
+    var io3 = new IntersectionObserver(function(es){
+      es.forEach(function(e){
+        if (!e.isIntersecting) return;
+        e.target.classList.add('reveal'); io3.unobserve(e.target);
+      });
+    }, { threshold:.15 });
+    charts.forEach(function(c){ io3.observe(c); });
+  } else { charts.forEach(function(c){ c.classList.add('reveal'); }); }
 
-  const moved = upto.reduce((a,t) => a + t.amount, 0);
-  document.getElementById('stats').innerHTML =
-    '<div><b>' + s.scheme_id + '</b>' + s.typology + '</div>' +
-    '<div><b>' + upto.length + ' / ' + s.txns.length + '</b>labelled transactions</div>' +
-    '<div><b>' + fmt(moved) + '</b>moved so far</div>' +
-    '<div><b>' + (s.latency === null ? 'never' : s.latency + ' days')
-      + '</b>ran before first alert</div>' +
-    '<div><b>' + (s.moved_before_alert === null ? '—'
-      : Math.round(s.moved_before_alert * 100) + '%')
-      + '</b>had moved by then</div>';
-
-  // Nodes light up only when a REAL detector has fired on them by `today`.
-  const lit = new Set(s.detections.filter(d => d.day <= today).map(d => d.account_id));
-  document.getElementById('flow').innerHTML = s.accounts.map((a, i) => {
-    const mine = upto.filter(t => t.account_id === a);
-    const cr = mine.filter(t => t.direction === 'CR').reduce((x,t) => x+t.amount, 0);
-    const dr = mine.filter(t => t.direction === 'DR').reduce((x,t) => x+t.amount, 0);
-    return (i ? '<div class="arrow">&#8594;</div>' : '') +
-      '<div class="node' + (lit.has(a) ? ' lit' : '') + '">' +
-      '<div class="who">' + (s.names[a] || a) + '</div>' +
-      '<div class="id">' + a + '</div>' +
-      '<div class="amt">in ' + fmt(cr) + '</div>' +
-      '<div class="amt">out ' + fmt(dr) + '</div></div>';
-  }).join('');
-
-  const rows = s.detections.map(d => {
-    const fired = d.day <= today;
-    return '<div class="det' + (fired ? ' fired' : '') + '">' +
-      '<span class="pill">' + (fired ? d.day : 'day ' + d.day) + '</span>' +
-      '<span><span class="what">' + d.detector + '</span> on ' + d.account_id +
-      '<br><span class="why">' + d.detail + '</span></span></div>';
+  /* One tooltip element, shared by every chart on the page */
+  var tip = document.createElement('div');
+  tip.className = 'tip'; tip.setAttribute('role','status');
+  document.body.appendChild(tip);
+  function move(ev){
+    var r = tip.getBoundingClientRect();
+    var x = ev.clientX + 14, y = ev.clientY - r.height - 12;
+    if (x + r.width > window.innerWidth - 10) x = ev.clientX - r.width - 14;
+    if (y < 8) y = ev.clientY + 18;
+    tip.style.left = x + 'px'; tip.style.top = y + 'px';
+  }
+  document.querySelectorAll('[data-tip]').forEach(function(el){
+    function show(ev){
+      tip.innerHTML = '<div class="tt">' + el.getAttribute('data-tip') + '</div>' +
+        (el.getAttribute('data-tip-d') ? '<div class="td">' + el.getAttribute('data-tip-d') + '</div>' : '');
+      tip.classList.add('show'); move(ev);
+    }
+    el.addEventListener('mouseenter', show);
+    el.addEventListener('mousemove', move);
+    el.addEventListener('mouseleave', function(){ tip.classList.remove('show'); });
+    el.addEventListener('focus', function(){
+      var b = el.getBoundingClientRect();
+      show({ clientX:b.left + b.width / 2, clientY:b.top + b.height / 2 });
+    });
+    el.addEventListener('blur', function(){ tip.classList.remove('show'); });
   });
-  document.getElementById('dets').innerHTML = rows.length ? rows.join('') :
-    '<p class="note">No detector ever fired on this scheme. It ran to completion unseen.</p>';
 
-  const seats = s.cases.length
-    ? s.cases.map(c => 'case #' + c.case_id + ' (' + c.band + ' band)').join(', ')
-    : 'never reached an analyst';
-  document.getElementById('outcome').textContent = 'Outcome: ' + seats + '.';
-  if (s.prior.length) {
-    document.getElementById('prior').innerHTML = '<p class="note">' + s.prior.length +
-      ' detector hit(s) on these accounts predate the scheme and are excluded from ' +
-      'the latency above: ' + s.prior.map(d => d.detector + ' on ' + d.account_id +
-      ' (' + d.day + ')').join(', ') + '.</p>';
-  } else { document.getElementById('prior').innerHTML = ''; }
+  /* Interactive legends: toggle a series without removing it from the DOM, so
+     the underlying data stays readable to assistive tech and to view-source. */
+  document.querySelectorAll('.legend button[data-series]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var on = btn.getAttribute('aria-pressed') !== 'false';
+      btn.setAttribute('aria-pressed', on ? 'false' : 'true');
+      var sel = btn.closest('[data-chart]');
+      if (!sel) return;
+      sel.querySelectorAll('[data-s="' + btn.getAttribute('data-series') + '"]')
+         .forEach(function(n){ n.style.display = on ? 'none' : ''; });
+    });
+  });
+})();
+const STORIES = [{"scheme_id":"D0","typology":"dormant_reactivation","accounts":["A000910"],"names":{"A000910":"Shalini Sheikh"},"started":"2026-08-07","ended":"2026-08-07","ran_days":1,"calendar":["2026-08-07"],"latency":0,"moved_before_alert":1.0,"caught_on":"2026-08-07","cases":[],"txns":[{"day":"2026-08-07","account_id":"A000910","direction":"CR","channel":"IMPS","amount":1775000.0,"role":"reactivation","counterparty":"","narration":"IMPS/CR/746397/cust6645@okhdfc"},{"day":"2026-08-07","account_id":"A000910","direction":"DR","channel":"UPI","amount":588000.0,"role":"cashout","counterparty":"","narration":"UPI/DR/978163/cust8425@okhdfc"},{"day":"2026-08-07","account_id":"A000910","direction":"DR","channel":"UPI","amount":548000.0,"role":"cashout","counterparty":"","narration":"UPI/DR/539740/cust9216@oksbi"},{"day":"2026-08-07","account_id":"A000910","direction":"DR","channel":"UPI","amount":567902.0,"role":"cashout","counterparty":"","narration":"UPI/DR/667456/cust9441@oksbi"}],"detections":[{"layer":"rules","detector":"dormancy_burst","account_id":"A000910","day":"2026-08-07","detail":"Rs 1,775,000 after a quiet stretch, 50%+ cashed out within 24h"}],"prior":[]},{"scheme_id":"D1","typology":"dormant_reactivation","accounts":["A000755"],"names":{"A000755":"Manisha Jayaraman"},"started":"2026-08-05","ended":"2026-08-06","ran_days":2,"calendar":["2026-08-05","2026-08-06"],"latency":null,"moved_before_alert":null,"caught_on":null,"cases":[],"txns":[{"day":"2026-08-05","account_id":"A000755","direction":"CR","channel":"IMPS","amount":1685000.0,"role":"reactivation","counterparty":"","narration":"IMPS/CR/723453/cust1894@okhdfc"},{"day":"2026-08-05","account_id":"A000755","direction":"DR","channel":"UPI","amount":440000.0,"role":"cashout","counterparty":"","narration":"UPI/DR/872538/cust7587@oksbi"},{"day":"2026-08-06","account_id":"A000755","direction":"DR","channel":"UPI","amount":581000.0,"role":"cashout","counterparty":"","narration":"UPI/DR/232843/cust9045@oksbi"},{"day":"2026-08-06","account_id":"A000755","direction":"DR","channel":"UPI","amount":513420.0,"role":"cashout","counterparty":"","narration":"UPI/DR/981031/cust3332@oksbi"}],"detections":[],"prior":[]},{"scheme_id":"D2","typology":"dormant_reactivation","accounts":["A001145"],"names":{"A001145":"Namrata Desai"},"started":"2026-08-02","ended":"2026-08-02","ran_days":1,"calendar":["2026-08-02"],"latency":null,"moved_before_alert":null,"caught_on":null,"cases":[],"txns":[{"day":"2026-08-02","account_id":"A001145","direction":"CR","channel":"IMPS","amount":345000.0,"role":"reactivation","counterparty":"","narration":"IMPS/CR/293892/cust1627@okicici"},{"day":"2026-08-02","account_id":"A001145","direction":"DR","channel":"ATM","amount":93000.0,"role":"cashout","counterparty":"","narration":"ATM-CASH/DR/92"},{"day":"2026-08-02","account_id":"A001145","direction":"DR","channel":"UPI","amount":84000.0,"role":"cashout","counterparty":"","narration":"UPI/DR/212480/cust9040@oksbi"},{"day":"2026-08-02","account_id":"A001145","direction":"DR","channel":"UPI","amount":76000.0,"role":"cashout","counterparty":"","narration":"UPI/DR/620777/cust2076@oksbi"},{"day":"2026-08-02","account_id":"A001145","direction":"DR","channel":"ATM","amount":65769.0,"role":"cashout","counterparty":"","narration":"ATM-CASH/DR/14"}],"detections":[],"prior":[]},{"scheme_id":"G0","typology":"high_risk_geography","accounts":["A000715"],"names":{"A000715":"Balaji Malhotra"},"started":"2026-07-07","ended":"2026-07-11","ran_days":5,"calendar":["2026-07-07","2026-07-08","2026-07-09","2026-07-10","2026-07-11"],"latency":0,"moved_before_alert":0.7037399314006096,"caught_on":"2026-07-07","cases":[{"case_id":41,"band":"medium"}],"txns":[{"day":"2026-07-07","account_id":"A000715","direction":"CR","channel":"INT","amount":545352.0,"role":"greylist","counterparty":"REMITTANCE SYRIA SY","narration":"INT/CR/378745/REMITTANCE SYRIA SY"},{"day":"2026-07-11","account_id":"A000715","direction":"DR","channel":"INT","amount":229582.0,"role":"greylist","counterparty":"REMITTANCE TURKEY TR","narration":"INT/DR/631089/REMITTANCE TURKEY TR"}],"detections":[{"layer":"rules","detector":"high_risk_geography","account_id":"A000715","day":"2026-07-07","detail":"International transfer tied to Syria"}],"prior":[]},{"scheme_id":"G1","typology":"high_risk_geography","accounts":["A000776"],"names":{"A000776":"Viktor Anatolyevich Petrov"},"started":"2026-07-05","ended":"2026-07-10","ran_days":6,"calendar":["2026-07-05","2026-07-06","2026-07-07","2026-07-08","2026-07-09","2026-07-10"],"latency":0,"moved_before_alert":0.4306946022581867,"caught_on":"2026-07-05","cases":[{"case_id":1,"band":"high"}],"txns":[{"day":"2026-07-05","account_id":"A000776","direction":"DR","channel":"INT","amount":336593.0,"role":"greylist","counterparty":"REMITTANCE YEMEN YE","narration":"INT/DR/577027/REMITTANCE YEMEN YE"},{"day":"2026-07-09","account_id":"A000776","direction":"DR","channel":"INT","amount":46207.0,"role":"greylist","counterparty":"REMITTANCE TURKEY TR","narration":"INT/DR/331085/REMITTANCE TURKEY TR"},{"day":"2026-07-10","account_id":"A000776","direction":"CR","channel":"INT","amount":398712.0,"role":"greylist","counterparty":"REMITTANCE TURKEY TR","narration":"INT/CR/223270/REMITTANCE TURKEY TR"}],"detections":[{"layer":"rules","detector":"high_risk_geography","account_id":"A000776","day":"2026-07-05","detail":"International transfer tied to Yemen"}],"prior":[]},{"scheme_id":"G2","typology":"high_risk_geography","accounts":["A000791"],"names":{"A000791":"Hemant Ranganathan"},"started":"2026-07-12","ended":"2026-07-24","ran_days":13,"calendar":["2026-07-12","2026-07-13","2026-07-14","2026-07-15","2026-07-16","2026-07-17","2026-07-18","2026-07-19","2026-07-20","2026-07-21","2026-07-22","2026-07-23","2026-07-24"],"latency":0,"moved_before_alert":0.4172996830624217,"caught_on":"2026-07-12","cases":[{"case_id":37,"band":"medium"}],"txns":[{"day":"2026-07-12","account_id":"A000791","direction":"CR","channel":"INT","amount":380647.0,"role":"greylist","counterparty":"REMITTANCE SOUTH SUDAN SS","narration":"INT/CR/790486/REMITTANCE SOUTH SUDAN SS"},{"day":"2026-07-24","account_id":"A000791","direction":"CR","channel":"INT","amount":531520.0,"role":"blacklist","counterparty":"REMITTANCE IRAN IR","narration":"INT/CR/115862/REMITTANCE IRAN IR"}],"detections":[{"layer":"rules","detector":"high_risk_geography","account_id":"A000791","day":"2026-07-12","detail":"International transfer tied to South Sudan"}],"prior":[]},{"scheme_id":"M0","typology":"layering","accounts":["A000859","A000669","A001089","A000432"],"names":{"A000859":"Anjali Seth","A000669":"Naveen Kapoor","A001089":"Bhavya Sahu","A000432":"Nadia Mohan"},"started":"2026-07-03","ended":"2026-07-06","ran_days":4,"calendar":["2026-07-03","2026-07-04","2026-07-05","2026-07-06"],"latency":1,"moved_before_alert":0.4537998918898092,"caught_on":"2026-07-04","cases":[{"case_id":9,"band":"high"},{"case_id":11,"band":"high"},{"case_id":18,"band":"high"},{"case_id":16,"band":"high"}],"txns":[{"day":"2026-07-03","account_id":"A000859","direction":"CR","channel":"IMPS","amount":1100000.0,"role":"source","counterparty":"PRIME ARC ENTERPRISES","narration":"IMPS/CR/149453/PRIME ARC ENTERPRISES"},{"day":"2026-07-04","account_id":"A000859","direction":"DR","channel":"UPI","amount":1051792.0,"role":"source","counterparty":"Naveen Kapoor","narration":"UPI/DR/751133/naveen.kapoor90@okicici"},{"day":"2026-07-04","account_id":"A000669","direction":"CR","channel":"UPI","amount":1051792.0,"role":"mule","counterparty":"Anjali Seth","narration":"UPI/CR/751133/anjali.seth72@okicici"},{"day":"2026-07-05","account_id":"A000669","direction":"DR","channel":"IMPS","amount":992949.0,"role":"mule","counterparty":"Bhavya Sahu","narration":"IMPS/DR/637007/bhavya.sahu79@okaxis"},{"day":"2026-07-05","account_id":"A001089","direction":"CR","channel":"IMPS","amount":992949.0,"role":"mule","counterparty":"Naveen Kapoor","narration":"IMPS/CR/637007/naveen.kapoor90@okicici"},{"day":"2026-07-06","account_id":"A001089","direction":"DR","channel":"IMPS","amount":934991.0,"role":"mule","counterparty":"Nadia Mohan","narration":"IMPS/DR/328107/nadia.mohan67@okaxis"},{"day":"2026-07-06","account_id":"A000432","direction":"CR","channel":"IMPS","amount":934991.0,"role":"sink","counterparty":"Bhavya Sahu","narration":"IMPS/CR/328107/bhavya.sahu79@okaxis"}],"detections":[{"layer":"rules","detector":"rapid_pass_through","account_id":"A000859","day":"2026-07-04","detail":"Rs 1,100,000 in, most of it out within 48h"},{"layer":"graph","detector":"pass_through_chain","account_id":"A000669","day":"2026-07-05","detail":"2-hop pass-through chain, 94% of the entry amount retained"},{"layer":"graph","detector":"pass_through_chain","account_id":"A000859","day":"2026-07-05","detail":"2-hop pass-through chain, 94% of the entry amount retained"},{"layer":"graph","detector":"pass_through_chain","account_id":"A001089","day":"2026-07-05","detail":"2-hop pass-through chain, 94% of the entry amount retained"},{"layer":"rules","detector":"rapid_pass_through","account_id":"A000669","day":"2026-07-05","detail":"Rs 1,051,792 in, most of it out within 48h"},{"layer":"graph","detector":"pass_through_chain","account_id":"A000432","day":"2026-07-06","detail":"3-hop pass-through chain, 89% of the entry amount retained"},{"layer":"rules","detector":"rapid_pass_through","account_id":"A001089","day":"2026-07-06","detail":"Rs 992,949 in, most of it out within 48h"},{"layer":"rules","detector":"rapid_pass_through","account_id":"A000432","day":"2026-07-08","detail":"Rs 934,991 in, most of it out within 48h"}],"prior":[]},{"scheme_id":"M1","typology":"layering","accounts":["A000134","A000508","A000075","A000216"],"names":{"A000134":"Kalpana Mishra","A000508":"Ahmed Pandey","A000075":"Mukesh Chatterjee","A000216":"Namrata Nath"},"started":"2026-07-03","ended":"2026-07-06","ran_days":4,"calendar":["2026-07-03","2026-07-04","2026-07-05","2026-07-06"],"latency":1,"moved_before_alert":0.4484759004379782,"caught_on":"2026-07-04","cases":[{"case_id":19,"band":"high"},{"case_id":20,"band":"high"},{"case_id":12,"band":"high"}],"txns":[{"day":"2026-07-03","account_id":"A000134","direction":"CR","channel":"IMPS","amount":1430000.0,"role":"source","counterparty":"STARCREST VENTURES","narration":"IMPS/CR/499897/STARCREST VENTURES"},{"day":"2026-07-04","account_id":"A000134","direction":"DR","channel":"UPI","amount":1368776.0,"role":"source","counterparty":"Ahmed Pandey","narration":"UPI/DR/801728/ahmed.pandey59@okaxis"},{"day":"2026-07-04","account_id":"A000508","direction":"CR","channel":"UPI","amount":1368776.0,"role":"mule","counterparty":"Kalpana Mishra","narration":"UPI/CR/801728/kalpana.mishra40@okhdfc"},{"day":"2026-07-05","account_id":"A000508","direction":"DR","channel":"UPI","amount":1307027.0,"role":"mule","counterparty":"Mukesh Chatterjee","narration":"UPI/DR/612152/mukesh.chatterjee56@okicici"},{"day":"2026-07-05","account_id":"A000075","direction":"CR","channel":"UPI","amount":1307027.0,"role":"mule","counterparty":"Ahmed Pandey","narration":"UPI/CR/612152/ahmed.pandey59@okaxis"},{"day":"2026-07-06","account_id":"A000075","direction":"DR","channel":"UPI","amount":1255547.0,"role":"mule","counterparty":"Namrata Nath","narration":"UPI/DR/233839/namrata.nath12@oksbi"},{"day":"2026-07-06","account_id":"A000216","direction":"CR","channel":"UPI","amount":1255547.0,"role":"sink","counterparty":"Mukesh Chatterjee","narration":"UPI/CR/233839/mukesh.chatterjee56@okicici"}],"detections":[{"layer":"rules","detector":"rapid_pass_through","account_id":"A000134","day":"2026-07-04","detail":"Rs 1,430,000 in, most of it out within 48h"},{"layer":"graph","detector":"pass_through_chain","account_id":"A000075","day":"2026-07-05","detail":"2-hop pass-through chain, 95% of the entry amount retained"},{"layer":"graph","detector":"pass_through_chain","account_id":"A000134","day":"2026-07-05","detail":"2-hop pass-through chain, 95% of the entry amount retained"},{"layer":"graph","detector":"pass_through_chain","account_id":"A000508","day":"2026-07-05","detail":"2-hop pass-through chain, 95% of the entry amount retained"},{"layer":"rules","detector":"rapid_pass_through","account_id":"A000508","day":"2026-07-05","detail":"Rs 1,368,776 in, most of it out within 48h"},{"layer":"graph","detector":"pass_through_chain","account_id":"A000216","day":"2026-07-06","detail":"3-hop pass-through chain, 92% of the entry amount retained"},{"layer":"rules","detector":"rapid_pass_through","account_id":"A000075","day":"2026-07-06","detail":"Rs 1,307,027 in, most of it out within 48h"}],"prior":[]},{"scheme_id":"M2","typology":"layering","accounts":["A000294","A000436","A000587","A000605"],"names":{"A000294":"Sarika Nagarajan","A000436":"Meenakshi Agarwal","A000587":"Payal Bansal","A000605":"Kavita Bose"},"started":"2026-07-03","ended":"2026-07-05","ran_days":3,"calendar":["2026-07-03","2026-07-04","2026-07-05"],"latency":1,"moved_before_alert":0.7336333890474472,"caught_on":"2026-07-04","cases":[{"case_id":7,"band":"high"},{"case_id":10,"band":"high"},{"case_id":3,"band":"high"}],"txns":[{"day":"2026-07-03","account_id":"A000294","direction":"CR","channel":"IMPS","amount":1110000.0,"role":"source","counterparty":"STARCREST VENTURES","narration":"IMPS/CR/314754/STARCREST VENTURES"},{"day":"2026-07-04","account_id":"A000294","direction":"DR","channel":"IMPS","amount":1047008.0,"role":"source","counterparty":"Meenakshi Agarwal","narration":"IMPS/DR/243326/meenakshi.agarwal76@oksbi"},{"day":"2026-07-04","account_id":"A000436","direction":"CR","channel":"IMPS","amount":1047008.0,"role":"mule","counterparty":"Sarika Nagarajan","narration":"IMPS/CR/243326/sarika.nagarajan79@okicici"},{"day":"2026-07-04","account_id":"A000436","direction":"DR","channel":"IMPS","amount":988541.0,"role":"mule","counterparty":"Payal Bansal","narration":"IMPS/DR/207624/payal.bansal50@okaxis"},{"day":"2026-07-04","account_id":"A000587","direction":"CR","channel":"IMPS","amount":988541.0,"role":"mule","counterparty":"Meenakshi Agarwal","narration":"IMPS/CR/207624/meenakshi.agarwal76@oksbi"},{"day":"2026-07-05","account_id":"A000587","direction":"DR","channel":"UPI","amount":940573.0,"role":"mule","counterparty":"Kavita Bose","narration":"UPI/DR/247119/kavita.bose95@okaxis"},{"day":"2026-07-05","account_id":"A000605","direction":"CR","channel":"UPI","amount":940573.0,"role":"sink","counterparty":"Payal Bansal","narration":"UPI/CR/247119/payal.bansal50@okaxis"}],"detections":[{"layer":"graph","detector":"pass_through_chain","account_id":"A000294","day":"2026-07-04","detail":"2-hop pass-through chain, 94% of the entry amount retained"},{"layer":"graph","detector":"pass_through_chain","account_id":"A000436","day":"2026-07-04","detail":"2-hop pass-through chain, 94% of the entry amount retained"},{"layer":"graph","detector":"pass_through_chain","account_id":"A000587","day":"2026-07-04","detail":"2-hop pass-through chain, 94% of the entry amount retained"},{"layer":"rules","detector":"rapid_pass_through","account_id":"A000294","day":"2026-07-04","detail":"Rs 1,110,000 in, most of it out within 48h"},{"layer":"rules","detector":"rapid_pass_through","account_id":"A000436","day":"2026-07-04","detail":"Rs 1,047,008 in, most of it out within 48h"},{"layer":"graph","detector":"pass_through_chain","account_id":"A000605","day":"2026-07-05","detail":"3-hop pass-through chain, 90% of the entry amount retained"},{"layer":"rules","detector":"rapid_pass_through","account_id":"A000587","day":"2026-07-05","detail":"Rs 988,541 in, most of it out within 48h"}],"prior":[]},{"scheme_id":"R0","typology":"round_tripping","accounts":["A000097"],"names":{"A000097":"KAUR TRADERS"},"started":"2026-07-08","ended":"2026-07-12","ran_days":5,"calendar":["2026-07-08","2026-07-09","2026-07-10","2026-07-11","2026-07-12"],"latency":2,"moved_before_alert":0.4909442318276652,"caught_on":"2026-07-10","cases":[],"txns":[{"day":"2026-07-08","account_id":"A000097","direction":"DR","channel":"RTGS","amount":38356.0,"role":"departure","counterparty":"VELOCITY IMPEX","narration":"RTGS/DR/879298/VELOCITY IMPEX INVESTMENT"},{"day":"2026-07-12","account_id":"A000097","direction":"CR","channel":"RTGS","amount":39771.0,"role":"return","counterparty":"PRIME ARC ENTERPRISES","narration":"RTGS/CR/237118/PRIME ARC ENTERPRISES INVESTMENT RETURN"}],"detections":[{"layer":"rules","detector":"round_trip","account_id":"A000097","day":"2026-07-10","detail":"Rs 34,671 left and came back within 12d"}],"prior":[]},{"scheme_id":"R1","typology":"round_tripping","accounts":["A000734"],"names":{"A000734":"PANICKER TRADERS"},"started":"2026-07-06","ended":"2026-07-09","ran_days":4,"calendar":["2026-07-06","2026-07-07","2026-07-08","2026-07-09"],"latency":3,"moved_before_alert":1.0,"caught_on":"2026-07-09","cases":[],"txns":[{"day":"2026-07-06","account_id":"A000734","direction":"DR","channel":"RTGS","amount":63481.0,"role":"departure","counterparty":"VELOCITY IMPEX","narration":"RTGS/DR/551674/VELOCITY IMPEX INVESTMENT"},{"day":"2026-07-09","account_id":"A000734","direction":"CR","channel":"RTGS","amount":66529.0,"role":"return","counterparty":"STARCREST VENTURES","narration":"RTGS/CR/123060/STARCREST VENTURES INVESTMENT RETURN"}],"detections":[{"layer":"rules","detector":"round_trip","account_id":"A000734","day":"2026-07-09","detail":"Rs 63,481 left and came back within 12d"}],"prior":[]},{"scheme_id":"R2","typology":"round_tripping","accounts":["A000022"],"names":{"A000022":"MANDAL TRADERS"},"started":"2026-07-03","ended":"2026-07-08","ran_days":6,"calendar":["2026-07-03","2026-07-04","2026-07-05","2026-07-06","2026-07-07","2026-07-08"],"latency":5,"moved_before_alert":1.0,"caught_on":"2026-07-08","cases":[],"txns":[{"day":"2026-07-03","account_id":"A000022","direction":"DR","channel":"RTGS","amount":51272.0,"role":"departure","counterparty":"CRESTLINE OVERSEAS","narration":"RTGS/DR/283042/CRESTLINE OVERSEAS INVESTMENT"},{"day":"2026-07-08","account_id":"A000022","direction":"CR","channel":"RTGS","amount":52382.0,"role":"return","counterparty":"VELOCITY IMPEX","narration":"RTGS/CR/436482/VELOCITY IMPEX INVESTMENT RETURN"}],"detections":[{"layer":"rules","detector":"round_trip","account_id":"A000022","day":"2026-07-08","detail":"Rs 51,272 left and came back within 12d"}],"prior":[]},{"scheme_id":"H0","typology":"shell_company","accounts":["A001199"],"names":{"A001199":"RANGANATHAN TRADERS"},"started":"2026-07-04","ended":"2026-07-22","ran_days":19,"calendar":["2026-07-04","2026-07-05","2026-07-06","2026-07-07","2026-07-08","2026-07-09","2026-07-10","2026-07-11","2026-07-12","2026-07-13","2026-07-14","2026-07-15","2026-07-16","2026-07-17","2026-07-18","2026-07-19","2026-07-20","2026-07-21","2026-07-22"],"latency":5,"moved_before_alert":0.5200710479573712,"caught_on":"2026-07-09","cases":[],"txns":[{"day":"2026-07-04","account_id":"A001199","direction":"CR","channel":"IMPS","amount":377000.0,"role":"integration","counterparty":"VELOCITY IMPEX","narration":"IMPS/CR/532753/VELOCITY IMPEX INV-1001"},{"day":"2026-07-04","account_id":"A001199","direction":"CR","channel":"IMPS","amount":398000.0,"role":"integration","counterparty":"VELOCITY IMPEX","narration":"IMPS/CR/516689/VELOCITY IMPEX INV-1002"},{"day":"2026-07-08","account_id":"A001199","direction":"CR","channel":"NEFT","amount":379000.0,"role":"integration","counterparty":"VELOCITY IMPEX","narration":"NEFT/CR/896141/VELOCITY IMPEX INV-1004"},{"day":"2026-07-09","account_id":"A001199","direction":"CR","channel":"IMPS","amount":310000.0,"role":"integration","counterparty":"VELOCITY IMPEX","narration":"IMPS/CR/801874/VELOCITY IMPEX INV-1007"},{"day":"2026-07-10","account_id":"A001199","direction":"CR","channel":"NEFT","amount":340000.0,"role":"integration","counterparty":"VELOCITY IMPEX","narration":"NEFT/CR/594754/VELOCITY IMPEX INV-1008"},{"day":"2026-07-11","account_id":"A001199","direction":"CR","channel":"IMPS","amount":366000.0,"role":"integration","counterparty":"VELOCITY IMPEX","narration":"IMPS/CR/850493/VELOCITY IMPEX INV-1003"},{"day":"2026-07-21","account_id":"A001199","direction":"CR","channel":"NEFT","amount":273000.0,"role":"integration","counterparty":"VELOCITY IMPEX","narration":"NEFT/CR/541024/VELOCITY IMPEX INV-1005"},{"day":"2026-07-22","account_id":"A001199","direction":"CR","channel":"NEFT","amount":372000.0,"role":"integration","counterparty":"VELOCITY IMPEX","narration":"NEFT/CR/268626/VELOCITY IMPEX INV-1006"}],"detections":[{"layer":"rules","detector":"counterparty_concentration","account_id":"A001199","day":"2026-07-09","detail":"72% of credits from one counterparty (VELOCITY IMPEX), Rs 1,464,000"}],"prior":[]},{"scheme_id":"H1","typology":"shell_company","accounts":["A000353"],"names":{"A000353":"PILLAI TRADERS"},"started":"2026-07-08","ended":"2026-07-23","ran_days":16,"calendar":["2026-07-08","2026-07-09","2026-07-10","2026-07-11","2026-07-12","2026-07-13","2026-07-14","2026-07-15","2026-07-16","2026-07-17","2026-07-18","2026-07-19","2026-07-20","2026-07-21","2026-07-22","2026-07-23"],"latency":0,"moved_before_alert":0.4101226993865031,"caught_on":"2026-07-08","cases":[],"txns":[{"day":"2026-07-08","account_id":"A000353","direction":"CR","channel":"NEFT","amount":581000.0,"role":"integration","counterparty":"BLUEHAVEN AGENCIES","narration":"NEFT/CR/144452/BLUEHAVEN AGENCIES INV-1001"},{"day":"2026-07-08","account_id":"A000353","direction":"CR","channel":"IMPS","amount":756000.0,"role":"integration","counterparty":"BLUEHAVEN AGENCIES","narration":"IMPS/CR/424220/BLUEHAVEN AGENCIES INV-1004"},{"day":"2026-07-12","account_id":"A000353","direction":"CR","channel":"NEFT","amount":751000.0,"role":"integration","counterparty":"BLUEHAVEN AGENCIES","narration":"NEFT/CR/664629/BLUEHAVEN AGENCIES INV-1002"},{"day":"2026-07-15","account_id":"A000353","direction":"CR","channel":"IMPS","amount":636000.0,"role":"integration","counterparty":"BLUEHAVEN AGENCIES","narration":"IMPS/CR/127805/BLUEHAVEN AGENCIES INV-1003"},{"day":"2026-07-23","account_id":"A000353","direction":"CR","channel":"IMPS","amount":536000.0,"role":"integration","counterparty":"BLUEHAVEN AGENCIES","narration":"IMPS/CR/510710/BLUEHAVEN AGENCIES INV-1005"}],"detections":[{"layer":"rules","detector":"counterparty_concentration","account_id":"A000353","day":"2026-07-08","detail":"59% of credits from one counterparty (SHREE BALAJI AGENCIES), Rs 2,490,000"}],"prior":[]},{"scheme_id":"H2","typology":"shell_company","accounts":["A001023"],"names":{"A001023":"PATEL TRADERS"},"started":"2026-07-05","ended":"2026-07-27","ran_days":23,"calendar":["2026-07-05","2026-07-06","2026-07-07","2026-07-08","2026-07-09","2026-07-10","2026-07-11","2026-07-12","2026-07-13","2026-07-14","2026-07-15","2026-07-16","2026-07-17","2026-07-18","2026-07-19","2026-07-20","2026-07-21","2026-07-22","2026-07-23","2026-07-24","2026-07-25","2026-07-26","2026-07-27"],"latency":6,"moved_before_alert":0.5849462365591398,"caught_on":"2026-07-11","cases":[],"txns":[{"day":"2026-07-05","account_id":"A001023","direction":"CR","channel":"IMPS","amount":314000.0,"role":"integration","counterparty":"BLUEHAVEN AGENCIES","narration":"IMPS/CR/483615/BLUEHAVEN AGENCIES INV-1004"},{"day":"2026-07-08","account_id":"A001023","direction":"CR","channel":"NEFT","amount":265000.0,"role":"integration","counterparty":"BLUEHAVEN AGENCIES","narration":"NEFT/CR/246520/BLUEHAVEN AGENCIES INV-1007"},{"day":"2026-07-11","account_id":"A001023","direction":"CR","channel":"NEFT","amount":224000.0,"role":"integration","counterparty":"BLUEHAVEN AGENCIES","narration":"NEFT/CR/437791/BLUEHAVEN AGENCIES INV-1003"},{"day":"2026-07-11","account_id":"A001023","direction":"CR","channel":"NEFT","amount":285000.0,"role":"integration","counterparty":"BLUEHAVEN AGENCIES","narration":"NEFT/CR/226216/BLUEHAVEN AGENCIES INV-1001"},{"day":"2026-07-13","account_id":"A001023","direction":"CR","channel":"NEFT","amount":214000.0,"role":"integration","counterparty":"BLUEHAVEN AGENCIES","narration":"NEFT/CR/693410/BLUEHAVEN AGENCIES INV-1002"},{"day":"2026-07-20","account_id":"A001023","direction":"CR","channel":"NEFT","amount":249000.0,"role":"integration","counterparty":"BLUEHAVEN AGENCIES","narration":"NEFT/CR/167504/BLUEHAVEN AGENCIES INV-1005"},{"day":"2026-07-27","account_id":"A001023","direction":"CR","channel":"NEFT","amount":309000.0,"role":"integration","counterparty":"BLUEHAVEN AGENCIES","narration":"NEFT/CR/182229/BLUEHAVEN AGENCIES INV-1006"}],"detections":[{"layer":"rules","detector":"counterparty_concentration","account_id":"A001023","day":"2026-07-11","detail":"57% of credits from one counterparty (BLUEHAVEN AGENCIES), Rs 1,088,000"}],"prior":[]},{"scheme_id":"S0","typology":"structuring","accounts":["A000630"],"names":{"A000630":"CHAUHAN TRADERS"},"started":"2026-07-03","ended":"2026-07-22","ran_days":20,"calendar":["2026-07-03","2026-07-04","2026-07-05","2026-07-06","2026-07-07","2026-07-08","2026-07-09","2026-07-10","2026-07-11","2026-07-12","2026-07-13","2026-07-14","2026-07-15","2026-07-16","2026-07-17","2026-07-18","2026-07-19","2026-07-20","2026-07-21","2026-07-22"],"latency":5,"moved_before_alert":0.37899,"caught_on":"2026-07-08","cases":[{"case_id":29,"band":"medium"}],"txns":[{"day":"2026-07-03","account_id":"A000630","direction":"CR","channel":"CASH","amount":45695.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/154864/BR-70"},{"day":"2026-07-03","account_id":"A000630","direction":"CR","channel":"CASH","amount":86310.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/489759/BR-89"},{"day":"2026-07-04","account_id":"A000630","direction":"CR","channel":"CASH","amount":74529.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/610471/BR-32"},{"day":"2026-07-04","account_id":"A000630","direction":"CR","channel":"CASH","amount":62937.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/349988/BR-60"},{"day":"2026-07-05","account_id":"A000630","direction":"CR","channel":"CASH","amount":69935.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/299447/BR-40"},{"day":"2026-07-05","account_id":"A000630","direction":"CR","channel":"CASH","amount":68553.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/767510/BR-41"},{"day":"2026-07-05","account_id":"A000630","direction":"CR","channel":"CASH","amount":59212.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/208883/BR-23"},{"day":"2026-07-05","account_id":"A000630","direction":"CR","channel":"CASH","amount":63766.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/391674/BR-62"},{"day":"2026-07-07","account_id":"A000630","direction":"CR","channel":"CASH","amount":73591.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/686538/BR-93"},{"day":"2026-07-07","account_id":"A000630","direction":"CR","channel":"CASH","amount":64429.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/205954/BR-11"},{"day":"2026-07-07","account_id":"A000630","direction":"CR","channel":"CASH","amount":78695.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/757713/BR-29"},{"day":"2026-07-07","account_id":"A000630","direction":"CR","channel":"CASH","amount":85218.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/502392/BR-24"},{"day":"2026-07-08","account_id":"A000630","direction":"CR","channel":"CASH","amount":62517.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/731262/BR-92"},{"day":"2026-07-08","account_id":"A000630","direction":"CR","channel":"CASH","amount":89987.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/972102/BR-77"},{"day":"2026-07-09","account_id":"A000630","direction":"CR","channel":"CASH","amount":56899.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/382270/BR-62"},{"day":"2026-07-09","account_id":"A000630","direction":"CR","channel":"CASH","amount":35994.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/759530/BR-80"},{"day":"2026-07-09","account_id":"A000630","direction":"CR","channel":"CASH","amount":85934.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/191377/BR-49"},{"day":"2026-07-09","account_id":"A000630","direction":"CR","channel":"CASH","amount":72272.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/605954/BR-87"},{"day":"2026-07-10","account_id":"A000630","direction":"CR","channel":"CASH","amount":84447.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/104816/BR-94"},{"day":"2026-07-10","account_id":"A000630","direction":"CR","channel":"CASH","amount":66531.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/131197/BR-18"},{"day":"2026-07-11","account_id":"A000630","direction":"CR","channel":"CASH","amount":76105.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/725440/BR-72"},{"day":"2026-07-12","account_id":"A000630","direction":"CR","channel":"CASH","amount":74829.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/740097/BR-41"},{"day":"2026-07-12","account_id":"A000630","direction":"CR","channel":"CASH","amount":81675.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/855345/BR-18"},{"day":"2026-07-13","account_id":"A000630","direction":"CR","channel":"CASH","amount":66798.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/894863/BR-25"},{"day":"2026-07-13","account_id":"A000630","direction":"CR","channel":"CASH","amount":39192.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/176963/BR-19"},{"day":"2026-07-15","account_id":"A000630","direction":"CR","channel":"CASH","amount":71744.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/988468/BR-97"},{"day":"2026-07-15","account_id":"A000630","direction":"CR","channel":"CASH","amount":45451.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/100493/BR-44"},{"day":"2026-07-15","account_id":"A000630","direction":"CR","channel":"CASH","amount":45351.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/176586/BR-82"},{"day":"2026-07-17","account_id":"A000630","direction":"CR","channel":"CASH","amount":91601.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/607221/BR-83"},{"day":"2026-07-17","account_id":"A000630","direction":"CR","channel":"CASH","amount":42542.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/910223/BR-88"},{"day":"2026-07-17","account_id":"A000630","direction":"CR","channel":"CASH","amount":93819.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/304809/BR-76"},{"day":"2026-07-20","account_id":"A000630","direction":"CR","channel":"CASH","amount":62861.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/366332/BR-50"},{"day":"2026-07-20","account_id":"A000630","direction":"CR","channel":"CASH","amount":73486.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/633584/BR-34"},{"day":"2026-07-21","account_id":"A000630","direction":"CR","channel":"CASH","amount":53133.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/253468/BR-37"},{"day":"2026-07-21","account_id":"A000630","direction":"CR","channel":"CASH","amount":89286.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/213039/BR-47"},{"day":"2026-07-21","account_id":"A000630","direction":"CR","channel":"CASH","amount":39418.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/120584/BR-36"},{"day":"2026-07-22","account_id":"A000630","direction":"CR","channel":"CASH","amount":89405.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/586470/BR-51"},{"day":"2026-07-22","account_id":"A000630","direction":"CR","channel":"CASH","amount":75853.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/393831/BR-37"}],"detections":[{"layer":"rules","detector":"structuring_burst","account_id":"A000630","day":"2026-07-08","detail":"26 cash deposits under Rs 100,000 totaling Rs 1,671,220"}],"prior":[]},{"scheme_id":"S1","typology":"structuring","accounts":["A000630"],"names":{"A000630":"CHAUHAN TRADERS"},"started":"2026-07-03","ended":"2026-07-21","ran_days":19,"calendar":["2026-07-03","2026-07-04","2026-07-05","2026-07-06","2026-07-07","2026-07-08","2026-07-09","2026-07-10","2026-07-11","2026-07-12","2026-07-13","2026-07-14","2026-07-15","2026-07-16","2026-07-17","2026-07-18","2026-07-19","2026-07-20","2026-07-21"],"latency":5,"moved_before_alert":0.2637869230769231,"caught_on":"2026-07-08","cases":[{"case_id":29,"band":"medium"}],"txns":[{"day":"2026-07-03","account_id":"A000630","direction":"CR","channel":"CASH","amount":64366.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/576926/BR-34"},{"day":"2026-07-03","account_id":"A000630","direction":"CR","channel":"CASH","amount":92901.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/917107/BR-28"},{"day":"2026-07-03","account_id":"A000630","direction":"CR","channel":"CASH","amount":42202.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/186793/BR-14"},{"day":"2026-07-03","account_id":"A000630","direction":"CR","channel":"CASH","amount":64853.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/696444/BR-93"},{"day":"2026-07-04","account_id":"A000630","direction":"CR","channel":"CASH","amount":56677.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/214315/BR-90"},{"day":"2026-07-05","account_id":"A000630","direction":"CR","channel":"CASH","amount":57418.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/221194/BR-42"},{"day":"2026-07-05","account_id":"A000630","direction":"CR","channel":"CASH","amount":36303.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/131740/BR-73"},{"day":"2026-07-05","account_id":"A000630","direction":"CR","channel":"CASH","amount":41873.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/639525/BR-13"},{"day":"2026-07-06","account_id":"A000630","direction":"CR","channel":"CASH","amount":53635.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/509178/BR-21"},{"day":"2026-07-07","account_id":"A000630","direction":"CR","channel":"CASH","amount":65913.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/641615/BR-76"},{"day":"2026-07-07","account_id":"A000630","direction":"CR","channel":"CASH","amount":38154.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/306440/BR-90"},{"day":"2026-07-08","account_id":"A000630","direction":"CR","channel":"CASH","amount":71551.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/594248/BR-45"},{"day":"2026-07-09","account_id":"A000630","direction":"CR","channel":"CASH","amount":81123.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/958097/BR-92"},{"day":"2026-07-09","account_id":"A000630","direction":"CR","channel":"CASH","amount":81281.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/330243/BR-84"},{"day":"2026-07-09","account_id":"A000630","direction":"CR","channel":"CASH","amount":42447.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/756129/BR-76"},{"day":"2026-07-09","account_id":"A000630","direction":"CR","channel":"CASH","amount":53684.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/287365/BR-11"},{"day":"2026-07-10","account_id":"A000630","direction":"CR","channel":"CASH","amount":56983.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/917832/BR-88"},{"day":"2026-07-10","account_id":"A000630","direction":"CR","channel":"CASH","amount":34643.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/462534/BR-79"},{"day":"2026-07-11","account_id":"A000630","direction":"CR","channel":"CASH","amount":93778.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/811201/BR-45"},{"day":"2026-07-12","account_id":"A000630","direction":"CR","channel":"CASH","amount":91638.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/741474/BR-35"},{"day":"2026-07-12","account_id":"A000630","direction":"CR","channel":"CASH","amount":54149.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/435958/BR-43"},{"day":"2026-07-12","account_id":"A000630","direction":"CR","channel":"CASH","amount":39291.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/604319/BR-12"},{"day":"2026-07-13","account_id":"A000630","direction":"CR","channel":"CASH","amount":78549.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/241088/BR-73"},{"day":"2026-07-13","account_id":"A000630","direction":"CR","channel":"CASH","amount":37212.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/818427/BR-70"},{"day":"2026-07-14","account_id":"A000630","direction":"CR","channel":"CASH","amount":67455.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/167254/BR-45"},{"day":"2026-07-15","account_id":"A000630","direction":"CR","channel":"CASH","amount":74942.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/530421/BR-59"},{"day":"2026-07-15","account_id":"A000630","direction":"CR","channel":"CASH","amount":76302.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/764978/BR-65"},{"day":"2026-07-15","account_id":"A000630","direction":"CR","channel":"CASH","amount":51728.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/738443/BR-19"},{"day":"2026-07-16","account_id":"A000630","direction":"CR","channel":"CASH","amount":62943.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/659018/BR-52"},{"day":"2026-07-16","account_id":"A000630","direction":"CR","channel":"CASH","amount":68049.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/870743/BR-98"},{"day":"2026-07-17","account_id":"A000630","direction":"CR","channel":"CASH","amount":35549.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/968983/BR-14"},{"day":"2026-07-17","account_id":"A000630","direction":"CR","channel":"CASH","amount":37996.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/541887/BR-45"},{"day":"2026-07-17","account_id":"A000630","direction":"CR","channel":"CASH","amount":54940.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/353214/BR-51"},{"day":"2026-07-18","account_id":"A000630","direction":"CR","channel":"CASH","amount":38182.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/948444/BR-18"},{"day":"2026-07-18","account_id":"A000630","direction":"CR","channel":"CASH","amount":42320.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/111856/BR-57"},{"day":"2026-07-18","account_id":"A000630","direction":"CR","channel":"CASH","amount":71908.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/979879/BR-89"},{"day":"2026-07-18","account_id":"A000630","direction":"CR","channel":"CASH","amount":35448.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/137932/BR-32"},{"day":"2026-07-19","account_id":"A000630","direction":"CR","channel":"CASH","amount":62763.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/459162/BR-94"},{"day":"2026-07-19","account_id":"A000630","direction":"CR","channel":"CASH","amount":37658.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/442325/BR-93"},{"day":"2026-07-19","account_id":"A000630","direction":"CR","channel":"CASH","amount":72464.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/892940/BR-30"},{"day":"2026-07-20","account_id":"A000630","direction":"CR","channel":"CASH","amount":79188.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/817742/BR-35"},{"day":"2026-07-20","account_id":"A000630","direction":"CR","channel":"CASH","amount":49572.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/146624/BR-26"},{"day":"2026-07-21","account_id":"A000630","direction":"CR","channel":"CASH","amount":44800.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/794435/BR-58"},{"day":"2026-07-21","account_id":"A000630","direction":"CR","channel":"CASH","amount":34422.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/780826/BR-82"},{"day":"2026-07-21","account_id":"A000630","direction":"CR","channel":"CASH","amount":70747.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/585094/BR-79"}],"detections":[{"layer":"rules","detector":"structuring_burst","account_id":"A000630","day":"2026-07-08","detail":"26 cash deposits under Rs 100,000 totaling Rs 1,671,220"}],"prior":[]},{"scheme_id":"S2","typology":"structuring","accounts":["A001114"],"names":{"A001114":"KAUR TRADERS"},"started":"2026-07-03","ended":"2026-07-22","ran_days":20,"calendar":["2026-07-03","2026-07-04","2026-07-05","2026-07-06","2026-07-07","2026-07-08","2026-07-09","2026-07-10","2026-07-11","2026-07-12","2026-07-13","2026-07-14","2026-07-15","2026-07-16","2026-07-17","2026-07-18","2026-07-19","2026-07-20","2026-07-21","2026-07-22"],"latency":10,"moved_before_alert":0.5210111538461538,"caught_on":"2026-07-13","cases":[{"case_id":35,"band":"medium"}],"txns":[{"day":"2026-07-03","account_id":"A001114","direction":"CR","channel":"CASH","amount":62047.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/263084/BR-39"},{"day":"2026-07-03","account_id":"A001114","direction":"CR","channel":"CASH","amount":50060.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/697583/BR-97"},{"day":"2026-07-03","account_id":"A001114","direction":"CR","channel":"CASH","amount":67765.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/858752/BR-55"},{"day":"2026-07-03","account_id":"A001114","direction":"CR","channel":"CASH","amount":81015.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/533483/BR-77"},{"day":"2026-07-05","account_id":"A001114","direction":"CR","channel":"CASH","amount":46897.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/509871/BR-69"},{"day":"2026-07-05","account_id":"A001114","direction":"CR","channel":"CASH","amount":58233.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/125485/BR-14"},{"day":"2026-07-05","account_id":"A001114","direction":"CR","channel":"CASH","amount":71192.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/533873/BR-61"},{"day":"2026-07-06","account_id":"A001114","direction":"CR","channel":"CASH","amount":65531.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/824552/BR-31"},{"day":"2026-07-07","account_id":"A001114","direction":"CR","channel":"CASH","amount":88537.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/861870/BR-21"},{"day":"2026-07-07","account_id":"A001114","direction":"CR","channel":"CASH","amount":90270.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/220530/BR-36"},{"day":"2026-07-08","account_id":"A001114","direction":"CR","channel":"CASH","amount":26534.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/930838/BR-11"},{"day":"2026-07-08","account_id":"A001114","direction":"CR","channel":"CASH","amount":92266.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/805626/BR-22"},{"day":"2026-07-09","account_id":"A001114","direction":"CR","channel":"CASH","amount":42500.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/576002/BR-56"},{"day":"2026-07-09","account_id":"A001114","direction":"CR","channel":"CASH","amount":66949.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/303992/BR-22"},{"day":"2026-07-10","account_id":"A001114","direction":"CR","channel":"CASH","amount":69869.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/209980/BR-73"},{"day":"2026-07-11","account_id":"A001114","direction":"CR","channel":"CASH","amount":78408.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/616986/BR-26"},{"day":"2026-07-11","account_id":"A001114","direction":"CR","channel":"CASH","amount":87720.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/656114/BR-65"},{"day":"2026-07-11","account_id":"A001114","direction":"CR","channel":"CASH","amount":92705.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/555917/BR-63"},{"day":"2026-07-13","account_id":"A001114","direction":"CR","channel":"CASH","amount":38887.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/955341/BR-70"},{"day":"2026-07-13","account_id":"A001114","direction":"CR","channel":"CASH","amount":77244.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/973410/BR-34"},{"day":"2026-07-14","account_id":"A001114","direction":"CR","channel":"CASH","amount":67511.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/732425/BR-50"},{"day":"2026-07-14","account_id":"A001114","direction":"CR","channel":"CASH","amount":53677.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/838943/BR-74"},{"day":"2026-07-14","account_id":"A001114","direction":"CR","channel":"CASH","amount":68948.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/304604/BR-87"},{"day":"2026-07-16","account_id":"A001114","direction":"CR","channel":"CASH","amount":78428.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/627616/BR-10"},{"day":"2026-07-16","account_id":"A001114","direction":"CR","channel":"CASH","amount":53202.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/550972/BR-36"},{"day":"2026-07-19","account_id":"A001114","direction":"CR","channel":"CASH","amount":77675.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/621821/BR-35"},{"day":"2026-07-19","account_id":"A001114","direction":"CR","channel":"CASH","amount":82915.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/300751/BR-63"},{"day":"2026-07-19","account_id":"A001114","direction":"CR","channel":"CASH","amount":90917.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/939981/BR-82"},{"day":"2026-07-20","account_id":"A001114","direction":"CR","channel":"CASH","amount":69948.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/522344/BR-90"},{"day":"2026-07-20","account_id":"A001114","direction":"CR","channel":"CASH","amount":75119.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/326672/BR-79"},{"day":"2026-07-20","account_id":"A001114","direction":"CR","channel":"CASH","amount":88644.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/696369/BR-71"},{"day":"2026-07-21","account_id":"A001114","direction":"CR","channel":"CASH","amount":73189.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/814044/BR-69"},{"day":"2026-07-21","account_id":"A001114","direction":"CR","channel":"CASH","amount":52266.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/635265/BR-89"},{"day":"2026-07-22","account_id":"A001114","direction":"CR","channel":"CASH","amount":47760.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/372863/BR-26"},{"day":"2026-07-22","account_id":"A001114","direction":"CR","channel":"CASH","amount":70050.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/314188/BR-90"},{"day":"2026-07-22","account_id":"A001114","direction":"CR","channel":"CASH","amount":89006.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/764803/BR-15"},{"day":"2026-07-22","account_id":"A001114","direction":"CR","channel":"CASH","amount":62096.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/664470/BR-15"},{"day":"2026-07-22","account_id":"A001114","direction":"CR","channel":"CASH","amount":44020.0,"role":"placement","counterparty":"","narration":"CASH DEP/CR/243094/BR-39"}],"detections":[{"layer":"rules","detector":"structuring_burst","account_id":"A001114","day":"2026-07-13","detail":"25 cash deposits under Rs 100,000 totaling Rs 1,685,629"}],"prior":[]}];const OPEN_ON = 14;
+(function(){
+  var RM = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var fmt = function(n){ return 'Rs ' + Math.round(n).toLocaleString('en-IN'); };
+  var cur = STORIES[0], cal = [], at = 0, timer = null, prevRows = -1;
+  var $ = function(id){ return document.getElementById(id); };
 
-  document.getElementById('txns').innerHTML =
-    '<tr><th>day</th><th>account</th><th>dir</th><th>channel</th>' +
-    '<th>amount</th><th>role</th><th>narration</th></tr>' +
-    upto.slice().reverse().map(t => '<tr><td>' + t.day + '</td><td>' + t.account_id +
-      '</td><td class="' + t.direction.toLowerCase() + '">' + t.direction +
-      '</td><td>' + t.channel + '</td><td>' + fmt(t.amount) + '</td><td>' +
-      (t.role || '') + '</td><td>' + t.narration + '</td></tr>').join('');
-}
+  function pick(i){
+    stop();
+    cur = STORIES[i]; cal = cur.calendar; at = cal.length - 1; prevRows = -1;
+    document.querySelectorAll('.picker button').forEach(function(b,j){
+      b.classList.toggle('on', i === j);
+      b.setAttribute('aria-pressed', i === j ? 'true' : 'false');
+    });
+    var s = $('scrub'); s.max = cal.length - 1; s.value = at;
+    $('profile').innerHTML = profile(cur);
+    draw();
+  }
 
-document.getElementById('scrub').addEventListener('input', e => {
-  at = +e.target.value; draw();
-});
-document.querySelectorAll('.picker button').forEach((b, i) =>
-  b.addEventListener('click', () => pick(i)));
-pick(OPEN_ON);
+  function profile(s){
+    var rows = [
+      ['Scheme', s.scheme_id],
+      ['Typology', s.typology],
+      ['Accounts', s.accounts.length],
+      ['Ran for', s.ran_days + (s.ran_days === 1 ? ' day' : ' days')],
+      ['First alert', s.latency === null ? 'never' : 'day ' + (s.latency + 1)],
+      ['Reached an analyst', s.cases.length
+        ? s.cases.map(function(c){ return '#' + c.case_id + ' (' + c.band + ')'; }).join(', ')
+        : 'no']
+    ];
+    return rows.map(function(r){
+      return '<div class="kv"><span class="k">' + r[0] + '</span>' +
+             '<span class="v">' + r[1] + '</span></div>';
+    }).join('');
+  }
+
+  /* The one honest rule of this screen: an account is only ever lit because a
+     REAL detector fired on it by the day being viewed -- never because it
+     appears in ground truth. It is in ground truth the entire time. */
+  function draw(){
+    var s = cur, today = cal[at];
+    var upto = s.txns.filter(function(t){ return t.day <= today; });
+    var fired = s.detections.filter(function(d){ return d.day <= today; });
+    var lit = {}; fired.forEach(function(d){ lit[d.account_id] = 1; });
+
+    $('daynum').textContent = today;
+    $('dayoff').textContent = 'Day ' + (at + 1) + ' of ' + cal.length + ' \u00b7 ' +
+      upto.length + ' of ' + s.txns.length + ' labelled transactions posted';
+
+    var moved = upto.reduce(function(a,t){ return a + t.amount; }, 0);
+    var total = s.txns.reduce(function(a,t){ return a + t.amount; }, 0);
+    $('kmoved').textContent = fmt(moved);
+    $('kshare').textContent = total ? Math.round(moved / total * 100) + '%' : '0%';
+    $('kfired').textContent = fired.length + ' of ' + s.detections.length;
+
+    /* "Evidence" is what the STACK holds -- how many independent detectors have
+       fired by today. It is not a new risk score and nothing here reads a label. */
+    var n = fired.length, cap = Math.max(s.detections.length, 3), bars = '';
+    for (var i = 0; i < cap; i++)
+      bars += '<i class="' + (i < n ? 'on' + (n >= 2 ? ' hot' : '') : '') + '"></i>';
+    $('suspbars').innerHTML = bars;
+    $('susplab').textContent = n === 0 ? 'no signal'
+      : (n === 1 ? '1 detector' : n + ' detectors \u00b7 corroborated');
+
+    $('flow').innerHTML = s.accounts.map(function(a,i){
+      var mine = upto.filter(function(t){ return t.account_id === a; });
+      var cr = mine.filter(function(t){ return t.direction === 'CR'; })
+                   .reduce(function(x,t){ return x + t.amount; }, 0);
+      var dr = mine.filter(function(t){ return t.direction === 'DR'; })
+                   .reduce(function(x,t){ return x + t.amount; }, 0);
+      return (i ? '<div class="arrow">&#8594;</div>' : '') +
+        '<div class="node' + (lit[a] ? ' lit' : '') + '">' +
+        '<span class="flag">ALERT</span>' +
+        '<div class="who">' + (s.names[a] || a) + '</div>' +
+        '<div class="id">' + a + '</div>' +
+        '<div class="amt">in <b>' + fmt(cr) + '</b></div>' +
+        '<div class="amt">out <b>' + fmt(dr) + '</b></div></div>';
+    }).join('');
+
+    $('dets').innerHTML = s.detections.length ? s.detections.map(function(d){
+      var on = d.day <= today;
+      return '<div class="det' + (on ? ' fired' : '') + '">' +
+        '<span class="when">' + (on ? d.day : 'pending') + '</span>' +
+        '<div><div class="dw">' + d.detector + '</div>' +
+        '<div class="dd">' + (on ? d.detail : 'has not fired yet') +
+        ' &middot; ' + d.account_id + '</div></div></div>';
+    }).join('') : '<p class="dd">No detector ever fired on this scheme. It ran to ' +
+      'completion unseen &mdash; and it is in the answer key the whole time.</p>';
+
+    $('narr').innerHTML = narrate(s, today, upto, fired, moved, total);
+
+    var rows = upto.slice().reverse();
+    $('txns').innerHTML = '<tr><th>Day</th><th>Account</th><th>Dir</th><th>Channel</th>' +
+      '<th>Amount</th><th>Role</th><th>Narration</th></tr>' +
+      rows.map(function(t,i){
+        var isNew = !RM && prevRows >= 0 && i < rows.length - prevRows;
+        return '<tr' + (isNew ? ' class="new"' : '') + '><td>' + t.day + '</td>' +
+          '<td>' + t.account_id + '</td>' +
+          '<td class="' + t.direction.toLowerCase() + '">' + t.direction + '</td>' +
+          '<td>' + t.channel + '</td><td>' + fmt(t.amount) + '</td>' +
+          '<td class="na">' + (t.role || '') + '</td>' +
+          '<td class="na">' + t.narration + '</td></tr>';
+      }).join('');
+    prevRows = rows.length;
+  }
+
+  /* Narration is assembled only from facts already on this page: the day, what
+     has posted, what has fired. It asserts nothing the data does not show. */
+  function narrate(s, today, upto, fired, moved, total){
+    if (!upto.length)
+      return '<b>Nothing has posted yet.</b> The scheme begins on ' + s.started + '.';
+    var pct = total ? Math.round(moved / total * 100) : 0, out;
+    if (!fired.length) {
+      out = '<b>Still invisible.</b> ' + upto.length + ' of ' + s.txns.length +
+        ' scheme transactions have posted and <b>' + pct + '%</b> of the value has ' +
+        'moved, but no detector has fired. These accounts are in the answer key right ' +
+        'now &mdash; the stack simply has no evidence yet.';
+      if (s.latency === null)
+        out += ' It never will: no detector fires on this scheme at any point.';
+    } else if (fired.length === 1 && fired[0].day === today) {
+      out = '<b>First alert.</b> <b>' + fired[0].detector + '</b> fires on ' +
+        fired[0].account_id + ' today &mdash; day ' + (s.latency + 1) + ' of the scheme. ' +
+        '<b>' + pct + '%</b> of the value had already moved by the time the evidence ' +
+        'this rule needs came into existence.';
+    } else if (fired.length === 1) {
+      out = '<b>One detector is holding this case.</b> <b>' + fired[0].detector +
+        '</b> fired on ' + fired[0].day + '. A single signal is the weakest kind of ' +
+        'case &mdash; it names a scenario, but nothing corroborates it.';
+    } else {
+      out = '<b>Corroborated.</b> ' + fired.length + ' independent detectors have now ' +
+        'fired. Two layers agreeing is what separates a case worth an analyst&rsquo;s ' +
+        'day from a single-signal alert.';
+    }
+    if (pct >= 100 && fired.length)
+      out += ' <b>All of the money had already moved</b> &mdash; whatever happens next, ' +
+        'nothing here was stoppable.';
+    return out;
+  }
+
+  function stop(){
+    if (timer) { clearInterval(timer); timer = null; $('play').textContent = 'Replay'; }
+  }
+  function play(){
+    if (timer) { stop(); return; }
+    if (at >= cal.length - 1) { at = 0; $('scrub').value = 0; draw(); }
+    $('play').textContent = 'Pause';
+    timer = setInterval(function(){
+      if (at >= cal.length - 1) { stop(); return; }
+      at++; $('scrub').value = at; draw();
+    }, RM ? 10 : 470);
+  }
+
+  $('scrub').addEventListener('input', function(e){ stop(); at = +e.target.value; draw(); });
+  $('play').addEventListener('click', play);
+  document.querySelectorAll('.picker button').forEach(function(b,i){
+    b.addEventListener('click', function(){ pick(i); });
+  });
+  pick(OPEN_ON);
+})();
 </script>
+</body>
+</html>
