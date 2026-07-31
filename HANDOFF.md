@@ -35,7 +35,7 @@ valuable thing here — preserve it. Details in §7.
 
 | | |
 |---|---|
-| Latest commit | `99bbac7` — "Phase 8: red team co-evolution engine and the decay benchmark" |
+| Latest commit | `99bee2d` — "Phase 8.5: the cross-bank blind spot, quantified" |
 | Working tree | clean, in sync with `origin/main` |
 | Tests | **273 passing**, zero skips (~5-9 min) |
 | Lint | `ruff` clean |
