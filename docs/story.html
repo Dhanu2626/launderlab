@@ -415,7 +415,10 @@ details.exp .exp-body > :first-child { margin-top:13px; }
 .susp .bars i.on.hot { background:var(--rose); }
 .susp .lab { font-family:var(--mono); font-size:.71rem; color:var(--ink-faint);
              white-space:nowrap; }
-.txr { max-height:330px; overflow-y:auto; }
+/* Both axes explicitly: the cells are nowrap, and relying on the spec's
+   "if one axis is not visible the other computes to auto" is a subtlety to
+   depend on for whether a table can push the whole card wider than the page. */
+.txr { max-height:330px; overflow:auto; }
 .txr table { width:100%; border-collapse:collapse; }
 .txr th { position:sticky; top:0; background:var(--surface); text-align:left;
           font-size:.66rem; letter-spacing:.07em; text-transform:uppercase;

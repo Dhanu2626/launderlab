@@ -47,6 +47,32 @@ def test_every_chart_draws_without_falling_back_to_an_error(world, tmp_path):
     assert "Could not draw this chart" not in page, page[:500]
 
 
+def test_the_same_world_renders_the_same_bytes_twice(world, tmp_path):
+    """A published page must be diffable against its own source.
+
+    Rows tied on value used to inherit the scorer's dict order, so the three
+    typologies sitting at 0/5 came out differently on every render. No figure
+    moved — but it made a re-rendered page differ byte-for-byte from the
+    committed one, so "this page is stale" and "this page was merely
+    re-rendered" became indistinguishable. That is how a genuinely stale
+    artifact hides.
+    """
+    first = viz.render(world, tmp_path / "a").read_text(encoding="utf-8")
+    second = viz.render(world, tmp_path / "b").read_text(encoding="utf-8")
+    assert first == second, "the same world must render byte-identical output"
+
+
+def test_tied_rows_are_ordered_deterministically():
+    """Pinned on the primitive too, since the page test cannot fail if a world
+    happens to contain no ties."""
+    tied = {"zebra": (0, 5), "alpha": (0, 5), "middle": (0, 5), "top": (5, 5)}
+    rows = viz._share(tied)
+    assert rows[0][0].startswith("top"), "a real value still outranks the ties"
+    assert [r[0].split()[0] for r in rows[1:]] == ["alpha", "middle", "zebra"]
+    assert viz._share(tied) == viz._share(dict(reversed(list(tied.items())))), (
+        "input order must not change output order")
+
+
 def test_charts_are_self_contained(world, tmp_path):
     """A portfolio artifact that needs a CDN reachable is one that fails in the
     room. Same rule the workbench page follows."""

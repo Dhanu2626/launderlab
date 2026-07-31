@@ -539,7 +539,12 @@ wrong *axis* entirely, and be perfectly measured on that one.
   wanted `index.html` and one silently destroyed the other, with a working link to the wrong
   page.
 
-**The published site (9.7)**
+**The published site (9.7-9.8)**
+- **Chart rows break ties on label, so a page renders byte-identically twice.** Not cosmetic:
+  without it a re-rendered page differs from the committed one, and a genuinely stale artifact
+  becomes indistinguishable from a merely re-rendered one. A test pins it.
+- **Regenerate AND republish after any change to `web.py`, `viz.py` or `story.py`.** The
+  committed `docs/` pages went stale exactly once, by editing CSS after generating.
 - **`web.py` owns the design language; no page styles itself.** Five pages that look like
   four different documents is the failure this replaced.
 - **`docs/index.html` is the landing page — no generated page may publish as `index.html`.**
