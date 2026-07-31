@@ -1302,3 +1302,75 @@ alert while anything is stoppable. And structuring, the slowest at nine days, wa
 half the scheme still to come. Detection rate is one axis; whether the alert arrives while the
 money is still in the building is a different one, and for some controls it's fixed by the shape
 of the evidence rather than by any threshold you can tune."
+
+---
+
+## Phase 9.2–9.6 — 2026-07-31 (the KPI that measures the wrong thing, and a 0.0% I nearly published)
+
+🏦 **FCC:** Building the metrics dashboard made me look properly at alert-to-SAR conversion for
+the first time, and I think it is a worse KPI than the industry treats it as.
+
+Conversion is the share of worked alerts that become a filing. Every FIU and every MI pack
+tracks it, and it is read as a measure of how good the *analysts* are. But when I computed what
+it would be if analysts never made a mistake, it came out as exactly queue precision — because
+if every judgment is correct, every alert on a laundering account becomes a SAR and every other
+one is cleared. The ceiling of the analyst KPI is a property of the queue.
+
+Which means in production, where nobody knows which cleared alerts were mistakes, conversion is
+an inseparable mixture of two things: how good the queue was, and how consistent the analysts
+were. A falling conversion rate could be a degrading model or a new joiner being cautious, and
+the number cannot tell you which. I could only see that here because ground truth exists.
+
+The second thing I had to be disciplined about: my demo bank has 50 open cases and zero
+dispositions, because nobody has worked them. The tempting move was to report conversion as
+0.0%. That is a lie of a specific and dangerous kind — "nobody reviewed these yet" and
+"everything reviewed was cleared" are opposite facts about a bank, and 0.0% merges them into the
+one that makes the detection stack look broken. It reports NOT MEASURABLE now, and refusing to
+produce a number is the honest output. A dashboard that will not show a figure it cannot support
+is worth more than one that fills every box.
+
+On cost per alert I made the assumption refusable rather than invisible. Reviews-per-true-find
+is a count over a count and needs no assumption at all — 1.25 at a budget of 50. Only converting
+that to hours needs an input, so the input is named an ASSUMPTION everywhere it appears, and I
+deliberately did not convert to rupees, because that needs a loaded salary figure I have no
+business inventing. The genuinely useful operational finding fell out of the budget sweep: the
+top 25 alerts on my queue are 100% real, and the next 25 cost ten false positives. That is the
+false-positive economics question answered with a curve instead of a slogan.
+
+🔧 **Engineering:** I published a page claiming my detection stack has a **0.0% detection rate**,
+and I found it by opening the page I had just published and reading it.
+
+`charts` called `connect()` with no argument while `story` and `metrics` both honoured
+`LAUNDERLAB_DB`. So it drew against the 25-customer seed ledger, which has no crime injected
+into it at all, and computed 0 of 0 schemes caught. Arithmetically correct. Completely
+meaningless. And it would have been the first thing a recruiter saw.
+
+Three lessons, in increasing order of how much they cost me.
+
+First, the root cause was not the missing env lookup — it was that **four call sites each wrote
+their own copy of the same lookup**, and one of them forgot. That is a rule with no single place
+to enforce it. There is one `connect_configured()` now, and a test asserts every entry point
+uses it.
+
+Second, my first fix was too narrow. I guarded the KPI section, ran the tests, and they passed —
+but the Phase 3 chart on the same page was still happily printing "Overall 0.0% recall at 0.0%
+precision across 0 schemes". I had fixed the instance I was looking at rather than the class.
+The guard belongs at the one point every ground-truth chart passes through, and now no fifth
+chart can be added that forgets it.
+
+Third, and the part I liked: **my own boundary test caught my fix.** The guard needed to know
+whether the world had any schemes, so I wrote `SELECT count(*) FROM scheme_labels` — and the
+test that has been in this repo since Phase 9.1's predecessor, asserting that `viz.py` reads
+ground truth only through the scoring modules, failed immediately. It was right and I was wrong.
+The count comes from the scorer now. A boundary that only holds when I remember it is not a
+boundary; that test has now caught two people, and both times it was me.
+
+🎯 **Interview line:** "I built the metrics dashboard and found that alert-to-SAR conversion —
+which everyone tracks as a measure of analyst performance — has a ceiling exactly equal to queue
+precision. If analysts never erred, every alert on a laundering account becomes a filing and
+every other one is cleared, so the analyst KPI collapses into a property of the queue. In
+production you can't separate the two, because nobody knows which cleared alerts were mistakes.
+And I had to refuse to report it: my queue had fifty open cases and zero dispositions, so I
+reported it as not measurable rather than as zero percent — 'nobody has reviewed these' and
+'everything reviewed was cleared' are opposite facts, and a zero merges them into the one that
+makes your stack look broken."
