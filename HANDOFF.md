@@ -35,7 +35,7 @@ valuable thing here — preserve it. Details in §7.
 
 | | |
 |---|---|
-| Latest commit | `99bee2d` — "Phase 8.5: the cross-bank blind spot, quantified" |
+| Latest commit | `f263385` — "Fix six defects found auditing Phases 8 and 8.5 before Phase 9" |
 | Working tree | clean, in sync with `origin/main` |
 | Tests | **274 passing**, zero skips (~5-9 min) |
 | Lint | `ruff` clean |
