@@ -53,9 +53,9 @@ thing here — preserve it.
 
 | | |
 |---|---|
-| Latest commit | `6f7060e` — "HANDOFF: pin the audit-fix commit hash" (code: `f263385`) |
+| Latest commit | `5bfe481` — "HANDOFF: rewrite from scratch as the single authoritative handoff" (last code change: `f263385`) |
 | Working tree | clean, in sync with `origin/main` |
-| Commits | 51 |
+| Commits | 52 |
 | Tests | **274 passing, zero skips** (~5–9 min locally, ~1:16 in CI) |
 | Lint | `ruff` clean |
 | CI | GitHub Actions green on every push, and **actually runs everything** — see §3 |
