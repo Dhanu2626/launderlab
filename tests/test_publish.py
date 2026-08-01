@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 
 publish = pytest.importorskip("launderlab.publish")
@@ -120,24 +122,46 @@ def test_publishing_writes_files_and_nothing_else(tmp_path):
         "index.html", "story.html"]
 
 
-def test_the_test_count_is_counted_not_typed(tmp_path):
-    """It was hand-written as "302" and went stale within a day, on the one page
-    every reader lands on, on a site whose whole claim is that its figures are
-    generated rather than typed.
+def test_the_published_test_count_matches_reality_and_itself(request, tmp_path):
+    """One number, everywhere, and it cannot go stale silently.
 
-    It counts test FUNCTIONS and the chip says so, because that is deliberately
-    not the number pytest reports: parametrised functions expand into several
-    cases each. Two labelled numbers beat one reconciled-by-hand number.
+    The landing page carried a hand-typed "302" that was wrong within a day. The
+    fix is not to stop writing it down — it is to write it down ONCE and pin it.
+    So this checks `TEST_COUNT` three ways:
+
+    * against the suite pytest actually collected,
+    * against the README badge,
+    * against the README's project tree,
+
+    which is what makes "consistent everywhere" a property rather than an
+    intention. Counting `def test_` from source was the previous attempt and it
+    undercounts: parametrised functions expand into several cases each, so the
+    site would have published "301 functions" beside a badge reading "311
+    tests", and a reader who spots two test counts stops trusting the other
+    figures too.
     """
-    counted = publish._test_count()
-    assert counted > 200, "the counter should find the suite, not silently return 0"
+    collected = len(request.session.items)
+
+    # Growth is the direction that actually goes stale, and it is checked on
+    # every run including a partial one. Exact equality is asserted only on a
+    # full run, because `pytest tests/test_publish.py` legitimately collects
+    # fewer -- and a conditional assertion is not a skip, which CI forbids.
+    assert collected <= publish.TEST_COUNT, (
+        f"the suite has grown to {collected}; bump publish.TEST_COUNT and the "
+        "two README references, or the site publishes a number that is too low")
+    if collected > publish.TEST_COUNT * 0.9:
+        assert collected == publish.TEST_COUNT, (
+            f"full suite collected {collected}, TEST_COUNT says {publish.TEST_COUNT}")
+
+    readme = (Path(publish.__file__).resolve().parents[2] / "README.md")
+    text = readme.read_text(encoding="utf-8")
+    assert f"TESTS-{publish.TEST_COUNT}_PASSING" in text, "README badge disagrees"
+    assert f"{publish.TEST_COUNT} tests, 0 skips" in text, "README tree disagrees"
 
     src = _fake_charts(tmp_path, ALL_PAGES)
     landing = (publish.publish(src, tmp_path / "docs")
                and (tmp_path / "docs" / "index.html").read_text(encoding="utf-8"))
-    assert f"<b>{counted}</b> test functions" in landing
-    assert "test functions" in landing, (
-        "the label must say what it counts — pytest reports more cases than this")
+    assert f"<b>{publish.TEST_COUNT}</b> tests, zero skips" in landing
 
 
 def test_the_landing_page_states_no_measured_result_it_cannot_source(tmp_path):

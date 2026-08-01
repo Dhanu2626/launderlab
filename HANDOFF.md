@@ -56,7 +56,7 @@ thing here — preserve it.
 | Last code change | `f263385` — "Fix six defects found auditing Phases 8 and 8.5 before Phase 9". Commits after it are documentation only. Run `git log --oneline -5` for the true head — a doc that pins its own hash is stale the moment it is committed |
 | Working tree | clean, in sync with `origin/main` |
 | Commits | 57 |
-| Tests | **302 passing, zero skips** (~4-9 min locally, ~2:30 in CI) |
+| Tests | **311 passing, zero skips** (~4-13 min locally, ~2:30 in CI). `publish.TEST_COUNT` is the one place this number is written; a test pins it against pytest, the README badge and the README tree |
 | Lint | `ruff` clean |
 | CI | GitHub Actions green on every push, and **actually runs everything** — see §3 |
 | Phases complete | 0, 2, 3, 4, 5, 6, 7, 8, 8.5, **9**; **1 core** (slice 1.3 deferred, non-blocking). **All phases done.** |
@@ -609,7 +609,7 @@ wrong *axis* entirely, and be perfectly measured on that one.
 | Small structuring | Documented blind spot — indistinguishable from a shop banking takings |
 | `dormant_reactivation` recall | 60% (9/15) — the injector's gap parameter sometimes lands too close to normal weekly cadence |
 | Watchlist | **Synthetic**, not real OFAC/UN data. Swap via `LAUNDERLAB_WATCHLIST` |
-| Test suite runtime | ~5–9 min (274 tests). `test_redteam.py`'s live run and `test_demo.py` are slowest. Do not run two heavy things concurrently |
+| Test suite runtime | ~4–13 min (311 tests). `test_redteam.py`'s live run and `test_demo.py` are slowest. Do not run two heavy things concurrently |
 
 **Settled — do not reopen without new evidence:** the React question (single page, 2026-07-30)
 and adverse media (context on Entity-360, weight 0.0, 2026-07-30).

@@ -100,31 +100,21 @@ _LANDING_CSS = """
 """
 
 
-def _test_count() -> int:
-    """How many tests exist, counted rather than typed.
-
-    This was a hand-written "302" and it went stale within a day -- on the one
-    page every reader lands on, and on a site whose whole claim is that its
-    figures are generated rather than typed.
-
-    It counts test FUNCTIONS, and the chip says so, because that is not the same
-    number pytest reports. Two `@pytest.mark.parametrize` functions expand into
-    11 cases, so 301 functions collect as 310 cases. Both are true and they are
-    labelled differently rather than reconciled: making this match pytest exactly
-    would mean either parsing parametrize decorators (fragile, and wrong the
-    first time someone writes one this parser does not expect) or running the
-    suite at publish time (33 seconds, and a dependency on pytest for a command
-    whose entire job is copying files).
-    """
-    tests = Path(__file__).resolve().parents[2] / "tests"
-    if not tests.is_dir():
-        return 0
-    return sum(
-        1
-        for f in tests.glob("test_*.py")
-        for line in f.read_text(encoding="utf-8").splitlines()
-        if line.startswith("def test_")
-    )
+# The suite size, stated once for the whole project. Every place that quotes a
+# test count -- this site's landing page, the README badge, the README tree --
+# must agree with it, and `test_publish.py` fails if any of them drifts or if
+# the suite itself grows past it.
+#
+# Why a pinned constant and not a count from source: counting `def test_` lines
+# undercounts, because parametrised functions expand into several cases each
+# (301 functions collect as 311 cases here). Publishing one number that means
+# "functions" beside a README badge that means "cases" is how a reader loses
+# confidence in every other figure on the page. Running pytest at publish time
+# to get the true number would cost 33 seconds inside a command whose entire
+# job is copying files. So it is written down once and pinned by a test --
+# which is the same reason the honesty thread has an entry about a hand-typed
+# "302" going stale: hand-typed is fine, hand-typed and *unchecked* is not.
+TEST_COUNT = 311
 
 
 def _landing(available: list[str]) -> str:
@@ -265,7 +255,7 @@ def _landing(available: list[str]) -> str:
         '<span class="chip"><b>630,755</b> transactions in 31s</span>'
         '<span class="chip"><b>6</b> typologies</span>'
         '<span class="chip"><b>4</b> detection layers</span>'
-        f'<span class="chip"><b>{_test_count()}</b> test functions, zero skips</span>'
+        f'<span class="chip"><b>{TEST_COUNT}</b> tests, zero skips</span>'
         '</div></div></div>'
 
         + web.section(

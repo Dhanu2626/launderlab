@@ -92,7 +92,7 @@ launderlab/
 ├── data/                  synthetic ledgers (DuckDB)
 ├── charts/                generated result charts
 ├── docs/                  published GitHub Pages site
-└── tests/                 302 tests, 0 skips
+└── tests/                 311 tests, 0 skips
 ```
 
 ## Tech Stack
@@ -121,7 +121,7 @@ Screening: **100% recall / 75.0% precision** on a realistic name-diversity pool 
 
 ## Lessons Learned
 
-Five defects surfaced only by putting a number in front of a human, not by tests: a rule-strength formula that silently capped a confirmed structuring scheme below the alert threshold; a 100-row pagination default that truncated the evidence an analyst was reading; risk bands where "critical" described nothing because the scale assumed all four layers firing at once; a screening-score ceiling that dropped every non-perfect name match before it reached an analyst. All passed a full test suite. The pattern: **detection metrics grade a detector against ground truth — nothing grades whether its output is usable.**
+Five defects surfaced only by putting a number in front of a human, not by tests: a rule-strength formula that silently capped a confirmed structuring scheme below the alert threshold; a 100-row pagination default that truncated the evidence an analyst was reading; risk bands where "critical" described nothing because the scale assumed all four layers firing at once; a screening-score ceiling that dropped every non-perfect name match before it reached an analyst; and a ratio-based rule that fired on all five shell-company schemes and then went **silent again** on three of them as ongoing legitimate income diluted the shell's share back under the threshold — so a scheme detectable on the 9th was invisible on the 31st, and any end-of-period score under-counts ratio rules. All passed a full test suite. The pattern: **detection metrics grade a detector against ground truth — nothing grades whether its output is usable.**
 
 ## License
 
