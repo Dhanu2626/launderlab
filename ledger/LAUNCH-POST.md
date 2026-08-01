@@ -50,8 +50,9 @@ it, change it. Every number below is reproducible from the repo.
 > and I published that instead of burying it. Adverse media adds no true positive at any
 > weight, so it's surfaced to the analyst and never scored.
 >
-> Seventeen times in this project a flattering number turned out to be an artefact. All
-> seventeen are written down in the README.
+> Seventeen times in this project a flattering number turned out to be an artefact. Every one
+> is written down — the pattern and four worked examples are on the site, the full list is in
+> the repo.
 >
 > Open source, all synthetic data, all typologies from public advisories:
 > github.com/Dhanu2626/launderlab
