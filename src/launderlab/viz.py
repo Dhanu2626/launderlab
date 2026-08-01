@@ -269,7 +269,8 @@ def kpi_dashboard(conn: duckdb.DuckDBPyConnection, snapshot=None) -> tuple[str, 
 
 
 def _experiment(*, num: str, title: str, objective: str, svg: str, caption: str,
-                finding: str, why: str, technical: str, business: str) -> str:
+                finding: str, why: str, technical: str, business: str,
+                extra: str = "") -> str:
     """One experiment, in the order a reader needs it: what, picture, so what.
 
     Never a chart on its own. Every one answers the same four questions in the
@@ -285,6 +286,7 @@ def _experiment(*, num: str, title: str, objective: str, svg: str, caption: str,
         f'<p class="note">{caption}</p>'
         + web.box("finding", "Key finding", f"<p>{finding}</p>")
         + web.box("why", "Why it matters", f"<p>{why}</p>")
+        + extra
         + web.expandable("Technical explanation", f"<p>{technical}</p>")
         + web.expandable("Business implication", f"<p>{business}</p>")
         + "</div>")
@@ -352,7 +354,28 @@ def render(conn: duckdb.DuckDBPyConnection, out_dir: Path = DEFAULT_OUT) -> Path
                       "(27–47).",
             business="Rule coverage should be reported per typology in MI packs, not as one "
                      "number. The aggregate is the number that gets presented; the "
-                     "per-typology breakdown is the one that tells you where you are blind."),
+                     "per-typology breakdown is the one that tells you where you are blind.",
+            extra=web.box(
+                "warn", "Detection is not monotonic — some alerts expire",
+                "<p>This chart scores the <strong>finished</strong> month. Story Mode replays "
+                "the same world day by day and reports <code>shell_company</code> as "
+                "<strong>5 of 5</strong> caught, against <strong>2 of 5</strong> here. Both "
+                "are correct, and the gap is the finding.</p>"
+                "<p>All five schemes <em>did</em> fire <code>counterparty_concentration</code>. "
+                "Three were silent again by month end, because that rule is a <em>ratio</em> "
+                "&mdash; &ldquo;one counterparty is at least half my credits&rdquo; &mdash; and "
+                "the account&rsquo;s ongoing legitimate income keeps diluting the "
+                "shell&rsquo;s share until it falls back under the 50% line.</p>"
+                "<p><strong>The mechanism proves itself in the dates.</strong> The three that "
+                "went quiet are exactly the three that fired <em>earliest</em> &mdash; 8th, 9th "
+                "and 11th, now diluted to 36.0%, 42.5% and 45.1%. The two still alerting fired "
+                "<em>latest</em>, on the 22nd and 26th, and sit at 59.1% and 53.3%. The longer a "
+                "shell scheme has been on the books, the more honest revenue has arrived to "
+                "hide it.</p>"
+                "<p><strong>So a scheme detectable on the 9th was invisible on the 31st.</strong> "
+                "If monitoring runs monthly rather than nightly, you do not merely detect it "
+                "later &mdash; you can miss it entirely. Any end-of-period score, including "
+                "the one on this chart, systematically under-counts ratio-based rules.</p>")),
          rules_recall_by_typology),
         (dict(
             num="Phase 5",

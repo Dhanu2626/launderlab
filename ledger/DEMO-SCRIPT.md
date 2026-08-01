@@ -126,7 +126,7 @@ hop and let it scroll to the two ledger rows.
 
 **Shot:** back to the landing page, or the red team / multi-bank chart.
 
-> "Sixteen times in this project a flattering number turned out to be an artefact. Every one is
+> "Seventeen times in this project a flattering number turned out to be an artefact. Every one is
 > written down. That's the part I'd want a hiring manager to look at."
 
 > "It's open source. Link's below."

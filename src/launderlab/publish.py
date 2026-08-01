@@ -100,6 +100,33 @@ _LANDING_CSS = """
 """
 
 
+def _test_count() -> int:
+    """How many tests exist, counted rather than typed.
+
+    This was a hand-written "302" and it went stale within a day -- on the one
+    page every reader lands on, and on a site whose whole claim is that its
+    figures are generated rather than typed.
+
+    It counts test FUNCTIONS, and the chip says so, because that is not the same
+    number pytest reports. Two `@pytest.mark.parametrize` functions expand into
+    11 cases, so 301 functions collect as 310 cases. Both are true and they are
+    labelled differently rather than reconciled: making this match pytest exactly
+    would mean either parsing parametrize decorators (fragile, and wrong the
+    first time someone writes one this parser does not expect) or running the
+    suite at publish time (33 seconds, and a dependency on pytest for a command
+    whose entire job is copying files).
+    """
+    tests = Path(__file__).resolve().parents[2] / "tests"
+    if not tests.is_dir():
+        return 0
+    return sum(
+        1
+        for f in tests.glob("test_*.py")
+        for line in f.read_text(encoding="utf-8").splitlines()
+        if line.startswith("def test_")
+    )
+
+
 def _landing(available: list[str]) -> str:
     """The landing page. Links only to pages that were actually generated.
 
@@ -238,7 +265,7 @@ def _landing(available: list[str]) -> str:
         '<span class="chip"><b>630,755</b> transactions in 31s</span>'
         '<span class="chip"><b>6</b> typologies</span>'
         '<span class="chip"><b>4</b> detection layers</span>'
-        '<span class="chip"><b>302</b> tests, zero skips</span>'
+        f'<span class="chip"><b>{_test_count()}</b> test functions, zero skips</span>'
         '</div></div></div>'
 
         + web.section(
@@ -267,7 +294,7 @@ def _landing(available: list[str]) -> str:
 
         + web.section(
             sid="honesty", eyebrow="Why trust any of this",
-            title="Sixteen times a flattering number turned out to be an artefact",
+            title="Seventeen times a flattering number turned out to be an artefact",
             lede="Each one was measured, corrected, and <em>written down</em> rather than "
                  "quietly kept. That record is the most valuable thing in the project.",
             tone="amber",

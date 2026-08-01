@@ -50,8 +50,8 @@ it, change it. Every number below is reproducible from the repo.
 > and I published that instead of burying it. Adverse media adds no true positive at any
 > weight, so it's surfaced to the analyst and never scored.
 >
-> Sixteen times in this project a flattering number turned out to be an artefact. All sixteen
-> are written down in the README.
+> Seventeen times in this project a flattering number turned out to be an artefact. All
+> seventeen are written down in the README.
 >
 > Open source, all synthetic data, all typologies from public advisories:
 > github.com/Dhanu2626/launderlab
@@ -98,9 +98,9 @@ it, change it. Every number below is reproducible from the repo.
 
 ## Before you post — a checklist
 
-1. **The GitHub Pages link only works once you enable it.** Repo → Settings → Pages → Deploy
-   from a branch → `main` / `docs`. Verify the URL loads in a private window before posting; a
-   dead link in the first hour is the one people click.
+1. **The site is live** at dhanu2626.github.io/launderlab (Pages enabled 2026-08-01, verified
+   200 on all five pages). Still open it in a private window right before you post — a dead
+   link in the first hour is the one everybody clicks.
 2. **Post the video as native LinkedIn video, not a YouTube link.** LinkedIn suppresses
    off-platform links in the feed. Put the GitHub URL in the first comment if reach matters
    more to you than convenience.

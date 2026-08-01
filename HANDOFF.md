@@ -440,6 +440,17 @@ those odds fall as 1/n².
     so the guard moved to the single point every ground-truth chart passes through — and the
     project's own boundary test caught that guard doing its own `SELECT scheme_labels`.
 
+18. **Phase 9.9 — a rule that fires, then stops.** Explaining the published site line by line
+    surfaced two numbers that looked contradictory: the Results page scores `shell_company` at
+    2/5 while Story Mode reports 5/5 caught. Both are right. All five fired
+    `counterparty_concentration`; three were silent again by month end, because that rule is a
+    **ratio** and the account's ongoing legitimate income kept diluting the shell's share back
+    under 50%. The mechanism proves itself in the dates — the three that went quiet fired
+    earliest (8th, 9th, 11th, now 36.0/42.5/45.1%) and the two still alerting fired latest
+    (22nd, 26th, at 59.1/53.3%). **Detection is not monotonic, so any end-of-period score
+    systematically under-counts ratio-based rules**, and a bank monitoring monthly rather than
+    nightly does not merely detect later — it can miss the scheme entirely.
+
 **The pattern, named:** most of these surfaced by *rendering a number where a person had to
 read it next to a decision*. Detection metrics grade a detector against ground truth; nothing
 grades whether its output is usable. Finding 16 extends it: a metric can also be graded on the

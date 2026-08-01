@@ -120,6 +120,26 @@ def test_publishing_writes_files_and_nothing_else(tmp_path):
         "index.html", "story.html"]
 
 
+def test_the_test_count_is_counted_not_typed(tmp_path):
+    """It was hand-written as "302" and went stale within a day, on the one page
+    every reader lands on, on a site whose whole claim is that its figures are
+    generated rather than typed.
+
+    It counts test FUNCTIONS and the chip says so, because that is deliberately
+    not the number pytest reports: parametrised functions expand into several
+    cases each. Two labelled numbers beat one reconciled-by-hand number.
+    """
+    counted = publish._test_count()
+    assert counted > 200, "the counter should find the suite, not silently return 0"
+
+    src = _fake_charts(tmp_path, ALL_PAGES)
+    landing = (publish.publish(src, tmp_path / "docs")
+               and (tmp_path / "docs" / "index.html").read_text(encoding="utf-8"))
+    assert f"<b>{counted}</b> test functions" in landing
+    assert "test functions" in landing, (
+        "the label must say what it counts — pytest reports more cases than this")
+
+
 def test_the_landing_page_states_no_measured_result_it_cannot_source(tmp_path):
     """The landing page is the ONE page not rendered from a scorer, so it is the
     one page where a figure could silently go stale.
