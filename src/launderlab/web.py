@@ -19,9 +19,11 @@ CONSTRAINTS THAT SHAPED IT
   test asserts it.
 * **No build step.** Semantic HTML, modern CSS, vanilla JS. It has to keep
   working on GitHub Pages with nothing in front of it.
-* **Dark, and committed to it.** The reference points (Linear, Vercel, Datadog,
-  a Bloomberg terminal) are dark-first, and a single theme is one fewer axis on
-  which five pages can disagree.
+* **Dark by identity, light on request.** The reference points (Linear, Vercel,
+  Datadog, a Bloomberg terminal) are dark-first, so dark is the default -- but a
+  reader whose OS asks for light gets light, and the nav toggle overrides both
+  and persists. Both palettes were measured independently against the surfaces
+  they sit on; neither is the other one inverted.
 * **Motion is subtle and refusable.** Everything animated respects
   `prefers-reduced-motion`, and every animated element is fully legible in its
   final state if the animation never runs -- so a reader who disables motion,
@@ -44,25 +46,74 @@ NAV = (
     ("multibank.html", "Cross-Bank"),
 )
 
-TOKENS = """
-:root {
+# EVERY colour here was chosen by MEASURING its WCAG contrast against the
+# backgrounds it actually sits on, in its own theme -- never by taking the other
+# theme's value and hoping. That exact shortcut already shipped a bug in the
+# workbench: three tier colours carried over unchanged measured 2.8-3.6:1 on a
+# dark background, well under the 4.5:1 small text needs, and nobody had looked.
+# `test_web.py` recomputes every ratio in both themes, so a future palette edit
+# cannot quietly darken a label into unreadability.
+#
+# The tier ramp is warm on purpose -- rust, orange, ochre, sand -- deepest for
+# the strongest evidence tier and faintest for the weakest, so the colour says
+# the same thing the tier note says. The values are the workbench's, reused
+# rather than reinvented, so a tier means one colour across the whole product.
+_DARK = """
   color-scheme: dark;
   --bg:#08090a; --bg-soft:#0c0e10; --surface:#111417; --surface-2:#161a1e;
   --surface-3:#1c2126; --line:#222930; --line-strong:#2f3841;
-  --ink:#e9ecef; --ink-dim:#9aa3ab; --ink-faint:#6b747c;
+  --ink:#e9ecef; --ink-dim:#9aa3ab; --ink-faint:#858e96;
   --accent:#4c8dff; --accent-soft:#1b3a63;
-  --accent-glow:rgba(76,141,255,.14);
+  --accent-glow:rgba(76,141,255,.14); --on-accent:#04070d;
+  --nav-bg:rgba(8,9,10,.76); --wash1:rgba(76,141,255,.10);
+  --wash2:rgba(167,139,250,.07);
   --teal:#2dd4bf; --violet:#a78bfa; --amber:#f0b429; --rose:#f87171;
   --green:#4ade80;
   --c1:#4c8dff; --c2:#2dd4bf; --c3:#f0b429; --c4:#a78bfa; --c5:#f87171;
-  --radius:14px; --radius-sm:9px; --radius-lg:20px;
+  --tier1:#dd614b; --tier2:#da741b; --tier3:#c6942f; --tier4:#a68168;
   --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 28px -12px rgba(0,0,0,.7);
   --shadow-lg:0 2px 4px rgba(0,0,0,.4), 0 24px 60px -20px rgba(0,0,0,.85);
+  --glow:rgba(255,255,255,.04);
+"""
+
+_LIGHT = """
+  color-scheme: light;
+  --bg:#fbfbfa; --bg-soft:#f6f7f8; --surface:#ffffff; --surface-2:#f4f5f6;
+  --surface-3:#eceef0; --line:#e2e5e8; --line-strong:#cfd4d9;
+  --ink:#14171a; --ink-dim:#4f575e; --ink-faint:#5f686f;
+  --accent:#1657c4; --accent-soft:#d7e3fb;
+  --accent-glow:rgba(22,87,196,.09); --on-accent:#ffffff;
+  --nav-bg:rgba(251,251,250,.82); --wash1:rgba(22,87,196,.07);
+  --wash2:rgba(109,63,212,.05);
+  --teal:#0f766e; --violet:#6d3fd4; --amber:#8a5a00; --rose:#c02626;
+  --green:#147a3a;
+  --c1:#1657c4; --c2:#0f766e; --c3:#8a5a00; --c4:#6d3fd4; --c5:#c02626;
+  --tier1:#c13c24; --tier2:#a35713; --tier3:#88651f; --tier4:#85644e;
+  --shadow:0 1px 2px rgba(16,24,32,.06), 0 8px 24px -14px rgba(16,24,32,.24);
+  --shadow-lg:0 2px 4px rgba(16,24,32,.07), 0 22px 52px -24px rgba(16,24,32,.3);
+  --glow:rgba(16,24,32,.03);
+"""
+
+_SHARED = """
+  --radius:14px; --radius-sm:9px; --radius-lg:20px;
   --mono:ui-monospace,"SF Mono","JetBrains Mono","Cascadia Mono",Menlo,Consolas,monospace;
   --sans:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",Roboto,"Helvetica Neue",sans-serif;
   --ease:cubic-bezier(.16,1,.3,1);
   --maxw:1120px;
-}
+"""
+
+# Order is load-bearing. All four rules have equal specificity, so the LAST
+# matching one wins: dark is the default identity, a light OS preference
+# overrides it when the reader has expressed no choice, and an explicit choice
+# overrides everything. The media query is what makes the site respect a
+# light-preferring reader even with JavaScript unavailable.
+TOKENS = f"""
+:root {{{_DARK}{_SHARED}}}
+@media (prefers-color-scheme: light) {{
+  :root:not([data-theme="dark"]) {{{_LIGHT}}}
+}}
+:root[data-theme="light"] {{{_LIGHT}}}
+:root[data-theme="dark"] {{{_DARK}}}
 """
 
 BASE_CSS = """
@@ -77,8 +128,8 @@ body {
 body::before {
   content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
   background:
-    radial-gradient(900px 500px at 12% -8%, rgba(76,141,255,.10), transparent 60%),
-    radial-gradient(760px 420px at 92% 4%, rgba(167,139,250,.07), transparent 62%);
+    radial-gradient(900px 500px at 12% -8%, var(--wash1), transparent 60%),
+    radial-gradient(760px 420px at 92% 4%, var(--wash2), transparent 62%);
 }
 main,header,footer { position:relative; z-index:1; }
 h1,h2,h3,h4 { margin:0; font-weight:640; letter-spacing:-.021em; line-height:1.18; }
@@ -100,7 +151,7 @@ code {
 .narrow { max-width:760px; }
 :focus-visible { outline:2px solid var(--accent); outline-offset:3px; border-radius:4px; }
 .skip {
-  position:absolute; left:-9999px; top:0; background:var(--accent); color:#04070d;
+  position:absolute; left:-9999px; top:0; background:var(--accent); color:var(--on-accent);
   padding:10px 18px; border-radius:0 0 8px 0; font-weight:600; z-index:100;
 }
 .skip:focus { left:0; }
@@ -111,7 +162,7 @@ code {
 NAV_CSS = """
 .nav {
   position:sticky; top:0; z-index:50;
-  background:rgba(8,9,10,.76); backdrop-filter:blur(14px) saturate(150%);
+  background:var(--nav-bg); backdrop-filter:blur(14px) saturate(150%);
   -webkit-backdrop-filter:blur(14px) saturate(150%);
   border-bottom:1px solid var(--line);
 }
@@ -132,6 +183,31 @@ NAV_CSS = """
 .nav-links a:hover { color:var(--ink); background:var(--surface-2); text-decoration:none; }
 .nav-links a[aria-current="page"] { color:var(--ink); background:var(--surface-3); }
 .nav-links a.ext { color:var(--ink-faint); }
+.themebtn {
+  flex:0 0 auto; margin-left:6px; width:32px; height:32px; padding:0; cursor:pointer;
+  display:inline-flex; align-items:center; justify-content:center;
+  background:var(--surface-2); color:var(--ink-dim); border:1px solid var(--line);
+  border-radius:9px; transition:color .16s, background .16s, border-color .16s;
+}
+.themebtn:hover { color:var(--ink); background:var(--surface-3);
+                  border-color:var(--line-strong); }
+.themebtn svg { width:15px; height:15px; }
+/* One button, two glyphs: show the theme you would switch TO, which is the
+   convention every OS toggle uses and the only one that reads unambiguously
+   without a label. */
+.themebtn .moon { display:none; } .themebtn .sun { display:block; }
+/* The icon has to follow the same four-way cascade the TOKENS do, or it lies in
+   exactly one state: a reader whose OS asks for light, who has never clicked,
+   sees light with a "switch to light" sun on it. Caught by clicking the real
+   button in a browser, not by a test. */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) .themebtn .moon { display:block; }
+  :root:not([data-theme="dark"]) .themebtn .sun { display:none; }
+}
+:root[data-theme="light"] .themebtn .moon { display:block; }
+:root[data-theme="light"] .themebtn .sun { display:none; }
+:root[data-theme="dark"] .themebtn .moon { display:none; }
+:root[data-theme="dark"] .themebtn .sun { display:block; }
 @media (max-width:720px){ .nav-in { padding:0 14px; } .brand span.full { display:none; } }
 """
 
@@ -298,8 +374,8 @@ details.exp .exp-body > :first-child { margin-top:13px; }
   transition:transform .18s var(--ease), background .18s, border-color .18s;
 }
 .btn:hover { text-decoration:none; transform:translateY(-1.5px); }
-.btn.pri { background:var(--accent); color:#04070d; }
-.btn.pri:hover { background:#6ba1ff; }
+.btn.pri { background:var(--accent); color:var(--on-accent); }
+.btn.pri:hover { filter:brightness(1.12); }
 .btn.sec { background:var(--surface-2); color:var(--ink); border-color:var(--line-strong); }
 .btn.sec:hover { background:var(--surface-3); }
 .btn-row { display:flex; flex-wrap:wrap; gap:11px; margin-top:30px; }
@@ -382,6 +458,25 @@ MOTION_CSS = """
 BASE_JS = """
 (function(){
   var RM = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* Theme toggle. The <head> script already applied any stored choice; this
+     only handles the click. Until someone clicks, no attribute is set and the
+     CSS media query follows the operating system -- so a reader who has never
+     touched the button still gets the theme they asked their OS for. */
+  var tbtn = document.getElementById('themebtn');
+  if (tbtn) {
+    tbtn.addEventListener('click', function(){
+      var d = document.documentElement;
+      var now = d.getAttribute('data-theme');
+      if (!now) {
+        now = window.matchMedia('(prefers-color-scheme: light)').matches
+          ? 'light' : 'dark';
+      }
+      var next = now === 'dark' ? 'light' : 'dark';
+      d.setAttribute('data-theme', next);
+      try { localStorage.setItem('ll-theme', next); } catch (e) {}
+    });
+  }
 
   /* Scroll reveal. Falls back to fully visible if IntersectionObserver is
      missing -- content must never depend on an animation having run. */
@@ -500,7 +595,18 @@ def nav(active: str) -> str:
         f'LaunderLab</a>'
         f'<nav class="nav-links" aria-label="Sections">{links}'
         f'<a class="ext" href="{GITHUB_URL}" rel="noopener">GitHub &#8599;</a>'
-        '</nav></div></header>')
+        '</nav>'
+        '<button class="themebtn" id="themebtn" type="button" '
+        'aria-label="Switch colour theme">'
+        '<svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" '
+        'stroke-width="2" stroke-linecap="round" aria-hidden="true">'
+        '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4'
+        'M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>'
+        '<svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" '
+        'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+        '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>'
+        '</button>'
+        '</div></header>')
 
 
 def footer() -> str:
@@ -529,9 +635,14 @@ def shell(*, title: str, description: str, active: str, body: str,
         '<meta property="og:type" content="website">\n'
         '<meta name="twitter:card" content="summary_large_image">\n'
         f'<style>{css(extra_css)}</style>\n'
-        # Marks that scripting is live, so the reveal styles may apply. Inline
-        # and in <head> so it runs before first paint and nothing flashes.
-        '<script>document.documentElement.className+=" js";</script>\n'
+        # Runs before first paint, so neither the reveal styles nor the theme
+        # can flash the wrong state. It marks that scripting is live, then
+        # applies a stored theme choice if one exists -- and deliberately does
+        # NOT set the attribute otherwise, leaving the CSS media query to follow
+        # the reader's operating system.
+        '<script>(function(){var d=document.documentElement;d.className+=" js";'
+        'try{var t=localStorage.getItem("ll-theme");if(t)d.setAttribute("data-theme",t);}'
+        'catch(e){}})();</script>\n'
         '</head>\n<body>\n'
         '<a class="skip" href="#main">Skip to content</a>\n'
         f'{nav(active)}\n<main id="main">\n{body}\n</main>\n{footer()}\n'
@@ -624,7 +735,8 @@ _SERIES = ("c1", "c2", "c3", "c4", "c5")
 
 def bars(rows: list[tuple[str, float]], *, maximum: float | None = None,
          fmt: str = "{:.0%}", accent: set[str] | None = None,
-         tips: dict[str, str] | None = None, width: int = 780) -> str:
+         tips: dict[str, str] | None = None, colors: dict[str, str] | None = None,
+         width: int = 780) -> str:
     """Horizontal bars, animated on reveal, each row hoverable for a tooltip.
 
     `rows` is [(label, value)]. Values are formatted with `fmt` and never
@@ -632,18 +744,21 @@ def bars(rows: list[tuple[str, float]], *, maximum: float | None = None,
     """
     if not rows:
         return '<p class="note">No data.</p>'
-    accent, tips = accent or set(), tips or {}
+    accent, tips, colors = accent or set(), tips or {}, colors or {}
     top = maximum if maximum is not None else max((v for _, v in rows), default=0)
     top = top or 1.0
     row_h, pad_l, pad_r = 34, 232, 74
     plot = width - pad_l - pad_r
     height = len(rows) * row_h + 10
 
+    # One gradient per token actually used, so a per-row colour still gets the
+    # same left-to-right fade as the defaults rather than reading as a flat block.
+    used = ["c1", "c2"] + sorted({v for v in colors.values()} - {"c1", "c2"})
     out = [f'<svg viewBox="0 0 {width} {height}" role="img" '
            f'aria-label="Bar chart, {len(rows)} values">',
            '<defs>']
-    for i, key in enumerate(("c1", "c2")):
-        out.append(f'<linearGradient id="bg{i}" x1="0" x2="1" y1="0" y2="0">'
+    for key in used:
+        out.append(f'<linearGradient id="bg-{key}" x1="0" x2="1" y1="0" y2="0">'
                    f'<stop offset="0%" stop-color="var(--{key})" stop-opacity=".95"/>'
                    f'<stop offset="100%" stop-color="var(--{key})" stop-opacity=".55"/>'
                    f'</linearGradient>')
@@ -652,7 +767,8 @@ def bars(rows: list[tuple[str, float]], *, maximum: float | None = None,
     for i, (label, value) in enumerate(rows):
         y = i * row_h + 6
         w = max(2.0, (value / top) * plot) if value > 0 else 0.0
-        fill = "url(#bg1)" if label in accent else "url(#bg0)"
+        token = colors.get(label) or ("c2" if label in accent else "c1")
+        fill = f"url(#bg-{token})"
         tip = tips.get(label, "")
         out.append(f'<g class="c-row" data-tip="{esc(label)}" '
                    f'data-tip-d="{esc(tip)}" tabindex="0">')

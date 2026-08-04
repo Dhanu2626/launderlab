@@ -56,7 +56,7 @@ thing here — preserve it.
 | Last code change | `f263385` — "Fix six defects found auditing Phases 8 and 8.5 before Phase 9". Commits after it are documentation only. Run `git log --oneline -5` for the true head — a doc that pins its own hash is stale the moment it is committed |
 | Working tree | clean, in sync with `origin/main` |
 | Commits | 57 |
-| Tests | **311 passing, zero skips** (~4-13 min locally, ~2:30 in CI). `publish.TEST_COUNT` is the one place this number is written; a test pins it against pytest, the README badge and the README tree |
+| Tests | **320 passing, zero skips** (~4-13 min locally, ~2:30 in CI). `publish.TEST_COUNT` is the one place this number is written; a test pins it against pytest, the README badge and the README tree |
 | Lint | `ruff` clean |
 | CI | GitHub Actions green on every push, and **actually runs everything** — see §3 |
 | Phases complete | 0, 2, 3, 4, 5, 6, 7, 8, 8.5, **9**; **1 core** (slice 1.3 deferred, non-blocking). **All phases done.** |
@@ -550,6 +550,21 @@ wrong *axis* entirely, and be perfectly measured on that one.
   wanted `index.html` and one silently destroyed the other, with a working link to the wrong
   page.
 
+**Theming and contrast (9.11)**
+- **Both palettes were measured independently against their own surfaces.** Neither is the
+  other inverted, and a test asserts no foreground token is shared — a carried-over palette is
+  precisely how the workbench once shipped three tier colours at 2.8-3.6:1 on dark.
+- **`test_web.py` recomputes every WCAG ratio from the shipped CSS, both themes, every run.**
+  Text tokens need 4.5:1 on every surface they sit on; chart fills need 3.0:1. Do not relax
+  either to make a palette edit pass.
+- **`--ink-faint` is small text, not large.** It carries KPI details and axis labels, so the
+  3.0 large-text allowance does not apply to it. It failed at 3.88:1 before 9.11.
+- **Component CSS may not contain a literal hex.** A test enforces it: the nav background, the
+  page wash and the on-accent foreground were all hardcoded for dark and all broke when light
+  arrived.
+- **The toggle icon needs the same four-way cascade as the tokens**, or it lies in the
+  OS-default-light state. Dark default → light media query → explicit light → explicit dark.
+
 **The published site (9.7-9.8)**
 - **Chart rows break ties on label, so a page renders byte-identically twice.** Not cosmetic:
   without it a re-rendered page differs from the committed one, and a genuinely stale artifact
@@ -609,7 +624,7 @@ wrong *axis* entirely, and be perfectly measured on that one.
 | Small structuring | Documented blind spot — indistinguishable from a shop banking takings |
 | `dormant_reactivation` recall | 60% (9/15) — the injector's gap parameter sometimes lands too close to normal weekly cadence |
 | Watchlist | **Synthetic**, not real OFAC/UN data. Swap via `LAUNDERLAB_WATCHLIST` |
-| Test suite runtime | ~4–13 min (311 tests). `test_redteam.py`'s live run and `test_demo.py` are slowest. Do not run two heavy things concurrently |
+| Test suite runtime | ~4–13 min (320 tests). `test_redteam.py`'s live run and `test_demo.py` are slowest. Do not run two heavy things concurrently |
 
 **Settled — do not reopen without new evidence:** the React question (single page, 2026-07-30)
 and adverse media (context on Entity-360, weight 0.0, 2026-07-30).

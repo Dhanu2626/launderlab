@@ -131,13 +131,23 @@ def queue_composition(conn: duckdb.DuckDBPyConnection) -> tuple[str, str]:
 
     rows = [(f"tier: {name}", counts[name]) for name in risk.TIER_ORDER]
     rows += [(f"contributes: {name}", layers[name]) for name in risk.TIER_ORDER]
-    tips = {}
-    for name in risk.TIER_ORDER:
+
+    # The warm ramp the workbench already uses for its queue tiers -- rust,
+    # orange, ochre, sand -- deepest for the strongest evidence tier and
+    # faintest for the weakest, so the colour carries the same meaning as the
+    # tier note. Reused rather than reinvented so a tier is one colour wherever
+    # an analyst meets it. The contribution bars stay on the ramp too, at the
+    # same hue as the tier they belong to, which is what makes the two halves of
+    # this chart legible as pairs rather than as eight unrelated bars.
+    tips, colors = {}, {}
+    for i, name in enumerate(risk.TIER_ORDER):
+        token = f"tier{min(i + 1, 4)}"
+        colors[f"tier: {name}"] = token
+        colors[f"contributes: {name}"] = token
         tips[f"tier: {name}"] = f"{counts[name]} cases were filed under this tier."
         tips[f"contributes: {name}"] = (f"{layers[name]} cases carry evidence from "
                                         f"this layer, whatever tier they were filed under.")
-    svg = web.bars(rows, fmt="{:.0f}", tips=tips,
-                   accent={f"contributes: {n}" for n in risk.TIER_ORDER})
+    svg = web.bars(rows, fmt="{:.0f}", tips=tips, colors=colors)
     note = (f"{len(open_cases)} open cases. The top four bars are which tier a case was "
             "filed under; the lower four are how many cases each layer contributed any "
             "evidence to. A layer can carry many cases without ever owning a tier.")

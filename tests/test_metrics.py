@@ -165,7 +165,10 @@ def test_a_crime_free_world_refuses_to_report_a_detection_rate(tmp_path):
         assert "no injected schemes" in html
         assert "demo-world" in html
         assert "0.0% recall" not in html, "a rate over an empty denominator is not a result"
-        assert "<svg" not in html, "no chart is better than a misleading one"
+        # chart wrappers, not raw <svg>: the theme toggle icons are SVG and
+        # are page furniture, not a claim about the data
+        assert 'class="chart-wrap"' not in html, (
+            "no chart is better than a misleading one")
     finally:
         conn.close()
 

@@ -40,10 +40,13 @@ def test_every_chart_draws_without_falling_back_to_an_error(world, tmp_path):
     page = path.read_text(encoding="utf-8")
 
     assert path.name == "results.html"
-    # 3 experiment charts. The KPI block is deliberately not a chart:
-    # five unrelated scalars in three units, where a bar comparing a
-    # percentage to a review count would be decoration posing as analysis.
-    assert page.count("<svg") == 3, "expected one chart per experiment"
+    # 3 experiment charts. Counted as chart wrappers, not as `<svg>` elements:
+    # the theme toggle puts a sun and a moon icon on every page, so counting
+    # every SVG measures the furniture as well as the data.
+    # The KPI block is deliberately not a chart -- five unrelated scalars in
+    # three units, where a bar comparing a percentage to a review count would
+    # be decoration posing as analysis.
+    assert page.count('class="chart-wrap"') == 3, "expected one chart per experiment"
     assert "Could not draw this chart" not in page, page[:500]
 
 
@@ -206,5 +209,5 @@ def test_redteam_page_is_self_contained_and_separate_from_the_main_charts(redtea
         for hit in page.split(token)[1:]:
             assert hit.startswith("github.com/Dhanu2626/launderlab"), (
                 f"unexpected external reference: {token}{hit[:60]}")
-    # one decay chart, plus the shared page furniture drawing no data
-    assert page.count("<svg") >= 1
+    # one decay chart (the toggle icons are SVG too, hence the wrapper count)
+    assert page.count('class="chart-wrap"') >= 1

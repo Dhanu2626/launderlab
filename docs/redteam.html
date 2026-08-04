@@ -15,19 +15,77 @@
   color-scheme: dark;
   --bg:#08090a; --bg-soft:#0c0e10; --surface:#111417; --surface-2:#161a1e;
   --surface-3:#1c2126; --line:#222930; --line-strong:#2f3841;
-  --ink:#e9ecef; --ink-dim:#9aa3ab; --ink-faint:#6b747c;
+  --ink:#e9ecef; --ink-dim:#9aa3ab; --ink-faint:#858e96;
   --accent:#4c8dff; --accent-soft:#1b3a63;
-  --accent-glow:rgba(76,141,255,.14);
+  --accent-glow:rgba(76,141,255,.14); --on-accent:#04070d;
+  --nav-bg:rgba(8,9,10,.76); --wash1:rgba(76,141,255,.10);
+  --wash2:rgba(167,139,250,.07);
   --teal:#2dd4bf; --violet:#a78bfa; --amber:#f0b429; --rose:#f87171;
   --green:#4ade80;
   --c1:#4c8dff; --c2:#2dd4bf; --c3:#f0b429; --c4:#a78bfa; --c5:#f87171;
-  --radius:14px; --radius-sm:9px; --radius-lg:20px;
+  --tier1:#dd614b; --tier2:#da741b; --tier3:#c6942f; --tier4:#a68168;
   --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 28px -12px rgba(0,0,0,.7);
   --shadow-lg:0 2px 4px rgba(0,0,0,.4), 0 24px 60px -20px rgba(0,0,0,.85);
+  --glow:rgba(255,255,255,.04);
+
+  --radius:14px; --radius-sm:9px; --radius-lg:20px;
   --mono:ui-monospace,"SF Mono","JetBrains Mono","Cascadia Mono",Menlo,Consolas,monospace;
   --sans:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",Roboto,"Helvetica Neue",sans-serif;
   --ease:cubic-bezier(.16,1,.3,1);
   --maxw:1120px;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+  color-scheme: light;
+  --bg:#fbfbfa; --bg-soft:#f6f7f8; --surface:#ffffff; --surface-2:#f4f5f6;
+  --surface-3:#eceef0; --line:#e2e5e8; --line-strong:#cfd4d9;
+  --ink:#14171a; --ink-dim:#4f575e; --ink-faint:#5f686f;
+  --accent:#1657c4; --accent-soft:#d7e3fb;
+  --accent-glow:rgba(22,87,196,.09); --on-accent:#ffffff;
+  --nav-bg:rgba(251,251,250,.82); --wash1:rgba(22,87,196,.07);
+  --wash2:rgba(109,63,212,.05);
+  --teal:#0f766e; --violet:#6d3fd4; --amber:#8a5a00; --rose:#c02626;
+  --green:#147a3a;
+  --c1:#1657c4; --c2:#0f766e; --c3:#8a5a00; --c4:#6d3fd4; --c5:#c02626;
+  --tier1:#c13c24; --tier2:#a35713; --tier3:#88651f; --tier4:#85644e;
+  --shadow:0 1px 2px rgba(16,24,32,.06), 0 8px 24px -14px rgba(16,24,32,.24);
+  --shadow-lg:0 2px 4px rgba(16,24,32,.07), 0 22px 52px -24px rgba(16,24,32,.3);
+  --glow:rgba(16,24,32,.03);
+}
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg:#fbfbfa; --bg-soft:#f6f7f8; --surface:#ffffff; --surface-2:#f4f5f6;
+  --surface-3:#eceef0; --line:#e2e5e8; --line-strong:#cfd4d9;
+  --ink:#14171a; --ink-dim:#4f575e; --ink-faint:#5f686f;
+  --accent:#1657c4; --accent-soft:#d7e3fb;
+  --accent-glow:rgba(22,87,196,.09); --on-accent:#ffffff;
+  --nav-bg:rgba(251,251,250,.82); --wash1:rgba(22,87,196,.07);
+  --wash2:rgba(109,63,212,.05);
+  --teal:#0f766e; --violet:#6d3fd4; --amber:#8a5a00; --rose:#c02626;
+  --green:#147a3a;
+  --c1:#1657c4; --c2:#0f766e; --c3:#8a5a00; --c4:#6d3fd4; --c5:#c02626;
+  --tier1:#c13c24; --tier2:#a35713; --tier3:#88651f; --tier4:#85644e;
+  --shadow:0 1px 2px rgba(16,24,32,.06), 0 8px 24px -14px rgba(16,24,32,.24);
+  --shadow-lg:0 2px 4px rgba(16,24,32,.07), 0 22px 52px -24px rgba(16,24,32,.3);
+  --glow:rgba(16,24,32,.03);
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg:#08090a; --bg-soft:#0c0e10; --surface:#111417; --surface-2:#161a1e;
+  --surface-3:#1c2126; --line:#222930; --line-strong:#2f3841;
+  --ink:#e9ecef; --ink-dim:#9aa3ab; --ink-faint:#858e96;
+  --accent:#4c8dff; --accent-soft:#1b3a63;
+  --accent-glow:rgba(76,141,255,.14); --on-accent:#04070d;
+  --nav-bg:rgba(8,9,10,.76); --wash1:rgba(76,141,255,.10);
+  --wash2:rgba(167,139,250,.07);
+  --teal:#2dd4bf; --violet:#a78bfa; --amber:#f0b429; --rose:#f87171;
+  --green:#4ade80;
+  --c1:#4c8dff; --c2:#2dd4bf; --c3:#f0b429; --c4:#a78bfa; --c5:#f87171;
+  --tier1:#dd614b; --tier2:#da741b; --tier3:#c6942f; --tier4:#a68168;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 28px -12px rgba(0,0,0,.7);
+  --shadow-lg:0 2px 4px rgba(0,0,0,.4), 0 24px 60px -20px rgba(0,0,0,.85);
+  --glow:rgba(255,255,255,.04);
 }
 
 *,*::before,*::after { box-sizing:border-box; }
@@ -41,8 +99,8 @@ body {
 body::before {
   content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
   background:
-    radial-gradient(900px 500px at 12% -8%, rgba(76,141,255,.10), transparent 60%),
-    radial-gradient(760px 420px at 92% 4%, rgba(167,139,250,.07), transparent 62%);
+    radial-gradient(900px 500px at 12% -8%, var(--wash1), transparent 60%),
+    radial-gradient(760px 420px at 92% 4%, var(--wash2), transparent 62%);
 }
 main,header,footer { position:relative; z-index:1; }
 h1,h2,h3,h4 { margin:0; font-weight:640; letter-spacing:-.021em; line-height:1.18; }
@@ -64,7 +122,7 @@ code {
 .narrow { max-width:760px; }
 :focus-visible { outline:2px solid var(--accent); outline-offset:3px; border-radius:4px; }
 .skip {
-  position:absolute; left:-9999px; top:0; background:var(--accent); color:#04070d;
+  position:absolute; left:-9999px; top:0; background:var(--accent); color:var(--on-accent);
   padding:10px 18px; border-radius:0 0 8px 0; font-weight:600; z-index:100;
 }
 .skip:focus { left:0; }
@@ -73,7 +131,7 @@ code {
 
 .nav {
   position:sticky; top:0; z-index:50;
-  background:rgba(8,9,10,.76); backdrop-filter:blur(14px) saturate(150%);
+  background:var(--nav-bg); backdrop-filter:blur(14px) saturate(150%);
   -webkit-backdrop-filter:blur(14px) saturate(150%);
   border-bottom:1px solid var(--line);
 }
@@ -94,6 +152,31 @@ code {
 .nav-links a:hover { color:var(--ink); background:var(--surface-2); text-decoration:none; }
 .nav-links a[aria-current="page"] { color:var(--ink); background:var(--surface-3); }
 .nav-links a.ext { color:var(--ink-faint); }
+.themebtn {
+  flex:0 0 auto; margin-left:6px; width:32px; height:32px; padding:0; cursor:pointer;
+  display:inline-flex; align-items:center; justify-content:center;
+  background:var(--surface-2); color:var(--ink-dim); border:1px solid var(--line);
+  border-radius:9px; transition:color .16s, background .16s, border-color .16s;
+}
+.themebtn:hover { color:var(--ink); background:var(--surface-3);
+                  border-color:var(--line-strong); }
+.themebtn svg { width:15px; height:15px; }
+/* One button, two glyphs: show the theme you would switch TO, which is the
+   convention every OS toggle uses and the only one that reads unambiguously
+   without a label. */
+.themebtn .moon { display:none; } .themebtn .sun { display:block; }
+/* The icon has to follow the same four-way cascade the TOKENS do, or it lies in
+   exactly one state: a reader whose OS asks for light, who has never clicked,
+   sees light with a "switch to light" sun on it. Caught by clicking the real
+   button in a browser, not by a test. */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) .themebtn .moon { display:block; }
+  :root:not([data-theme="dark"]) .themebtn .sun { display:none; }
+}
+:root[data-theme="light"] .themebtn .moon { display:block; }
+:root[data-theme="light"] .themebtn .sun { display:none; }
+:root[data-theme="dark"] .themebtn .moon { display:none; }
+:root[data-theme="dark"] .themebtn .sun { display:block; }
 @media (max-width:720px){ .nav-in { padding:0 14px; } .brand span.full { display:none; } }
 
 .hero { padding:76px 0 44px; }
@@ -256,8 +339,8 @@ details.exp .exp-body > :first-child { margin-top:13px; }
   transition:transform .18s var(--ease), background .18s, border-color .18s;
 }
 .btn:hover { text-decoration:none; transform:translateY(-1.5px); }
-.btn.pri { background:var(--accent); color:#04070d; }
-.btn.pri:hover { background:#6ba1ff; }
+.btn.pri { background:var(--accent); color:var(--on-accent); }
+.btn.pri:hover { filter:brightness(1.12); }
 .btn.sec { background:var(--surface-2); color:var(--ink); border-color:var(--line-strong); }
 .btn.sec:hover { background:var(--surface-3); }
 .btn-row { display:flex; flex-wrap:wrap; gap:11px; margin-top:30px; }
@@ -332,11 +415,11 @@ details.exp .exp-body > :first-child { margin-top:13px; }
   .c-line { stroke-dasharray:none; }
 }
 </style>
-<script>document.documentElement.className+=" js";</script>
+<script>(function(){var d=document.documentElement;d.className+=" js";try{var t=localStorage.getItem("ll-theme");if(t)d.setAttribute("data-theme",t);}catch(e){}})();</script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
-<header class="nav"><div class="nav-in"><a class="brand" href="index.html"><span class="dot"></span>LaunderLab</a><nav class="nav-links" aria-label="Sections"><a href="index.html">Overview</a><a href="story.html">Story Mode</a><a href="results.html">Results</a><a href="redteam.html" aria-current="page">Red Team</a><a href="multibank.html">Cross-Bank</a><a class="ext" href="https://github.com/Dhanu2626/launderlab" rel="noopener">GitHub &#8599;</a></nav></div></header>
+<header class="nav"><div class="nav-in"><a class="brand" href="index.html"><span class="dot"></span>LaunderLab</a><nav class="nav-links" aria-label="Sections"><a href="index.html">Overview</a><a href="story.html">Story Mode</a><a href="results.html">Results</a><a href="redteam.html" aria-current="page">Red Team</a><a href="multibank.html">Cross-Bank</a><a class="ext" href="https://github.com/Dhanu2626/launderlab" rel="noopener">GitHub &#8599;</a></nav><button class="themebtn" id="themebtn" type="button" aria-label="Switch colour theme"><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button></div></header>
 <main id="main">
 <div class="hero"><div class="wrap"><span class="eyebrow amber" data-rv="0">Adversarial benchmark · Phase 8</span><h1 data-rv="1"><span class="grad">Detection decay is not uniform</span></h1><p class="lede" data-rv="2">A static detection stack versus an adversary that <strong>mutates its own scheme parameters every generation it gets caught</strong>. Some controls collapse completely within two generations and never recover. Others never fully evade at all. A single aggregate recall figure could not have shown the difference &mdash; and the difference is the whole finding.</p><div class="hero-meta" data-rv="3"><span class="chip"><b>8</b> generations</span><span class="chip"><b>5</b> adversary genomes</span><span class="chip"><b>3</b> fully evaded</span><span class="chip"><b>2</b> never evaded</span></div></div></div><section id="method"><div class="wrap"><div class="sec-head" data-rv="0"><span class="eyebrow amber">Methodology</span><h2>How the adversary adapts</h2><p>One genome per typology. Each starts at generation 0's naive default and takes one step toward whichever real-world-plausible direction reduces detectability, every generation it gets caught &mdash; freezing once a generation scores zero recall.</p></div><div class="grid g3" data-rv="0"><div class="card"><h3>The knobs are the injectors&#x27; own parameters</h3><p>Deposit ceiling, cut percentage and hop window, invoice count, hop days, dormancy gap. Nothing invented for the benchmark.</p></div><div class="card"><h3>Bounds come from public facts</h3><p>The cash-reporting line near ₹1,00,000; a mule chain stops being worth running past roughly 35% skimmed per hop. A test asserts no bound equals the rule threshold it is meant to evade.</p></div><div class="card"><h3>The adversary never reads the answer key</h3><p>It knows only the account ids it planted this call, held in local memory, and never reads a rule's tuned constants. The same boundary every detection layer here is held to.</p></div></div><div class="box method"><div class="bt">Why one typology is excluded</div><p><code>high_risk_geography</code> is left out on purpose. Its only real evasion move is routing through an unlisted jurisdiction &mdash; a categorical choice with no honest continuous knob. Inventing a fake one would have produced a smooth decay curve that meant nothing.</p></div></div></section><section id="decay"><div class="wrap"><div class="sec-head" data-rv="0"><span class="eyebrow ">Results</span><h2>Recall, generation over generation</h2><p>Click a legend entry to isolate a typology. Every point is a real measured recall against a freshly regenerated world.</p></div><div class="card pad-lg" data-rv="1" data-chart><div class="chart-wrap"><svg viewBox="0 0 780 340" role="img" aria-label="Line chart, 5 series over 8 points"><line class="c-grid" x1="54" y1="286.0" x2="726" y2="286.0"/><text class="c-val" x="42" y="290.0" text-anchor="end">0%</text><line class="c-grid" x1="54" y1="228.0" x2="726" y2="228.0"/><text class="c-val" x="42" y="232.0" text-anchor="end">25%</text><line class="c-grid" x1="54" y1="170.0" x2="726" y2="170.0"/><text class="c-val" x="42" y="174.0" text-anchor="end">50%</text><line class="c-grid" x1="54" y1="112.0" x2="726" y2="112.0"/><text class="c-val" x="42" y="116.0" text-anchor="end">75%</text><line class="c-grid" x1="54" y1="54.0" x2="726" y2="54.0"/><text class="c-val" x="42" y="58.0" text-anchor="end">100%</text><text class="c-lbl" x="54.0" y="310" text-anchor="middle">gen0</text><text class="c-lbl" x="150.0" y="310" text-anchor="middle">gen1</text><text class="c-lbl" x="246.0" y="310" text-anchor="middle">gen2</text><text class="c-lbl" x="342.0" y="310" text-anchor="middle">gen3</text><text class="c-lbl" x="438.0" y="310" text-anchor="middle">gen4</text><text class="c-lbl" x="534.0" y="310" text-anchor="middle">gen5</text><text class="c-lbl" x="630.0" y="310" text-anchor="middle">gen6</text><text class="c-lbl" x="726.0" y="310" text-anchor="middle">gen7</text><g data-s="structuring"><polyline class="c-line" points="54.0,77.2 150.0,77.2 246.0,100.4 342.0,77.2 438.0,77.2 534.0,146.8 630.0,100.4 726.0,77.2" stroke="var(--c1)" style="--len:723;animation-delay:0ms"/><circle class="c-dot" cx="54.0" cy="77.2" r="4" fill="var(--c1)" style="animation-delay:700ms" data-tip="structuring &middot; gen0" data-tip-d="90%" tabindex="0"/><circle class="c-dot" cx="150.0" cy="77.2" r="4" fill="var(--c1)" style="animation-delay:745ms" data-tip="structuring &middot; gen1" data-tip-d="90%" tabindex="0"/><circle class="c-dot" cx="246.0" cy="100.4" r="4" fill="var(--c1)" style="animation-delay:790ms" data-tip="structuring &middot; gen2" data-tip-d="80%" tabindex="0"/><circle class="c-dot" cx="342.0" cy="77.2" r="4" fill="var(--c1)" style="animation-delay:835ms" data-tip="structuring &middot; gen3" data-tip-d="90%" tabindex="0"/><circle class="c-dot" cx="438.0" cy="77.2" r="4" fill="var(--c1)" style="animation-delay:880ms" data-tip="structuring &middot; gen4" data-tip-d="90%" tabindex="0"/><circle class="c-dot" cx="534.0" cy="146.8" r="4" fill="var(--c1)" style="animation-delay:925ms" data-tip="structuring &middot; gen5" data-tip-d="60%" tabindex="0"/><circle class="c-dot" cx="630.0" cy="100.4" r="4" fill="var(--c1)" style="animation-delay:970ms" data-tip="structuring &middot; gen6" data-tip-d="80%" tabindex="0"/><circle class="c-dot" cx="726.0" cy="77.2" r="4" fill="var(--c1)" style="animation-delay:1015ms" data-tip="structuring &middot; gen7" data-tip-d="90%" tabindex="0"/></g><g data-s="mule_network"><polyline class="c-line" points="54.0,54.0 150.0,54.0 246.0,54.0 342.0,54.0 438.0,54.0 534.0,123.6 630.0,262.8 726.0,286.0" stroke="var(--c2)" style="--len:780;animation-delay:110ms"/><circle class="c-dot" cx="54.0" cy="54.0" r="4" fill="var(--c2)" style="animation-delay:700ms" data-tip="mule_network &middot; gen0" data-tip-d="100%" tabindex="0"/><circle class="c-dot" cx="150.0" cy="54.0" r="4" fill="var(--c2)" style="animation-delay:745ms" data-tip="mule_network &middot; gen1" data-tip-d="100%" tabindex="0"/><circle class="c-dot" cx="246.0" cy="54.0" r="4" fill="var(--c2)" style="animation-delay:790ms" data-tip="mule_network &middot; gen2" data-tip-d="100%" tabindex="0"/><circle class="c-dot" cx="342.0" cy="54.0" r="4" fill="var(--c2)" style="animation-delay:835ms" data-tip="mule_network &middot; gen3" data-tip-d="100%" tabindex="0"/><circle class="c-dot" cx="438.0" cy="54.0" r="4" fill="var(--c2)" style="animation-delay:880ms" data-tip="mule_network &middot; gen4" data-tip-d="100%" tabindex="0"/><circle class="c-dot" cx="534.0" cy="123.6" r="4" fill="var(--c2)" style="animation-delay:925ms" data-tip="mule_network &middot; gen5" data-tip-d="70%" tabindex="0"/><circle class="c-dot" cx="630.0" cy="262.8" r="4" fill="var(--c2)" style="animation-delay:970ms" data-tip="mule_network &middot; gen6" data-tip-d="10%" tabindex="0"/><circle class="c-dot" cx="726.0" cy="286.0" r="4" fill="var(--c2)" style="animation-delay:1015ms" data-tip="mule_network &middot; gen7" data-tip-d="0%" tabindex="0"/></g><g data-s="shell_company"><polyline class="c-line" points="54.0,123.6 150.0,123.6 246.0,286.0 342.0,286.0 438.0,286.0 534.0,286.0 630.0,286.0 726.0,286.0" stroke="var(--c3)" style="--len:774;animation-delay:220ms"/><circle class="c-dot" cx="54.0" cy="123.6" r="4" fill="var(--c3)" style="animation-delay:700ms" data-tip="shell_company &middot; gen0" data-tip-d="70%" tabindex="0"/><circle class="c-dot" cx="150.0" cy="123.6" r="4" fill="var(--c3)" style="animation-delay:745ms" data-tip="shell_company &middot; gen1" data-tip-d="70%" tabindex="0"/><circle class="c-dot" cx="246.0" cy="286.0" r="4" fill="var(--c3)" style="animation-delay:790ms" data-tip="shell_company &middot; gen2" data-tip-d="0%" tabindex="0"/><circle class="c-dot" cx="342.0" cy="286.0" r="4" fill="var(--c3)" style="animation-delay:835ms" data-tip="shell_company &middot; gen3" data-tip-d="0%" tabindex="0"/><circle class="c-dot" cx="438.0" cy="286.0" r="4" fill="var(--c3)" style="animation-delay:880ms" data-tip="shell_company &middot; gen4" data-tip-d="0%" tabindex="0"/><circle class="c-dot" cx="534.0" cy="286.0" r="4" fill="var(--c3)" style="animation-delay:925ms" data-tip="shell_company &middot; gen5" data-tip-d="0%" tabindex="0"/><circle class="c-dot" cx="630.0" cy="286.0" r="4" fill="var(--c3)" style="animation-delay:970ms" data-tip="shell_company &middot; gen6" data-tip-d="0%" tabindex="0"/><circle class="c-dot" cx="726.0" cy="286.0" r="4" fill="var(--c3)" style="animation-delay:1015ms" data-tip="shell_company &middot; gen7" data-tip-d="0%" tabindex="0"/></g><g data-s="round_tripping"><polyline class="c-line" points="54.0,54.0 150.0,77.2 246.0,216.4 342.0,239.6 438.0,239.6 534.0,262.8 630.0,262.8 726.0,262.8" stroke="var(--c4)" style="--len:763;animation-delay:330ms"/><circle class="c-dot" cx="54.0" cy="54.0" r="4" fill="var(--c4)" style="animation-delay:700ms" data-tip="round_tripping &middot; gen0" data-tip-d="100%" tabindex="0"/><circle class="c-dot" cx="150.0" cy="77.2" r="4" fill="var(--c4)" style="animation-delay:745ms" data-tip="round_tripping &middot; gen1" data-tip-d="90%" tabindex="0"/><circle class="c-dot" cx="246.0" cy="216.4" r="4" fill="var(--c4)" style="animation-delay:790ms" data-tip="round_tripping &middot; gen2" data-tip-d="30%" tabindex="0"/><circle class="c-dot" cx="342.0" cy="239.6" r="4" fill="var(--c4)" style="animation-delay:835ms" data-tip="round_tripping &middot; gen3" data-tip-d="20%" tabindex="0"/><circle class="c-dot" cx="438.0" cy="239.6" r="4" fill="var(--c4)" style="animation-delay:880ms" data-tip="round_tripping &middot; gen4" data-tip-d="20%" tabindex="0"/><circle class="c-dot" cx="534.0" cy="262.8" r="4" fill="var(--c4)" style="animation-delay:925ms" data-tip="round_tripping &middot; gen5" data-tip-d="10%" tabindex="0"/><circle class="c-dot" cx="630.0" cy="262.8" r="4" fill="var(--c4)" style="animation-delay:970ms" data-tip="round_tripping &middot; gen6" data-tip-d="10%" tabindex="0"/><circle class="c-dot" cx="726.0" cy="262.8" r="4" fill="var(--c4)" style="animation-delay:1015ms" data-tip="round_tripping &middot; gen7" data-tip-d="10%" tabindex="0"/></g><g data-s="dormant_reactivation"><polyline class="c-line" points="54.0,193.2 150.0,239.6 246.0,286.0 342.0,286.0 438.0,239.6 534.0,239.6 630.0,286.0 726.0,239.6" stroke="var(--c5)" style="--len:735;animation-delay:440ms"/><circle class="c-dot" cx="54.0" cy="193.2" r="4" fill="var(--c5)" style="animation-delay:700ms" data-tip="dormant_reactivation &middot; gen0" data-tip-d="40%" tabindex="0"/><circle class="c-dot" cx="150.0" cy="239.6" r="4" fill="var(--c5)" style="animation-delay:745ms" data-tip="dormant_reactivation &middot; gen1" data-tip-d="20%" tabindex="0"/><circle class="c-dot" cx="246.0" cy="286.0" r="4" fill="var(--c5)" style="animation-delay:790ms" data-tip="dormant_reactivation &middot; gen2" data-tip-d="0%" tabindex="0"/><circle class="c-dot" cx="342.0" cy="286.0" r="4" fill="var(--c5)" style="animation-delay:835ms" data-tip="dormant_reactivation &middot; gen3" data-tip-d="0%" tabindex="0"/><circle class="c-dot" cx="438.0" cy="239.6" r="4" fill="var(--c5)" style="animation-delay:880ms" data-tip="dormant_reactivation &middot; gen4" data-tip-d="20%" tabindex="0"/><circle class="c-dot" cx="534.0" cy="239.6" r="4" fill="var(--c5)" style="animation-delay:925ms" data-tip="dormant_reactivation &middot; gen5" data-tip-d="20%" tabindex="0"/><circle class="c-dot" cx="630.0" cy="286.0" r="4" fill="var(--c5)" style="animation-delay:970ms" data-tip="dormant_reactivation &middot; gen6" data-tip-d="0%" tabindex="0"/><circle class="c-dot" cx="726.0" cy="239.6" r="4" fill="var(--c5)" style="animation-delay:1015ms" data-tip="dormant_reactivation &middot; gen7" data-tip-d="20%" tabindex="0"/></g></svg><div class="legend"><button type="button" aria-pressed="true" data-series="structuring"><i style="background:var(--c1)"></i>structuring</button><button type="button" aria-pressed="true" data-series="mule_network"><i style="background:var(--c2)"></i>mule_network</button><button type="button" aria-pressed="true" data-series="shell_company"><i style="background:var(--c3)"></i>shell_company</button><button type="button" aria-pressed="true" data-series="round_tripping"><i style="background:var(--c4)"></i>round_tripping</button><button type="button" aria-pressed="true" data-series="dormant_reactivation"><i style="background:var(--c5)"></i>dormant_reactivation</button></div></div><p class="note">Recall against a static rules engine (plus Phase 5&#x27;s graph for mule_network) as the adversary mutates its own injector parameters each generation it evades detection. Converged (fully evaded at least once): mule_network (gen 7), shell_company (gen 2), dormant_reactivation (gen 2). high_risk_geography is excluded -- no continuous evasion knob exists for it (see redteam.py).</p></div><div class="card pad-lg" data-rv="1" style="margin-top:18px"><div class="scroll-x"><table class="tbl"><tr><th>Typology</th><th>Gen 0</th><th>Final</th><th>Outcome</th></tr><tr><td><strong>dormant_reactivation</strong></td><td class="n">40%</td><td class="n">20%</td><td><span class="pill off">collapsed at gen 2</span></td></tr><tr><td><strong>mule_network</strong></td><td class="n">100%</td><td class="n">0%</td><td><span class="pill off">collapsed at gen 7</span></td></tr><tr><td><strong>round_tripping</strong></td><td class="n">100%</td><td class="n">10%</td><td><span class="pill on">never fully evaded</span></td></tr><tr><td><strong>shell_company</strong></td><td class="n">70%</td><td class="n">0%</td><td><span class="pill off">collapsed at gen 2</span></td></tr><tr><td><strong>structuring</strong></td><td class="n">90%</td><td class="n">90%</td><td><span class="pill on">never fully evaded</span></td></tr></table></div></div></div></section><section id="findings"><div class="wrap"><div class="sec-head" data-rv="0"><span class="eyebrow teal">Findings</span><h2>What collapsed, what held</h2></div><div class="box finding"><div class="bt">Collapse is fast and total where it happens</div><p><code>shell_company</code> converges fastest and most completely, and stays at zero afterwards &mdash; consistent with the earlier static finding that its rule is unfixable by threshold, now demonstrated under adaptive pressure rather than in a clean-world test. <code>mule_network</code>, the one typology watched by <em>both</em> the rules engine and the graph layer, starts at a perfect 100% and still fully collapses.</p></div><div class="box finding"><div class="bt">Some detection surfaces genuinely resist</div><p><code>structuring</code> and <code>round_tripping</code> never fully evade, even at real parameter extremes &mdash; a deposit ceiling of ₹99,000, one rupee under the cash-reporting line, and a hop window stretched to 38 days. Some surfaces are structurally more resistant to this class of evasion than others.</p></div><div class="box warn"><div class="bt">&amp;ldquo;Converged&amp;rdquo; does not mean permanently evaded</div><p><code>dormant_reactivation</code> converges fastest of all and is the <em>least stable</em> convergence &mdash; it still averages meaningful recall in the generations after. A frozen genome runs against a freshly regenerated world each generation, so convergence records a <em>first</em> full evasion, not a guarantee. The benchmark reports post-convergence stability as its own number for exactly this reason.</p></div></div></section><section id="limits"><div class="wrap"><div class="sec-head" data-rv="0"><span class="eyebrow amber">Limitations</span><h2>What this benchmark does not claim</h2></div><div class="grid g2" data-rv="0"><div class="card"><h3>One seed, one trajectory</h3><p>The generation-of-convergence numbers are a real measured example, not a population statistic. Averaging over seeds is future work before any of them supports a stronger claim.</p></div><div class="card"><h3>Rules and graph only</h3><p>Whether a <em>trained</em> model decays faster or slower than static thresholds against the same adversary is a real, different and open question.</p></div></div></div></section><section id="next"><div class="wrap"><div class="sec-head" data-rv="0"><span class="eyebrow ">Next</span><h2>Continue</h2></div><a class="next" href="multibank.html" data-rv="0"><div><div class="nx-k">Flagship result</div><div class="nx-t">The cross-bank blind spot</div><div class="nx-d">What one bank structurally cannot see, and what co-operation buys back.</div></div><div class="arw" aria-hidden="true">&#8594;</div></a></div></section>
 </main>
@@ -344,6 +427,25 @@ details.exp .exp-body > :first-child { margin-top:13px; }
 <script>
 (function(){
   var RM = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* Theme toggle. The <head> script already applied any stored choice; this
+     only handles the click. Until someone clicks, no attribute is set and the
+     CSS media query follows the operating system -- so a reader who has never
+     touched the button still gets the theme they asked their OS for. */
+  var tbtn = document.getElementById('themebtn');
+  if (tbtn) {
+    tbtn.addEventListener('click', function(){
+      var d = document.documentElement;
+      var now = d.getAttribute('data-theme');
+      if (!now) {
+        now = window.matchMedia('(prefers-color-scheme: light)').matches
+          ? 'light' : 'dark';
+      }
+      var next = now === 'dark' ? 'light' : 'dark';
+      d.setAttribute('data-theme', next);
+      try { localStorage.setItem('ll-theme', next); } catch (e) {}
+    });
+  }
 
   /* Scroll reveal. Falls back to fully visible if IntersectionObserver is
      missing -- content must never depend on an animation having run. */

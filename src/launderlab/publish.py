@@ -107,14 +107,14 @@ _LANDING_CSS = """
 #
 # Why a pinned constant and not a count from source: counting `def test_` lines
 # undercounts, because parametrised functions expand into several cases each
-# (301 functions collect as 311 cases here). Publishing one number that means
+# (309 functions collect as 320 cases here). Publishing one number that means
 # "functions" beside a README badge that means "cases" is how a reader loses
 # confidence in every other figure on the page. Running pytest at publish time
 # to get the true number would cost 33 seconds inside a command whose entire
 # job is copying files. So it is written down once and pinned by a test --
 # which is the same reason the honesty thread has an entry about a hand-typed
 # "302" going stale: hand-typed is fine, hand-typed and *unchecked* is not.
-TEST_COUNT = 311
+TEST_COUNT = 320
 
 
 def _landing(available: list[str]) -> str:

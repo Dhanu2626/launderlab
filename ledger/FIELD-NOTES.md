@@ -1441,3 +1441,55 @@ snapshotted every number before starting and diffed after: all identical. Then l
 finished page caught three defects no test had, including one where I'd hidden every section at
 opacity zero and revealed it on scroll — so with JavaScript unavailable the page rendered
 completely blank. I'd made an animation load-bearing for whether the site had any content."
+
+---
+
+## Phase 9.11 — 2026-08-01 (a contrast test that failed on my own palette)
+
+🏦 **FCC:** Small change, real domain point. The queue tiers on the published site now use the
+same warm ramp — rust, orange, ochre, sand — that the investigator workbench already used, and
+the reason is not decoration. In the workbench, tier 1 is network evidence (a named path), tier
+4 is a model score (no reason at all), and the colour is meant to carry the same message the
+tier note carries: strongest evidence deepest, weakest faintest. Having the site use a generic
+blue for the same concept meant an analyst met "tier 1" as two different colours depending on
+which surface they were looking at. A tier should be one colour wherever you meet it, for the
+same reason a risk band should mean one thing wherever it is printed.
+
+The other half of this is accessibility, and it is closer to compliance work than it looks. An
+alert queue that a colour-blind or low-vision analyst cannot read is not a minor UI complaint —
+it is a control that some of your staff cannot operate. I made the standard explicit (WCAG AA,
+4.5:1 for text) rather than trusting my eye, and the eye turned out to be wrong three times.
+
+🔧 **Engineering:** I wrote the contrast test before finishing the palette, and it immediately
+failed on **my own work** — which is the entire argument for writing it.
+
+Three findings, in increasing order of how much they embarrassed me. First, the dark theme was
+**already failing before I touched it**: `--ink-faint` measured 3.88:1 against the panel
+background, under the 4.5 that small text needs, and it carries KPI detail lines, axis labels
+and table headers. It had shipped, been reviewed by me, and been looked at repeatedly. Nobody
+measures what looks fine.
+
+Second, I copied the workbench's light tier values across — and they measured 4.12–4.20:1
+against *this* site's panels, which are slightly darker than the workbench's. That is the exact
+carried-palette mistake the workbench's own CSS comment warns about, made by the person who
+wrote the warning, one file over. The lesson is narrower than "check your colours": a colour is
+not a property of a palette, it is a property of a colour *and the surface it sits on*, so
+moving it to a new surface makes it a new question.
+
+Third, and the one no test caught: the toggle icon was wrong in exactly one state. It shows the
+theme you would switch *to*, keyed off `[data-theme="light"]` — but when a reader is following
+their OS, no attribute is set at all, so a light-preferring reader saw a light page with a
+"switch to light" sun on it. I found it by clicking the real button. The tokens already had a
+four-way cascade for precisely this reason and I had not given the icon the same one.
+
+Live measurement afterwards, in a browser, both themes: minimum 5.99:1 dark, 5.49:1 light. So
+contrast did not merely hold across the switch, it went up — the weakest point in the dark theme
+used to be that 3.88.
+
+🎯 **Interview line:** "I added a light/dark toggle and made 'contrast must not drop' a test
+rather than a promise — it recomputes every WCAG ratio from the shipped CSS in both themes on
+every run. It failed immediately on my own palette: the dark theme was already below the
+standard on small text and had been for weeks, and the light values I'd copied from another
+screen in the same project measured too low against slightly darker panels. A colour isn't a
+property of a palette, it's a property of a colour and the surface it sits on — so reusing one
+somewhere new is a new question, not a saved decision."

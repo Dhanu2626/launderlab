@@ -15,19 +15,77 @@
   color-scheme: dark;
   --bg:#08090a; --bg-soft:#0c0e10; --surface:#111417; --surface-2:#161a1e;
   --surface-3:#1c2126; --line:#222930; --line-strong:#2f3841;
-  --ink:#e9ecef; --ink-dim:#9aa3ab; --ink-faint:#6b747c;
+  --ink:#e9ecef; --ink-dim:#9aa3ab; --ink-faint:#858e96;
   --accent:#4c8dff; --accent-soft:#1b3a63;
-  --accent-glow:rgba(76,141,255,.14);
+  --accent-glow:rgba(76,141,255,.14); --on-accent:#04070d;
+  --nav-bg:rgba(8,9,10,.76); --wash1:rgba(76,141,255,.10);
+  --wash2:rgba(167,139,250,.07);
   --teal:#2dd4bf; --violet:#a78bfa; --amber:#f0b429; --rose:#f87171;
   --green:#4ade80;
   --c1:#4c8dff; --c2:#2dd4bf; --c3:#f0b429; --c4:#a78bfa; --c5:#f87171;
-  --radius:14px; --radius-sm:9px; --radius-lg:20px;
+  --tier1:#dd614b; --tier2:#da741b; --tier3:#c6942f; --tier4:#a68168;
   --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 28px -12px rgba(0,0,0,.7);
   --shadow-lg:0 2px 4px rgba(0,0,0,.4), 0 24px 60px -20px rgba(0,0,0,.85);
+  --glow:rgba(255,255,255,.04);
+
+  --radius:14px; --radius-sm:9px; --radius-lg:20px;
   --mono:ui-monospace,"SF Mono","JetBrains Mono","Cascadia Mono",Menlo,Consolas,monospace;
   --sans:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",Roboto,"Helvetica Neue",sans-serif;
   --ease:cubic-bezier(.16,1,.3,1);
   --maxw:1120px;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+  color-scheme: light;
+  --bg:#fbfbfa; --bg-soft:#f6f7f8; --surface:#ffffff; --surface-2:#f4f5f6;
+  --surface-3:#eceef0; --line:#e2e5e8; --line-strong:#cfd4d9;
+  --ink:#14171a; --ink-dim:#4f575e; --ink-faint:#5f686f;
+  --accent:#1657c4; --accent-soft:#d7e3fb;
+  --accent-glow:rgba(22,87,196,.09); --on-accent:#ffffff;
+  --nav-bg:rgba(251,251,250,.82); --wash1:rgba(22,87,196,.07);
+  --wash2:rgba(109,63,212,.05);
+  --teal:#0f766e; --violet:#6d3fd4; --amber:#8a5a00; --rose:#c02626;
+  --green:#147a3a;
+  --c1:#1657c4; --c2:#0f766e; --c3:#8a5a00; --c4:#6d3fd4; --c5:#c02626;
+  --tier1:#c13c24; --tier2:#a35713; --tier3:#88651f; --tier4:#85644e;
+  --shadow:0 1px 2px rgba(16,24,32,.06), 0 8px 24px -14px rgba(16,24,32,.24);
+  --shadow-lg:0 2px 4px rgba(16,24,32,.07), 0 22px 52px -24px rgba(16,24,32,.3);
+  --glow:rgba(16,24,32,.03);
+}
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg:#fbfbfa; --bg-soft:#f6f7f8; --surface:#ffffff; --surface-2:#f4f5f6;
+  --surface-3:#eceef0; --line:#e2e5e8; --line-strong:#cfd4d9;
+  --ink:#14171a; --ink-dim:#4f575e; --ink-faint:#5f686f;
+  --accent:#1657c4; --accent-soft:#d7e3fb;
+  --accent-glow:rgba(22,87,196,.09); --on-accent:#ffffff;
+  --nav-bg:rgba(251,251,250,.82); --wash1:rgba(22,87,196,.07);
+  --wash2:rgba(109,63,212,.05);
+  --teal:#0f766e; --violet:#6d3fd4; --amber:#8a5a00; --rose:#c02626;
+  --green:#147a3a;
+  --c1:#1657c4; --c2:#0f766e; --c3:#8a5a00; --c4:#6d3fd4; --c5:#c02626;
+  --tier1:#c13c24; --tier2:#a35713; --tier3:#88651f; --tier4:#85644e;
+  --shadow:0 1px 2px rgba(16,24,32,.06), 0 8px 24px -14px rgba(16,24,32,.24);
+  --shadow-lg:0 2px 4px rgba(16,24,32,.07), 0 22px 52px -24px rgba(16,24,32,.3);
+  --glow:rgba(16,24,32,.03);
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg:#08090a; --bg-soft:#0c0e10; --surface:#111417; --surface-2:#161a1e;
+  --surface-3:#1c2126; --line:#222930; --line-strong:#2f3841;
+  --ink:#e9ecef; --ink-dim:#9aa3ab; --ink-faint:#858e96;
+  --accent:#4c8dff; --accent-soft:#1b3a63;
+  --accent-glow:rgba(76,141,255,.14); --on-accent:#04070d;
+  --nav-bg:rgba(8,9,10,.76); --wash1:rgba(76,141,255,.10);
+  --wash2:rgba(167,139,250,.07);
+  --teal:#2dd4bf; --violet:#a78bfa; --amber:#f0b429; --rose:#f87171;
+  --green:#4ade80;
+  --c1:#4c8dff; --c2:#2dd4bf; --c3:#f0b429; --c4:#a78bfa; --c5:#f87171;
+  --tier1:#dd614b; --tier2:#da741b; --tier3:#c6942f; --tier4:#a68168;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 28px -12px rgba(0,0,0,.7);
+  --shadow-lg:0 2px 4px rgba(0,0,0,.4), 0 24px 60px -20px rgba(0,0,0,.85);
+  --glow:rgba(255,255,255,.04);
 }
 
 *,*::before,*::after { box-sizing:border-box; }
@@ -41,8 +99,8 @@ body {
 body::before {
   content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
   background:
-    radial-gradient(900px 500px at 12% -8%, rgba(76,141,255,.10), transparent 60%),
-    radial-gradient(760px 420px at 92% 4%, rgba(167,139,250,.07), transparent 62%);
+    radial-gradient(900px 500px at 12% -8%, var(--wash1), transparent 60%),
+    radial-gradient(760px 420px at 92% 4%, var(--wash2), transparent 62%);
 }
 main,header,footer { position:relative; z-index:1; }
 h1,h2,h3,h4 { margin:0; font-weight:640; letter-spacing:-.021em; line-height:1.18; }
@@ -64,7 +122,7 @@ code {
 .narrow { max-width:760px; }
 :focus-visible { outline:2px solid var(--accent); outline-offset:3px; border-radius:4px; }
 .skip {
-  position:absolute; left:-9999px; top:0; background:var(--accent); color:#04070d;
+  position:absolute; left:-9999px; top:0; background:var(--accent); color:var(--on-accent);
   padding:10px 18px; border-radius:0 0 8px 0; font-weight:600; z-index:100;
 }
 .skip:focus { left:0; }
@@ -73,7 +131,7 @@ code {
 
 .nav {
   position:sticky; top:0; z-index:50;
-  background:rgba(8,9,10,.76); backdrop-filter:blur(14px) saturate(150%);
+  background:var(--nav-bg); backdrop-filter:blur(14px) saturate(150%);
   -webkit-backdrop-filter:blur(14px) saturate(150%);
   border-bottom:1px solid var(--line);
 }
@@ -94,6 +152,31 @@ code {
 .nav-links a:hover { color:var(--ink); background:var(--surface-2); text-decoration:none; }
 .nav-links a[aria-current="page"] { color:var(--ink); background:var(--surface-3); }
 .nav-links a.ext { color:var(--ink-faint); }
+.themebtn {
+  flex:0 0 auto; margin-left:6px; width:32px; height:32px; padding:0; cursor:pointer;
+  display:inline-flex; align-items:center; justify-content:center;
+  background:var(--surface-2); color:var(--ink-dim); border:1px solid var(--line);
+  border-radius:9px; transition:color .16s, background .16s, border-color .16s;
+}
+.themebtn:hover { color:var(--ink); background:var(--surface-3);
+                  border-color:var(--line-strong); }
+.themebtn svg { width:15px; height:15px; }
+/* One button, two glyphs: show the theme you would switch TO, which is the
+   convention every OS toggle uses and the only one that reads unambiguously
+   without a label. */
+.themebtn .moon { display:none; } .themebtn .sun { display:block; }
+/* The icon has to follow the same four-way cascade the TOKENS do, or it lies in
+   exactly one state: a reader whose OS asks for light, who has never clicked,
+   sees light with a "switch to light" sun on it. Caught by clicking the real
+   button in a browser, not by a test. */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) .themebtn .moon { display:block; }
+  :root:not([data-theme="dark"]) .themebtn .sun { display:none; }
+}
+:root[data-theme="light"] .themebtn .moon { display:block; }
+:root[data-theme="light"] .themebtn .sun { display:none; }
+:root[data-theme="dark"] .themebtn .moon { display:none; }
+:root[data-theme="dark"] .themebtn .sun { display:block; }
 @media (max-width:720px){ .nav-in { padding:0 14px; } .brand span.full { display:none; } }
 
 .hero { padding:76px 0 44px; }
@@ -256,8 +339,8 @@ details.exp .exp-body > :first-child { margin-top:13px; }
   transition:transform .18s var(--ease), background .18s, border-color .18s;
 }
 .btn:hover { text-decoration:none; transform:translateY(-1.5px); }
-.btn.pri { background:var(--accent); color:#04070d; }
-.btn.pri:hover { background:#6ba1ff; }
+.btn.pri { background:var(--accent); color:var(--on-accent); }
+.btn.pri:hover { filter:brightness(1.12); }
 .btn.sec { background:var(--surface-2); color:var(--ink); border-color:var(--line-strong); }
 .btn.sec:hover { background:var(--surface-3); }
 .btn-row { display:flex; flex-wrap:wrap; gap:11px; margin-top:30px; }
@@ -349,18 +432,37 @@ details.exp .exp-body > :first-child { margin-top:13px; }
               font-family:var(--mono); }
 .arch .ar { color:var(--ink-faint); font-size:16px; }
 </style>
-<script>document.documentElement.className+=" js";</script>
+<script>(function(){var d=document.documentElement;d.className+=" js";try{var t=localStorage.getItem("ll-theme");if(t)d.setAttribute("data-theme",t);}catch(e){}})();</script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
-<header class="nav"><div class="nav-in"><a class="brand" href="index.html"><span class="dot"></span>LaunderLab</a><nav class="nav-links" aria-label="Sections"><a href="index.html" aria-current="page">Overview</a><a href="story.html">Story Mode</a><a href="results.html">Results</a><a href="redteam.html">Red Team</a><a href="multibank.html">Cross-Bank</a><a class="ext" href="https://github.com/Dhanu2626/launderlab" rel="noopener">GitHub &#8599;</a></nav></div></header>
+<header class="nav"><div class="nav-in"><a class="brand" href="index.html"><span class="dot"></span>LaunderLab</a><nav class="nav-links" aria-label="Sections"><a href="index.html" aria-current="page">Overview</a><a href="story.html">Story Mode</a><a href="results.html">Results</a><a href="redteam.html">Red Team</a><a href="multibank.html">Cross-Bank</a><a class="ext" href="https://github.com/Dhanu2626/launderlab" rel="noopener">GitHub &#8599;</a></nav><button class="themebtn" id="themebtn" type="button" aria-label="Switch colour theme"><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button></div></header>
 <main id="main">
-<div class="hero big"><div class="wrap"><span class="eyebrow" data-rv="0">Open adversarial range &middot; AML detection</span><h1 data-rv="1"><span class="grad">An answer key for anti-money-laundering detection</span></h1><p class="lede" data-rv="2">Every bank runs AML detection. None of them can tell you how good it is &mdash; they know what they caught, and there is no way to know what they missed. <strong>LaunderLab builds the missing answer key:</strong> a synthetic bank, six real laundering typologies injected with transaction-level ground truth, a four-layer detection stack, an investigator workbench, and a red team that adapts to whatever gets caught.</p><div class="btn-row" data-rv="3"><a class="btn pri" href="story.html">Watch a scheme unfold &#8594;</a><a class="btn sec" href="results.html">See the measured results</a><a class="btn sec" href="https://github.com/Dhanu2626/launderlab" rel="noopener">Source &amp; whitepaper</a></div><div class="hero-meta" data-rv="4"><span class="chip"><b>10,000</b> customers</span><span class="chip"><b>630,755</b> transactions in 31s</span><span class="chip"><b>6</b> typologies</span><span class="chip"><b>4</b> detection layers</span><span class="chip"><b>311</b> tests, zero skips</span></div></div></div><section id="what"><div class="wrap"><div class="sec-head" data-rv="0"><span class="eyebrow ">In three seconds</span><h2>A cyber range, but for financial crime</h2><p>Security teams have had adversarial ranges for years: a red team attacks, a blue team defends, and you measure who wins. Financial-crime teams have nothing equivalent, because you cannot safely publish real laundering data &mdash; and without ground truth you cannot score a detector honestly. LaunderLab generates the data instead, and records the answer.</p></div><div class="card pad-lg" data-rv="0"><div class="arch"><div class="b"><div class="t">Red team</div><div class="s">mutating adversary</div></div><span class="ar">&#8594;</span><div class="b"><div class="t">Synthetic bank</div><div class="s">+ ground truth</div></div><span class="ar">&#8594;</span><div class="b"><div class="t">Detection stack</div><div class="s">4 layers</div></div><span class="ar">&#8594;</span><div class="b"><div class="t">Workbench</div><div class="s">queue &#8594; SAR</div></div><span class="ar">&#8594;</span><div class="b"><div class="t">Scorers</div><div class="s">precision / recall</div></div></div><p class="note">The loop closes: the scorers grade the stack against ground truth, and the red team reads what got caught and adapts. Because the injector records the answer key, every arrow in this diagram can be measured &mdash; which is the measurement a production bank cannot make, because no bank knows what it missed.</p></div></div></section><section id="explore"><div class="wrap"><div class="sec-head" data-rv="0"><span class="eyebrow teal">Explore</span><h2>Four experiments, in depth</h2><p>Each page states its objective, shows the measurement, then explains the finding, the engineering behind it, and the limits of what it proves.</p></div><div class="grid g2"><a class="card hover" href="story.html" data-rv="0"><h3>Story Mode</h3><p>Replay any injected scheme day by day. Accounts light up only on the day a real detector actually fired on them.</p><p style="margin-top:12px;color:var(--accent);font-size:.85rem;font-weight:600">Explore &#8594;</p></a><a class="card hover" href="results.html" data-rv="0"><h3>Measured results</h3><p>Detection rate, precision, queue composition and what the stack costs to run, every figure drawn from the scoring modules.</p><p style="margin-top:12px;color:var(--accent);font-size:.85rem;font-weight:600">Explore &#8594;</p></a><a class="card hover" href="redteam.html" data-rv="0"><h3>Red team benchmark</h3><p>Recall per typology across 8 generations of an adversary that mutates its own parameters. Decay is not uniform.</p><p style="margin-top:12px;color:var(--accent);font-size:.85rem;font-weight:600">Explore &#8594;</p></a><a class="card hover" href="multibank.html" data-rv="0"><h3>Cross-bank blind spot</h3><p>Four banks with genuinely separate ledgers flag 75-77% of mule accounts and reconstruct 0-6% of the chains those accounts form.</p><p style="margin-top:12px;color:var(--accent);font-size:.85rem;font-weight:600">Explore &#8594;</p></a></div></div></section><section id="questions"><div class="wrap"><div class="sec-head" data-rv="0"><span class="eyebrow violet">Research questions</span><h2>Four questions, four measured answers</h2><p>Three were the founding thesis. The fourth was forced by building the visual layer &mdash; and it changed how the other three should be read.</p></div><div class="grid g2"><a class="card hover" href="redteam.html" data-rv="0"><div class="qcard "><div class="q">How fast does a detection stack rot against an adapting adversary?</div><div class="a"><strong>Non-uniformly.</strong> One rule collapses to zero recall within two generations of adaptation and stays collapsed. Two others never fully evade across eight. A single aggregate recall figure could not have shown the difference.</div></div><p style="margin-top:14px;font-size:.78rem;color:var(--ink-faint);font-family:var(--mono)">Detection decay</p></a><a class="card hover" href="results.html" data-rv="1"><div class="qcard t2"><div class="q">What does a true alert actually cost to find?</div><div class="a">Measured for every configuration, never estimated. The <strong>top 25 alerts are 100% true positives</strong>; the next 25 cost 10 false positives &mdash; 1.25 analyst reviews per true find at a budget of 50.</div></div><p style="margin-top:14px;font-size:.78rem;color:var(--ink-faint);font-family:var(--mono)">False-positive economics</p></a><a class="card hover" href="multibank.html" data-rv="2"><div class="qcard t3"><div class="q">What can a single institution structurally not see?</div><div class="a">Banks flag <strong>75&ndash;77%</strong> of individual mule accounts on their own books and reconstruct <strong>0&ndash;6%</strong> of the chains those accounts form. Privacy-preserving co-operation recovers 69&ndash;81% of hops without sharing customer data.</div></div><p style="margin-top:14px;font-size:.78rem;color:var(--ink-faint);font-family:var(--mono)">The cross-bank blind spot</p></a><a class="card hover" href="story.html" data-rv="3"><div class="qcard t4"><div class="q">Was the alert soon enough to matter? (added by Phase 9)</div><div class="a">&ldquo;Caught&rdquo; was never one property. The typology this stack detects <em>fastest</em> is caught with <strong>100% of the money already moved</strong>, because the rule that catches it cannot fire until the crime has completed.</div></div><p style="margin-top:14px;font-size:.78rem;color:var(--ink-faint);font-family:var(--mono)">Detection latency</p></a></div></div></section><section id="honesty"><div class="wrap"><div class="sec-head" data-rv="0"><span class="eyebrow amber">Why trust any of this</span><h2>Seventeen times a flattering number turned out to be an artefact</h2><p>Each one was measured, corrected, and <em>written down</em> rather than quietly kept. That record is the most valuable thing in the project.</p></div><div class="grid g2" data-rv="0"><div class="card"><h3>A perfect ML score that was a data bug</h3><p>Gradient boosting scored a flawless 1.000 average precision. The legitimate world emitted zero cash transactions, so the model had simply learned &ldquo;cash means crime&rdquo;.</p></div><div class="card"><h3>100% rule precision that was a property of the world</h3><p>Fixing the cash gap took one rule from 0 to 24 false positives on a clean world. The original precision had been an artefact of a bank where nobody legitimately banked cash.</p></div><div class="card"><h3>Green CI that was running 178 of 226 tests</h3><p>Three modules skipped on a missing dependency &mdash; including two of the checks that enforce the project's core boundary. A skipped module counts as one skip, so 48 missing tests hid behind the number 3.</p></div><div class="card"><h3>A risk score whose top band was unreachable</h3><p>Every case in the bank was low or medium and the highest score achievable was 43.5. &ldquo;High&rdquo; and &ldquo;critical&rdquo; described nothing &mdash; found when a SAR draft called a confirmed structuring scheme low risk.</p></div></div><div class="box finding"><div class="bt">The pattern behind almost all of them</div><p>They surfaced by <strong>rendering a number where a person had to read it next to a decision</strong>. Detection metrics grade a detector against ground truth. Nothing grades whether its output is usable &mdash; or whether it is being graded on the right axis at all.</p></div><div class="box limit"><div class="bt">And the limits are published too</div><p>The world is synthetic and its realism bounds every figure. The benchmarks use one seed. The co-operation protocol is a prototype whose residual disclosure is stated rather than glossed. Alert-to-SAR conversion is reported as <em>not measurable</em> rather than as zero, because no case in this world has been worked to a disposition.</p></div></div></section><section id="timeline"><div class="wrap"><div class="sec-head" data-rv="0"><span class="eyebrow ">How it was built</span><h2>Nine phases, measured as it went</h2><p>Every phase shipped a visual artifact and a number, and no phase was marked complete on a claim that had not been checked.</p></div><div class="split"><div data-rv="0"><div class="tl"><div class="tl-i done"><span class="tl-t">Phase 0–1</span><div class="tl-h">World engine</div><div class="tl-d">10,000 customers and 630,755 transactions in 31 seconds, every balance reconciled.</div></div><div class="tl-i done"><span class="tl-t">Phase 2</span><div class="tl-h">Typology injector</div><div class="tl-d">Six laundering typologies from public advisories, each writing transaction-level ground truth.</div></div><div class="tl-i done"><span class="tl-t">Phase 3–4</span><div class="tl-h">Rules &amp; screening</div><div class="tl-d">Six tunable scenarios; name matching on Jaro-Winkler plus phonetic corroboration.</div></div><div class="tl-i done"><span class="tl-t">Phase 5</span><div class="tl-h">Graph analytics</div><div class="tl-d">Transfer graph rebuilt from shared payment references; pass-through chains detected.</div></div><div class="tl-i done"><span class="tl-t">Phase 6</span><div class="tl-h">ML tournament</div><div class="tl-d">Six model families on one leaderboard, scored at an alert budget rather than by ROC-AUC.</div></div><div class="tl-i done"><span class="tl-t">Phase 7</span><div class="tl-h">Investigator workbench</div><div class="tl-d">Alert queue, entity 360, link graph, disposition workflow, SAR narrative draft.</div></div><div class="tl-i done"><span class="tl-t">Phase 8</span><div class="tl-h">Red team</div><div class="tl-d">An adversary that mutates its own scheme parameters every generation it gets caught.</div></div><div class="tl-i done"><span class="tl-t">Phase 8.5</span><div class="tl-h">Multi-bank</div><div class="tl-d">The world split across four institutions with genuinely separate ledger files.</div></div><div class="tl-i done"><span class="tl-t">Phase 9</span><div class="tl-h">Story Mode &amp; metrics</div><div class="tl-d">Day-by-day replay, detection latency, and the four KPIs an FCC function reports upward.</div></div></div></div><div class="stack" data-rv="1"><div class="card"><h3>The boundary that makes it meaningful</h3><p>No detection code may read the ground-truth tables. If a detector could see the answer key, every precision and recall figure here would be meaningless &mdash; and it would fail silently. Enforced by source-level tests in twelve places.</p></div><div class="card"><h3>Every page is generated, never typed</h3><p>The figures on these pages are rendered from the same scoring modules the test suite grades. A hand-written page with results pasted in would look identical on day one and be silently wrong the first time a threshold moved.</p></div></div></div></div></section><section id="start"><div class="wrap"><div class="sec-head" data-rv="0"><span class="eyebrow ">Start here</span><h2>Two ways in</h2></div><div class="grid g2"><a class="next" href="story.html" data-rv="0"><div><div class="nx-k">Three minutes</div><div class="nx-t">Watch a scheme unfold</div><div class="nx-d">Drag a day slider through a real laundering scheme and watch the detection stack close in on it.</div></div><div class="arw" aria-hidden="true">&#8594;</div></a><a class="next" href="results.html" data-rv="1"><div><div class="nx-k">Thirty minutes</div><div class="nx-t">Read every measurement</div><div class="nx-d">Detection rate, false-positive economics, decay under adaptation, and the cross-bank result &mdash; with the limits of each.</div></div><div class="arw" aria-hidden="true">&#8594;</div></a></div><p class="note">Generated by <code>python -m launderlab publish</code>. Last published 2026-08-04.</p></div></section>
+<div class="hero big"><div class="wrap"><span class="eyebrow" data-rv="0">Open adversarial range &middot; AML detection</span><h1 data-rv="1"><span class="grad">An answer key for anti-money-laundering detection</span></h1><p class="lede" data-rv="2">Every bank runs AML detection. None of them can tell you how good it is &mdash; they know what they caught, and there is no way to know what they missed. <strong>LaunderLab builds the missing answer key:</strong> a synthetic bank, six real laundering typologies injected with transaction-level ground truth, a four-layer detection stack, an investigator workbench, and a red team that adapts to whatever gets caught.</p><div class="btn-row" data-rv="3"><a class="btn pri" href="story.html">Watch a scheme unfold &#8594;</a><a class="btn sec" href="results.html">See the measured results</a><a class="btn sec" href="https://github.com/Dhanu2626/launderlab" rel="noopener">Source &amp; whitepaper</a></div><div class="hero-meta" data-rv="4"><span class="chip"><b>10,000</b> customers</span><span class="chip"><b>630,755</b> transactions in 31s</span><span class="chip"><b>6</b> typologies</span><span class="chip"><b>4</b> detection layers</span><span class="chip"><b>320</b> tests, zero skips</span></div></div></div><section id="what"><div class="wrap"><div class="sec-head" data-rv="0"><span class="eyebrow ">In three seconds</span><h2>A cyber range, but for financial crime</h2><p>Security teams have had adversarial ranges for years: a red team attacks, a blue team defends, and you measure who wins. Financial-crime teams have nothing equivalent, because you cannot safely publish real laundering data &mdash; and without ground truth you cannot score a detector honestly. LaunderLab generates the data instead, and records the answer.</p></div><div class="card pad-lg" data-rv="0"><div class="arch"><div class="b"><div class="t">Red team</div><div class="s">mutating adversary</div></div><span class="ar">&#8594;</span><div class="b"><div class="t">Synthetic bank</div><div class="s">+ ground truth</div></div><span class="ar">&#8594;</span><div class="b"><div class="t">Detection stack</div><div class="s">4 layers</div></div><span class="ar">&#8594;</span><div class="b"><div class="t">Workbench</div><div class="s">queue &#8594; SAR</div></div><span class="ar">&#8594;</span><div class="b"><div class="t">Scorers</div><div class="s">precision / recall</div></div></div><p class="note">The loop closes: the scorers grade the stack against ground truth, and the red team reads what got caught and adapts. Because the injector records the answer key, every arrow in this diagram can be measured &mdash; which is the measurement a production bank cannot make, because no bank knows what it missed.</p></div></div></section><section id="explore"><div class="wrap"><div class="sec-head" data-rv="0"><span class="eyebrow teal">Explore</span><h2>Four experiments, in depth</h2><p>Each page states its objective, shows the measurement, then explains the finding, the engineering behind it, and the limits of what it proves.</p></div><div class="grid g2"><a class="card hover" href="story.html" data-rv="0"><h3>Story Mode</h3><p>Replay any injected scheme day by day. Accounts light up only on the day a real detector actually fired on them.</p><p style="margin-top:12px;color:var(--accent);font-size:.85rem;font-weight:600">Explore &#8594;</p></a><a class="card hover" href="results.html" data-rv="0"><h3>Measured results</h3><p>Detection rate, precision, queue composition and what the stack costs to run, every figure drawn from the scoring modules.</p><p style="margin-top:12px;color:var(--accent);font-size:.85rem;font-weight:600">Explore &#8594;</p></a><a class="card hover" href="redteam.html" data-rv="0"><h3>Red team benchmark</h3><p>Recall per typology across 8 generations of an adversary that mutates its own parameters. Decay is not uniform.</p><p style="margin-top:12px;color:var(--accent);font-size:.85rem;font-weight:600">Explore &#8594;</p></a><a class="card hover" href="multibank.html" data-rv="0"><h3>Cross-bank blind spot</h3><p>Four banks with genuinely separate ledgers flag 75-77% of mule accounts and reconstruct 0-6% of the chains those accounts form.</p><p style="margin-top:12px;color:var(--accent);font-size:.85rem;font-weight:600">Explore &#8594;</p></a></div></div></section><section id="questions"><div class="wrap"><div class="sec-head" data-rv="0"><span class="eyebrow violet">Research questions</span><h2>Four questions, four measured answers</h2><p>Three were the founding thesis. The fourth was forced by building the visual layer &mdash; and it changed how the other three should be read.</p></div><div class="grid g2"><a class="card hover" href="redteam.html" data-rv="0"><div class="qcard "><div class="q">How fast does a detection stack rot against an adapting adversary?</div><div class="a"><strong>Non-uniformly.</strong> One rule collapses to zero recall within two generations of adaptation and stays collapsed. Two others never fully evade across eight. A single aggregate recall figure could not have shown the difference.</div></div><p style="margin-top:14px;font-size:.78rem;color:var(--ink-faint);font-family:var(--mono)">Detection decay</p></a><a class="card hover" href="results.html" data-rv="1"><div class="qcard t2"><div class="q">What does a true alert actually cost to find?</div><div class="a">Measured for every configuration, never estimated. The <strong>top 25 alerts are 100% true positives</strong>; the next 25 cost 10 false positives &mdash; 1.25 analyst reviews per true find at a budget of 50.</div></div><p style="margin-top:14px;font-size:.78rem;color:var(--ink-faint);font-family:var(--mono)">False-positive economics</p></a><a class="card hover" href="multibank.html" data-rv="2"><div class="qcard t3"><div class="q">What can a single institution structurally not see?</div><div class="a">Banks flag <strong>75&ndash;77%</strong> of individual mule accounts on their own books and reconstruct <strong>0&ndash;6%</strong> of the chains those accounts form. Privacy-preserving co-operation recovers 69&ndash;81% of hops without sharing customer data.</div></div><p style="margin-top:14px;font-size:.78rem;color:var(--ink-faint);font-family:var(--mono)">The cross-bank blind spot</p></a><a class="card hover" href="story.html" data-rv="3"><div class="qcard t4"><div class="q">Was the alert soon enough to matter? (added by Phase 9)</div><div class="a">&ldquo;Caught&rdquo; was never one property. The typology this stack detects <em>fastest</em> is caught with <strong>100% of the money already moved</strong>, because the rule that catches it cannot fire until the crime has completed.</div></div><p style="margin-top:14px;font-size:.78rem;color:var(--ink-faint);font-family:var(--mono)">Detection latency</p></a></div></div></section><section id="honesty"><div class="wrap"><div class="sec-head" data-rv="0"><span class="eyebrow amber">Why trust any of this</span><h2>Seventeen times a flattering number turned out to be an artefact</h2><p>Each one was measured, corrected, and <em>written down</em> rather than quietly kept. That record is the most valuable thing in the project.</p></div><div class="grid g2" data-rv="0"><div class="card"><h3>A perfect ML score that was a data bug</h3><p>Gradient boosting scored a flawless 1.000 average precision. The legitimate world emitted zero cash transactions, so the model had simply learned &ldquo;cash means crime&rdquo;.</p></div><div class="card"><h3>100% rule precision that was a property of the world</h3><p>Fixing the cash gap took one rule from 0 to 24 false positives on a clean world. The original precision had been an artefact of a bank where nobody legitimately banked cash.</p></div><div class="card"><h3>Green CI that was running 178 of 226 tests</h3><p>Three modules skipped on a missing dependency &mdash; including two of the checks that enforce the project's core boundary. A skipped module counts as one skip, so 48 missing tests hid behind the number 3.</p></div><div class="card"><h3>A risk score whose top band was unreachable</h3><p>Every case in the bank was low or medium and the highest score achievable was 43.5. &ldquo;High&rdquo; and &ldquo;critical&rdquo; described nothing &mdash; found when a SAR draft called a confirmed structuring scheme low risk.</p></div></div><div class="box finding"><div class="bt">The pattern behind almost all of them</div><p>They surfaced by <strong>rendering a number where a person had to read it next to a decision</strong>. Detection metrics grade a detector against ground truth. Nothing grades whether its output is usable &mdash; or whether it is being graded on the right axis at all.</p></div><div class="box limit"><div class="bt">And the limits are published too</div><p>The world is synthetic and its realism bounds every figure. The benchmarks use one seed. The co-operation protocol is a prototype whose residual disclosure is stated rather than glossed. Alert-to-SAR conversion is reported as <em>not measurable</em> rather than as zero, because no case in this world has been worked to a disposition.</p></div></div></section><section id="timeline"><div class="wrap"><div class="sec-head" data-rv="0"><span class="eyebrow ">How it was built</span><h2>Nine phases, measured as it went</h2><p>Every phase shipped a visual artifact and a number, and no phase was marked complete on a claim that had not been checked.</p></div><div class="split"><div data-rv="0"><div class="tl"><div class="tl-i done"><span class="tl-t">Phase 0–1</span><div class="tl-h">World engine</div><div class="tl-d">10,000 customers and 630,755 transactions in 31 seconds, every balance reconciled.</div></div><div class="tl-i done"><span class="tl-t">Phase 2</span><div class="tl-h">Typology injector</div><div class="tl-d">Six laundering typologies from public advisories, each writing transaction-level ground truth.</div></div><div class="tl-i done"><span class="tl-t">Phase 3–4</span><div class="tl-h">Rules &amp; screening</div><div class="tl-d">Six tunable scenarios; name matching on Jaro-Winkler plus phonetic corroboration.</div></div><div class="tl-i done"><span class="tl-t">Phase 5</span><div class="tl-h">Graph analytics</div><div class="tl-d">Transfer graph rebuilt from shared payment references; pass-through chains detected.</div></div><div class="tl-i done"><span class="tl-t">Phase 6</span><div class="tl-h">ML tournament</div><div class="tl-d">Six model families on one leaderboard, scored at an alert budget rather than by ROC-AUC.</div></div><div class="tl-i done"><span class="tl-t">Phase 7</span><div class="tl-h">Investigator workbench</div><div class="tl-d">Alert queue, entity 360, link graph, disposition workflow, SAR narrative draft.</div></div><div class="tl-i done"><span class="tl-t">Phase 8</span><div class="tl-h">Red team</div><div class="tl-d">An adversary that mutates its own scheme parameters every generation it gets caught.</div></div><div class="tl-i done"><span class="tl-t">Phase 8.5</span><div class="tl-h">Multi-bank</div><div class="tl-d">The world split across four institutions with genuinely separate ledger files.</div></div><div class="tl-i done"><span class="tl-t">Phase 9</span><div class="tl-h">Story Mode &amp; metrics</div><div class="tl-d">Day-by-day replay, detection latency, and the four KPIs an FCC function reports upward.</div></div></div></div><div class="stack" data-rv="1"><div class="card"><h3>The boundary that makes it meaningful</h3><p>No detection code may read the ground-truth tables. If a detector could see the answer key, every precision and recall figure here would be meaningless &mdash; and it would fail silently. Enforced by source-level tests in twelve places.</p></div><div class="card"><h3>Every page is generated, never typed</h3><p>The figures on these pages are rendered from the same scoring modules the test suite grades. A hand-written page with results pasted in would look identical on day one and be silently wrong the first time a threshold moved.</p></div></div></div></div></section><section id="start"><div class="wrap"><div class="sec-head" data-rv="0"><span class="eyebrow ">Start here</span><h2>Two ways in</h2></div><div class="grid g2"><a class="next" href="story.html" data-rv="0"><div><div class="nx-k">Three minutes</div><div class="nx-t">Watch a scheme unfold</div><div class="nx-d">Drag a day slider through a real laundering scheme and watch the detection stack close in on it.</div></div><div class="arw" aria-hidden="true">&#8594;</div></a><a class="next" href="results.html" data-rv="1"><div><div class="nx-k">Thirty minutes</div><div class="nx-t">Read every measurement</div><div class="nx-d">Detection rate, false-positive economics, decay under adaptation, and the cross-bank result &mdash; with the limits of each.</div></div><div class="arw" aria-hidden="true">&#8594;</div></a></div><p class="note">Generated by <code>python -m launderlab publish</code>. Last published 2026-08-05.</p></div></section>
 </main>
 <footer class="ft"><div class="wrap"><div class="ft-in"><div>An open adversarial range for AML detection testing.<br>All data synthetic. All typologies from public FATF / FinCEN / RBI advisories.</div><div>Built by Dhanush Jangadi &middot; <a href="https://github.com/Dhanu2626/launderlab" rel="noopener">Source on GitHub</a><br>Every figure is rendered from the project&rsquo;s scoring modules, never typed by hand.</div></div></div></footer>
 <script>
 (function(){
   var RM = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* Theme toggle. The <head> script already applied any stored choice; this
+     only handles the click. Until someone clicks, no attribute is set and the
+     CSS media query follows the operating system -- so a reader who has never
+     touched the button still gets the theme they asked their OS for. */
+  var tbtn = document.getElementById('themebtn');
+  if (tbtn) {
+    tbtn.addEventListener('click', function(){
+      var d = document.documentElement;
+      var now = d.getAttribute('data-theme');
+      if (!now) {
+        now = window.matchMedia('(prefers-color-scheme: light)').matches
+          ? 'light' : 'dark';
+      }
+      var next = now === 'dark' ? 'light' : 'dark';
+      d.setAttribute('data-theme', next);
+      try { localStorage.setItem('ll-theme', next); } catch (e) {}
+    });
+  }
 
   /* Scroll reveal. Falls back to fully visible if IntersectionObserver is
      missing -- content must never depend on an animation having run. */

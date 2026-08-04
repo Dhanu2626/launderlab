@@ -2,7 +2,7 @@
 
 ![Part of Dhanush Labs](https://img.shields.io/badge/PART_OF-DHANUSH_LABS-6366F1?style=flat-square&labelColor=0A0B0D)
 ![Status](https://img.shields.io/badge/STATUS-PHASES_0--9_COMPLETE-EF4444?style=flat-square&labelColor=0A0B0D)
-![Tests](https://img.shields.io/badge/TESTS-311_PASSING_0_SKIPPED-EF4444?style=flat-square&labelColor=0A0B0D)
+![Tests](https://img.shields.io/badge/TESTS-320_PASSING_0_SKIPPED-EF4444?style=flat-square&labelColor=0A0B0D)
 ![License](https://img.shields.io/badge/LICENSE-MIT-6366F1?style=flat-square&labelColor=0A0B0D)
 
 ### An Open Adversarial Range for AML Detection
@@ -92,7 +92,7 @@ launderlab/
 ├── data/                  synthetic ledgers (DuckDB)
 ├── charts/                generated result charts
 ├── docs/                  published GitHub Pages site
-└── tests/                 311 tests, 0 skips
+└── tests/                 320 tests, 0 skips
 ```
 
 ## Tech Stack
