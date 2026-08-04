@@ -5,17 +5,37 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>LaunderLab — investigator workbench</title>
 <style>
+  /* Tier colors run a warm ramp (rust -> orange -> ochre -> sand), deepest and
+     most saturated for the strongest evidence tier, faintest for the weakest --
+     the color itself now echoes the tier note text ("highest hit rate" ->
+     "no layer could name a reason"). Each of the 8 tier values (light + dark)
+     was picked by measuring WCAG contrast against ITS OWN background and panel,
+     not carried over from the other theme: text needs >=4.5:1 to stay readable,
+     and re-using a light-mode color unchanged in dark mode is exactly the bug
+     that shipped here before -- tier1-3 measured at 2.8-3.6:1 against the dark
+     background, well under the readable threshold, and nobody had checked. */
   :root {
     --bg: #fbfbfa; --panel: #fff; --ink: #14140f; --muted: #6b6b63;
     --line: #e3e2da; --accent: #185fa5;
-    --tier1: #0f6e56; --tier2: #b45309; --tier3: #5f5e5a; --tier4: #6b5ba8;
+    --tier1: #ce4027; --tier2: #ac5c15; --tier3: #916c22; --tier4: #8d6a53;
     --critical: #a32d2d; --high: #b45309; --medium: #7a6a1f; --low: #5f5e5a;
     --mark: #fdf3d0; --markline: #d9b74a;
   }
+  :root[data-theme="dark"] {
+    --bg: #161614; --panel: #1e1e1b; --ink: #f2f1ea; --muted: #9d9c92;
+    --line: #32312c; --accent: #6ea8e6;
+    --tier1: #dd614b; --tier2: #da741b; --tier3: #c6942f; --tier4: #a68168;
+    --mark: #3a3218; --markline: #8a7328;
+  }
+  /* No explicit choice yet: follow the OS, but still fully theme every token --
+     the same reasoning applies whether dark mode was chosen or merely inherited. */
   @media (prefers-color-scheme: dark) {
-    :root { --bg: #161614; --panel: #1e1e1b; --ink: #f2f1ea; --muted: #9d9c92;
-            --line: #32312c; --accent: #6ea8e6; --tier4: #a396d8;
-            --mark: #3a3218; --markline: #8a7328; }
+    :root:not([data-theme="light"]) {
+      --bg: #161614; --panel: #1e1e1b; --ink: #f2f1ea; --muted: #9d9c92;
+      --line: #32312c; --accent: #6ea8e6;
+      --tier1: #dd614b; --tier2: #da741b; --tier3: #c6942f; --tier4: #a68168;
+      --mark: #3a3218; --markline: #8a7328;
+    }
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.55
@@ -26,10 +46,23 @@
   h1 { margin: 0 0 3px; font-size: 19px; font-weight: 600; }
   .sub { color: var(--muted); font-size: 13px; }
   main { padding: 20px 26px 60px; max-width: 1200px; }
+  .headctl { display: flex; align-items: flex-start; gap: 14px; }
   .whoami { font-size: 12px; color: var(--muted); text-align: right; }
   .whoami input { font: inherit; font-size: 13px; color: var(--ink); padding: 5px 9px;
                   border: 1px solid var(--line); border-radius: 6px;
                   background: var(--panel); width: 170px; }
+  /* theme toggle -- the top-right corner control. Which icon shows is decided
+     in JS (setThemeIcon), not CSS: the effective theme depends on either an
+     explicit choice OR the OS preference, and computing that in one JS
+     function is simpler and less error-prone than reproducing the same
+     light/dark/unset logic across several CSS selector combinations. */
+  #theme-toggle { width: 32px; height: 32px; padding: 0; display: flex;
+                  align-items: center; justify-content: center; flex: none; }
+  #theme-toggle svg { width: 17px; height: 17px; stroke: var(--ink); fill: none;
+                       stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  #theme-toggle .moon { display: none; }
+  #theme-toggle.is-dark .sun { display: none; }
+  #theme-toggle.is-dark .moon { display: block; }
   .stats { display: flex; flex-wrap: wrap; gap: 22px; margin-bottom: 22px; }
   .stat b { display: block; font-size: 21px; font-weight: 600; }
   .stat span { color: var(--muted); font-size: 12px; text-transform: uppercase;
@@ -128,11 +161,24 @@
     <h1>LaunderLab — investigator workbench</h1>
     <div class="sub">Alert queue, tiered by evidence. Highest-precision work first.</div>
   </div>
-  <div class="whoami">
-    <label for="analyst">Signed in as</label><br>
-    <input id="analyst" placeholder="your name" autocomplete="off"
-           oninput="rememberAnalyst()">
-    <div class="sub" id="who-note">Required — every action is recorded against a name.</div>
+  <div class="headctl">
+    <div class="whoami">
+      <label for="analyst">Signed in as</label><br>
+      <input id="analyst" placeholder="your name" autocomplete="off"
+             oninput="rememberAnalyst()">
+      <div class="sub" id="who-note">Required — every action is recorded against a name.</div>
+    </div>
+    <button id="theme-toggle" onclick="toggleTheme()" title="Switch theme"
+            aria-label="Switch between light and dark theme">
+      <svg class="sun" viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="4.5"></circle>
+        <path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3
+                 M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"></path>
+      </svg>
+      <svg class="moon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a6.8 6.8 0 0 0 10.5 10.5z"></path>
+      </svg>
+    </button>
   </div>
 </header>
 
@@ -203,6 +249,26 @@ const when = (ts) => ts ? String(ts).replace("T", " ").slice(0, 16) : "—";
 // What the dialog is currently showing. Actions re-render from this rather than
 // re-deriving what the user clicked three interactions ago.
 let current = { kase: null, entity: null };
+
+// ---------------------------------------------------------------------- theme
+// Every color token in this page is defined for BOTH themes explicitly (see the
+// :root and :root[data-theme="dark"] blocks) so switching can never land on an
+// unstyled or low-contrast combination -- there is no partial theme state to
+// fall into. The toggle only decides WHICH complete set applies.
+function effectiveTheme() {
+  const explicit = localStorage.getItem("launderlab.theme");
+  if (explicit === "light" || explicit === "dark") return explicit;
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+function applyTheme() {
+  const theme = effectiveTheme();
+  document.documentElement.setAttribute("data-theme", theme);
+  document.getElementById("theme-toggle").classList.toggle("is-dark", theme === "dark");
+}
+function toggleTheme() {
+  localStorage.setItem("launderlab.theme", effectiveTheme() === "dark" ? "light" : "dark");
+  applyTheme();
+}
 
 // -------------------------------------------------------------------- identity
 // The case store refuses anonymous mutations and the API refuses to invent a
@@ -728,6 +794,14 @@ async function openAccount(accountId) {
 }
 
 // ------------------------------------------------------------------- start-up
+applyTheme();
+// No explicit choice stored: keep following the OS live, so a mid-session OS
+// theme change doesn't leave the toggle icon (set once, above) out of sync
+// with the CSS (which is already OS-reactive via the media query).
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+  if (!localStorage.getItem("launderlab.theme")) applyTheme();
+});
+
 document.getElementById("analyst").value =
   localStorage.getItem("launderlab.analyst") || "";
 rememberAnalyst();
